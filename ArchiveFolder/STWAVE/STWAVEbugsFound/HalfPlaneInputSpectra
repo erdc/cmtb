@@ -1,0 +1,5 @@
+The half plane version will not ouput the spectra along the boundary, 
+this prevents the checking of the boundary input and processing routines.
+
+Found: 2016-09-01 about
+today: 2016-10-27

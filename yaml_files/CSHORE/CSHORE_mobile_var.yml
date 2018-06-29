@@ -1,0 +1,336 @@
+# CSHORE template
+
+_variables: ['time', 'xFRF', 'aveE', 'stdE', 'aveN', 'stdN', 'waveHs', 'waveMeanDirection', 'waterLevel', 'stdWaterLevel', 'setup', 'runup2perc', 'runupMean', 'qbx', 'qsx', 'qby', 'qsy', 'probabilitySuspension', 'probabilityMovement', 'suspendedSedVolume', 'bottomElevation', 'latitude', 'longitude', 'surveyNumber', 'profileNumber', 'bathymetryDate', 'yFRF']
+_attributes: ['notes']
+_dimensions: ['time', 'xFRF']
+
+
+time:
+    name: 'time'
+    units: 'seconds since 1970-01-01 00:00:00'
+    standard_name: ''
+    long_name: 'UTC Model Time'
+    data_type: 'f8'
+    dim: ['time']
+    calendar: 'gregorian'
+    fill_value: '-999.99'
+
+xFRF:
+    name: 'xFRF'
+    units: 'm'
+    standard_name: ''
+    long_name: 'Cross-shore position in m'
+    data_type: 'f8'
+    dim: ['xFRF']
+    fill_value: '-999.99'
+    short_name: 'xFRF'
+    coordinates: 'xFRF yFRF'
+    description: 'Cross-shore position of the CMTB CSHORE model nodes in FRF coordinates (xFRF)'
+
+
+# hydro stuff
+aveE:
+    name: 'aveE'
+    units: 'm/s'
+    standard_name: ''
+    long_name: 'Depth averaged eastward current'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999.99'
+    short_name: 'Mean Eastward Current'
+    coordinates: 'xFRF yFRF'
+    description: 'Depth averaged eastward current at each node along the Modeled Transect from CMTB CSHORE model run'
+
+stdE:
+    name: 'stdE'
+    units: 'm/s'
+    standard_name: ''
+    long_name: 'Standard deviation of the depth averaged eastward current'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999.99'
+    short_name: 'Standard Deviation of Eastward Current'
+    coordinates: 'xFRF yFRF'
+    description: 'Standard deviation of the depth averaged eastward current at each node along the Modeled Transect from CMTB CSHORE model run'
+
+aveN:
+    name: 'aveN'
+    units: 'm/s'
+    standard_name: ''
+    long_name: 'Depth averaged northward current'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999.99'
+    short_name: 'Mean Northward Current'
+    coordinates: 'xFRF yFRF'
+    description: 'Depth averaged northward current at each node along the Modeled Transect from CMTB CSHORE model run'
+
+stdN:
+    name: 'stdN'
+    units: 'm/s'
+    standard_name: ''
+    long_name: 'Standard deviation of the depth averaged northward current'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999.99'
+    short_name: 'Standard Deviation of Northward Current'
+    coordinates: 'xFRF yFRF'
+    description: 'Standard deviation of the depth averaged northward current at each node along the Modeled Transect from CMTB CSHORE model run'
+
+waveHs:
+    name: 'waveHs'
+    units: 'm'
+    standard_name: ''
+    long_name: 'Significant Wave Height'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999.99'
+    short_name: 'Wave Height'
+    coordinates: 'xFRF yFRF'
+    description: 'Significant Wave Height across the Modeled Transect from CMTB CSHORE model run'
+
+waveMeanDirection:
+    name: 'waveMeanDirection'
+    units: 'Degrees'
+    standard_name: ''
+    long_name: 'Mean Wave Direction measured from true north'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999.99'
+    short_name: 'Mean Direction'
+    coordinates: 'xFRF yFRF'
+    description: 'Mean wave Direction along the Modeled Transect from CMTB CSHORE model run'
+
+waterLevel:
+    name: 'waterLevel'
+    units: 'm'
+    standard_name: ''
+    long_name: 'mean water surface elevation'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999.99'
+    short_name: 'mwl'
+    coordinates: 'xFRF yFRF'
+    description: 'Mean water surface elevation along the Modeled Transect from CMTB CSHORE model run'
+
+stdWaterLevel:
+    name: 'stdWaterLevel'
+    units: 'm'
+    standard_name: ''
+    long_name: 'standard deviation of the water surface elevation'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999.99'
+    short_name: 'stdWaterLevel'
+    coordinates: 'xFRF yFRF'
+    description: 'Standard deviation of the water surface elevation along the Modeled Transect from CMTB CSHORE model run.  The wave heights are computed from this in CSHORE!'
+
+setup:
+    name: 'setup'
+    units: 'm'
+    standard_name: ''
+    long_name: 'wave setup/setdown'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999.99'
+    short_name: 'setup'
+    coordinates: 'xFRF yFRF'
+    description: 'Wave setup/setdown along the Modeled Transect from CMTB CSHORE model run'
+
+runup2perc:
+    name: 'runup2perc'
+    units: 'm'
+    standard_name: ''
+    long_name: '2 percent exceedence runup elevation'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999.99'
+    short_name: 'runup2perc'
+    coordinates: ''
+    description: '2 percent exceedence runup elevation from the CMTB CSHORE model run'
+
+runupMean:
+    name: 'runupMean'
+    units: 'm'
+    standard_name: ''
+    long_name: 'mean runup elevation'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999.99'
+    short_name: 'runupMean'
+    coordinates: ''
+    description: 'Mean runup elevation from the CMTB CSHORE model run'
+
+
+#sediment stuff
+qbx:
+    name: 'qbx'
+    units: 'm2/s'
+    standard_name: ''
+    long_name: 'cross-shore bedload sediment transport rate'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999.99'
+    short_name: 'qbx'
+    coordinates: 'xFRF yFRF'
+    description: 'Cross-shore bedload sediment transport rate along the Modeled Transect from CMTB CSHORE model run'
+
+qsx:
+    name: 'qsx'
+    units: 'm2/s'
+    standard_name: ''
+    long_name: 'cross-shore suspended sediment transport rate'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999.99'
+    short_name: 'qsx'
+    coordinates: 'xFRF yFRF'
+    description: 'Cross-shore suspended sediment transport rate along the Modeled Transect from CMTB CSHORE model run'
+
+qby:
+    name: 'qby'
+    units: 'm2/s'
+    standard_name: ''
+    long_name: 'along-shore bedload sediment transport rate'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999.99'
+    short_name: 'qby'
+    coordinates: 'xFRF yFRF'
+    description: 'Along-shore bedload sediment transport rate along the Modeled Transect from CMTB CSHORE model run'
+
+qsy:
+    name: 'qsy'
+    units: 'm2/s'
+    standard_name: ''
+    long_name: 'along-shore suspended sediment transport rate'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999.99'
+    short_name: 'qsy'
+    coordinates: 'xFRF yFRF'
+    description: 'Along-shore suspended sediment transport rate along the Modeled Transect from CMTB CSHORE model run'
+
+probabilitySuspension:
+    name: 'probabilitySuspension'
+    units: ''
+    standard_name: ''
+    long_name: 'probability of sediment suspension (0-1)'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999.99'
+    short_name: 'ps'
+    coordinates: 'xFRF yFRF'
+    description: 'Probability of sediment suspension (0-1) along the Modeled Transect from CMTB CSHORE model run'
+
+probabilityMovement:
+    name: 'probabilityMovement'
+    units: ''
+    standard_name: ''
+    long_name: 'probability of sediment movement (0-1)'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999.99'
+    short_name: 'pb'
+    coordinates: 'xFRF yFRF'
+    description: 'Probability of sediment movement (0-1) along the Modeled Transect from CMTB CSHORE model run'
+
+suspendedSedVolume:
+    name: 'suspendedSedVolume'
+    units: 'm3/m2'
+    standard_name: ''
+    long_name: 'suspended sediment volume per unit horizontal bottom area'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999.99'
+    short_name: 'vs'
+    coordinates: 'xFRF yFRF'
+    description: 'Suspended sedimet volume per unti horizontal bottom area along the Modeled Transect from CMTB CSHORE model run'
+
+
+# morpho stuff
+bottomElevation:
+    name: 'bottomElevation'
+    units: 'm'
+    standard_name: ''
+    long_name: 'bed elevation for the model bathymetry'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999.99'
+    short_name: 'bathy'
+    coordinates: 'xFRF yFRF'
+    description: 'Bottom elevation for the CSHORE model bathymetry at each time-step'
+
+
+# extra stuff
+latitude:
+    name: 'latitude'
+    units: 'Degrees'
+    standard_name: ''
+    long_name: 'Latitude of each node in decimal degrees'
+    data_type: 'f8'
+    dim: ['xFRF']
+    fill_value: '-999.99'
+    short_name: 'lat'
+    coordinates: 'xFRF yFRF'
+    description: 'Latitude of the CMTB CSHORE model nodes in decimal degrees'
+
+longitude:
+    name: 'longitude'
+    units: 'Degrees'
+    standard_name: ''
+    long_name: 'Longitude of each node in decimal degrees'
+    data_type: 'f8'
+    dim: ['xFRF']
+    fill_value: '-999.99'
+    short_name: 'lon'
+    coordinates: 'xFRF yFRF'
+    description: 'Longitude of the CMTB CSHORE model nodes in decimal degrees'
+
+surveyNumber:
+    name: 'surveyNumber'
+    units: ''
+    standard_name: ''
+    long_name: 'The survey number of the initial bathymetry'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999.99'
+    short_name: 'surveyNum'
+    coordinates: ''
+    description: 'The survey number of the bathymetric survey used to initialize the model'
+
+profileNumber:
+    name: 'profileNumber'
+    units: ''
+    standard_name: ''
+    long_name: 'The profile number of the initial bathymetry'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999.99'
+    short_name: 'profileNum'
+    coordinates: ''
+    description: 'The profile number of the bathymetric survey used to initialize the model'
+
+bathymetryDate:
+    name: 'bathymetryDate'
+    units: 'seconds since 1970-01-01 00:00:00'
+    standard_name: ''
+    long_name: 'The date the survey bathymetry used to inialize the model was taken'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999.99'
+    short_name: 'bathyDate'
+    coordinates: ''
+    description: 'This marks when the bathymetry was measured if done by a traditional survey technique'
+
+yFRF:
+    name: 'yFRF'
+    units: 'm'
+    standard_name: ''
+    long_name: 'The yFRF position the transit'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999.99'
+    short_name: 'yFRF'
+    coordinates: 'xFRF yFRF'
+    description: 'The yFRF position of the BC used in the model (and therefore the entire transit)'

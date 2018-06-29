@@ -1,0 +1,123 @@
+# STWAVE_SIM_FILE
+# written from SMS 12.2.9 (64-bit)
+#
+#
+##############################################
+#
+# Standard Input Section
+#
+&std_parms
+  iplane = 1,
+  iprp = 0,
+  icur = 0,
+  ibreak = 0,
+  irs = 0,
+  nselct = 0,
+  nnest = 0,
+  nstations = 0,
+  ibnd = 0,
+  ifric = 0,
+  idep_opt = 0,
+  isurge = 0,
+  iwind = 0,
+  i_bc1 = 0,
+  i_bc2 = 0,
+  i_bc3 = 0,
+  i_bc4 = 0,
+  iice = 0
+/
+#
+# Runtime Parameters Section
+#
+&run_parms
+  idd_spec_type = -2,
+  numsteps = 0,
+  n_grd_part_i = 1,
+  n_grd_part_j = 1,
+  n_init_iters = 20,
+  init_iters_stop_value = 0.1,
+  init_iters_stop_percent = 100.0,
+  n_final_iters = 20,
+  final_iters_stop_value = 0.1,
+  final_iters_stop_percent = 99.8
+/
+#
+# Spatial Grid Parameters Section
+#
+&spatial_grid_parms
+  coord_sys = 'STATEPLANE',
+  spzone = 3200,
+  x0 = 910161.182325,
+  y0 = 300875.532373,
+  azimuth = 200.0,
+  dx = 50.0,
+  dy = 50.0,
+  n_cell_i = 342,
+  n_cell_j = 773
+/
+#
+# Input Files Section
+#
+&input_files
+  DEP = "Regional Grid Domain Grid.dep",
+  SPEC = "Regional Grid Domain Grid.eng",
+  io_type_dep = 1,
+  io_type_surge = 1,
+  io_type_wind = 1,
+  io_type_spec = 1,
+  io_type_fric = 1,
+  io_type_ice = 1
+/
+#
+# Output Files Section
+#
+&output_files
+  WAVE = "Regional Grid Domain Grid.wave.out",
+  OBSE = "Regional Grid Domain Grid.obse.out",
+  BREAK = "Regional Grid Domain Grid.break.out",
+  RADS = "Regional Grid Domain Grid.rads.out",
+  SELH = "Regional Grid Domain Grid.selh.out",
+  STATION = "Regional Grid Domain Grid.station.out",
+  NEST = "Regional Grid Domain Grid.nest.out",
+  LOGS = "Regional Grid Domain Grid.log.out",
+  TP = "Regional Grid Domain Grid.Tp.out",
+  XMDF_SPATIAL = "Regional Grid Domain Grid.spatial.out.h5",
+  io_type_tp = 2,
+  io_type_nest = 1,
+  io_type_selh = 1,
+  io_type_rads = 0,
+  io_type_break = 0,
+  io_type_obse = 1,
+  io_type_wave = 2,
+  io_type_station = 1
+/
+#
+# Time Related Parameters
+#
+&time_parms
+  i_time_inc = 1,
+  i_time_inc_units = hh,
+#
+# Constant Boundary Spectrum Information
+#
+&const_spec
+  nfreq = 30,
+  na = 72,
+  f0 = 0.04,
+  df_const = 0.01
+/
+#
+# Snap IDDs
+#
+@snap_idds
+/
+#
+# Spatially Constant Winds
+#
+@const_wind
+/
+#
+# Spatially Constant Water Level Adjustment
+#
+@const_surge
+/

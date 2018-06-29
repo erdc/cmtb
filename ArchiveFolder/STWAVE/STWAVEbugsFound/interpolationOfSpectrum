@@ -1,0 +1,6 @@
+a bug was found months ago that was only in halfplane that caused the spectra on the nested input 
+to only initiate off of one of the 3 nested spectral inputs.  this caused an uneven wave field 
+in the along shore, making waves from one meter on north side to 0 meters on south side... weird
+things happend:
+
+today: 10/27/16

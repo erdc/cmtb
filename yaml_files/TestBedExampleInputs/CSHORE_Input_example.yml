@@ -1,0 +1,29 @@
+# # # # # # # # # # # #
+# Data control        #
+# # # # # # # # # # # #
+THREDDS: 'FRF'    # CHL or FRF  OPTIONAL, defaults to FRF
+bathyLoc: 'integrated_bathy' # bathymetry source. OPTIONAL, defaults to integrated_bathy
+########################
+#simulations parameters#
+########################
+startTime: '2015-11-17T00:00:00Z'   # project start time, REQUIRED
+endTime: '2015-12-31T00:00:00Z'     # project end time, REQUIRED
+version_prefix: 'MOBILE_RESET'        # which version do we want today, REQUIRED
+profileNumber: 960 # alongshore position of your cross-shore transect for the model, in m yFRF - OPTIONAL: default is 960
+simulationDuration: 24     # duration in hours - size of individual simulations - OPTIONAL: default is 24
+########################
+# path stuff           #
+########################
+modelExecutable: 'cmtb/bin/cshore.out'     # path to the model   REQUIRED
+workingDirectory: '/data'      # REQUIRED - this is the location where the input and output text files are saved.
+netCDFdir: '/thredds_data'   # parent directory for where the netCDF files go. OPTIONAL: will default to home/[whoami]/thredds_data
+logfileLoc:  'cmtb/data'                # location where we will be storing the logfiles.  will default to workingDir if not specified. OPTIONAL
+#########################
+# testbed run control   #
+#########################
+# these are flags to control how the simulations are started and run
+pFlag: True                            # OPTIONAL: turn plotting on, defaults to false
+generateFlag: True                     # OPTIONAL: generate simulation input files (go get data, process, and write files). default is True
+runFlag: True                          # OPTIONAL: run the simulation, default is True
+analyzeFlag: True                      # OPTIONAL: post process simulations (read files, post process data, make netCDF files, plot if desired). default is True
+

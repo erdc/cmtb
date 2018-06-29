@@ -1,0 +1,194 @@
+# Spatial WAVE TEMPLATE
+_variables: ['time', 'xFRF', 'yFRF', 'longitude', 'latitude', 'station_name', 'waveHs', 'waveTm', 'waveDm', 'waveTp', 'bathymetry', 'xRadGrad', 'yRadGrad', 'dissipation', 'bathymetryDate', 'qcFlags']
+_attributes: ['notes']
+_dimensions: ['time', 'station_name_length', 'in_type', 'X_shore', 'Y_shore']
+
+time:
+    name: 'time'
+    units: 'seconds since 1970-01-01 00:00:00'
+    standard_name: ''
+    long_name: 'UTC Model Time'
+    data_type: 'f8'
+    dim: ['time']
+    calendar: 'gregorian'
+    fill_value: '-999.99'
+
+station_name:
+    name: 'station_name'
+    units: ''
+    long_name: station name
+    cf_role: timeseries_id
+    short_name: station_name
+    data_type: 'S1'
+    dim: ['station_name_length']
+
+xFRF:
+    name: 'xFRF'
+    units: 'm'
+    standard_name: ''
+    long_name: 'Significant Wave Height'
+    data_type: 'f8'
+    dim: ['X_shore']
+    fill_value: '-999.99'
+    short_name: 'Wave Height'
+    coordinates: 'lat lon'
+    description: 'Significant Wave Height across the Modeled Domain from CMTB STWAVE model run'
+    least_significant_digit: 2
+
+yFRF:
+    name: 'yFRF'
+    units: 'm'
+    standard_name: ''
+    long_name: 'Significant Wave Height'
+    data_type: 'f8'
+    dim: ['Y_shore']
+    fill_value: '-999.99'
+    short_name: 'Wave Height'
+    coordinates: 'lat lon'
+    description: 'Significant Wave Height across the Modeled Domain from CMTB STWAVE model run'
+
+longitude:
+    name: 'longitude'
+    units: 'm'
+    standard_name: ''
+    long_name: 'Significant Wave Height'
+    data_type: 'f8'
+    dim: ['Y_shore','X_shore']
+    fill_value: '-999.99'
+    short_name: 'lon'
+    coordinates: 'lat lon'
+
+latitude:
+    name: 'latitude'
+    units: 'm'
+    standard_name: ''
+    long_name: 'latitude'
+    data_type: 'f8'
+    dim: [ 'Y_shore', 'X_shore']
+    fill_value: '-999.99'
+    short_name: 'lat'
+    coordinates: 'lat lon'
+
+waveHs:
+    name: 'waveHs'
+    units: 'm'
+    standard_name: ''
+    long_name: 'Significant Wave Height'
+    data_type: 'f8'
+    dim: ['time', 'Y_shore', 'X_shore']
+    fill_value: '-999.99'
+    short_name: 'Wave Height'
+    coordinates: 'lat lon'
+    description: 'Significant Wave Height across the Modeled Domain from CMTB STWAVE model run'
+    
+waveTm:
+    name: 'waveTm'
+    units: 's'
+    standard_name: ''
+    long_name: 'Mean Wave Period'
+    data_type: 'f8'
+    dim: ['time', 'Y_shore', 'X_shore']
+    fill_value: '-999.99'
+    short_name: 'Mean Period'
+    coordinates: 'northing easting'
+    description: 'Mean Wave Period across the Modeled Domain from CMTB STWAVE model run'
+    least_significant_digit: 2
+
+waveDm:
+    name: 'waveDm'
+    units: 'Degrees'
+    standard_name: ''
+    long_name: 'Mean Wave Direction measured from true north'
+    data_type: 'f8'
+    dim: ['time', 'Y_shore', 'X_shore']
+    fill_value: '-999.99'
+    short_name: 'Mean Direction'
+    coordinates: 'northing easting'
+    description: 'Mean wave Direction across the Modeled Domain from CMTB STWAVE model run'
+    least_significant_digit: 2
+
+waveTp:
+    name: 'waveTp'
+    units: 'seconds'
+    standard_name: ''
+    long_name: 'Peak Wave Period'
+    data_type: 'f8'
+    dim: ['time', 'Y_shore', 'X_shore']
+    fill_value: '-999.99'
+    short_name: 'Tp'
+    coordinates: 'lat lon'
+    description: 'Peak Wave Period across the Modeled Domain from CMTB STWAVE model run'
+    least_significant_digit: 2
+
+bathymetry:
+    name: 'bathymetry'
+    units: 'm'
+    standard_name: ''
+    long_name: 'Model domain bathymetry'
+    data_type: 'f8'
+    dim: ['time', 'Y_shore', 'X_shore']
+    fill_value: '-999.99'
+    short_name: 'bathy'
+    coordinates: 'Xshore Yshore'
+    description: 'Modeled Bathymetry for CMTB run measured from NAVD88) with positive values down.'
+    least_significant_digit: 2
+
+xRadGrad:
+    name: 'xRadGrad'
+    units: 'm'
+    long_name: 'Radiation stress Gradients'
+    data_type: 'f8'
+    dim: ['time', 'Y_shore', 'X_shore']
+    fill_value: '-999.99'
+    short_name: 'Radiation grads'
+    coordinates: 'Yshore xshore'
+    description: 'cross-shore radiation stress gradients'
+    least_significant_digit: 2
+
+yRadGrad:
+    name: 'yRadGrad'
+    units: 'm'
+    long_name: 'Radiation stress Gradients'
+    data_type: 'f8'
+    dim: ['time', 'Y_shore', 'X_shore']
+    fill_value: '-999.99'
+    short_name: 'Radiation grads'
+    coordinates: 'Yshore xshore'
+    description: 'cross-shore radiation stress gradients'
+    least_significant_digit: 2
+
+dissipation:
+    name: 'dissipation'
+    units: 'm'
+    long_name: 'wave breaking dissipation'
+    data_type: 'f8'
+    dim: ['time', 'Y_shore', 'X_shore']
+    fill_value: '-999.99'
+    short_name: 'Dissipation'
+    coordinates: 'Yshore Xshore'
+    description: 'Energy dissipation due to wave breaking.  When there is a value above 0 waves are breaking'
+    least_significant_digit: 2
+
+bathymetryDate:
+    name: 'bathymetryDate'
+    units: 'seconds since 1970-01-01 00:00:00'
+    standard_name: ''
+    long_name: 'bathymetry Creation or measurement date'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999.99'
+    short_name: 'bathyDate'
+    coordinates: ''
+    description: 'This marks when the bathymetry was measured if done by a traditional survey technique or when it was generated if done by bathymetry inversion tecnique'
+
+flags: 
+    name: 'qcFlag'
+    units: ''
+    standard_name: ''
+    long_name: 'Quality Control Flag Value'
+    data_type: 'u2'
+    dim: ['time', 'input_types_length']
+    fill_value: '-999.99'
+    short_name: 'qc Flag'
+    coordinates: 'lat lon'
+    description: 'These flags are markers for the quality of input data into the model.  There are 3 main flags in place currently:\n 0: Good Data\n1:Linearly Interpolated Data - these data are interpolated due to missing or poorly flagged input data\n2: held as place holder\n3: held as place holder\n4: held as place holder 5: No data\n There are 4 categories for input data and associated flags to the STWAVE model.  they are ordered as wave, wind, waterlevel and currents'

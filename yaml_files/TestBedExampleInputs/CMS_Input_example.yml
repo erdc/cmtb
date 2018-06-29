@@ -1,0 +1,31 @@
+# # # # # # # # # # # #
+# Data control        #
+# # # # # # # # # # # #
+THREDDS: FRF  # CHL or FRF                    OPTIONAL: defaults to FRF
+bathyLoc: integrated_bathy      # bathymetry source.  OPTIONAL: defaults to FRF
+########################
+#simulations parameters#
+########################
+startTime: '2015-11-01T00:00:00Z'           # project start time
+endTime: '2016-01-01T00:00:00Z'             # project End time
+simulationDuration: 24  # duration in hours            how frequently to get new data, size of individual simulations
+version_prefix: HP       # controls switched with int the code
+gridSIM: 'grids/CMS/CMS-Wave-FRF.sim'  # base grid sim               REQUIRED
+gridDEP: 'grids/CMS/CMS-Wave-FRF.dep'  # base grid dep               REQUIRED
+modelExecutable: /home/spike/cmtb/bin/CMS      # path to the model            REQUIRED
+########################
+# path stuff           #
+########################
+# this is the directory where simulation files and QA/QC plots are made and existing architecture takes over
+workingDirectory: '/home/spike/cmtb/data'                                  # REQUIRED
+modelExecutable: '/home/spike/cmtb/bin/CMS_wave_200118'      # path to the model            REQUIRED
+# this is the base directory where netCDF files are output to
+netCDFdir: /home/spike/thredds_data/waveModels                                   #optional will default to home/[whoami]/thredds_data -- this needs /
+#########################
+# testbed run control   #
+#########################
+# these are flags to control how the simulations are started and run
+pFlag: True                            # turn plotting on
+generateFlag: True                    # generate simulation input files (go get data, process, and write files)
+runFlag: True                          # run the simulation
+analyzeFlag: True                      # post process simulations (read files, post process data, make netCDF files, plot if desired)

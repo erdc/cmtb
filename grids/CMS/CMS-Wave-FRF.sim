@@ -1,0 +1,19 @@
+CMS-WAVE    914900.0000    287750.0000       200.0000
+DEP       FRF_InitialCMSsetup__CMS-Wave-FRF-extent.dep
+OPTS      FRF_InitialCMSsetup__CMS-Wave-FRF-extent.std
+SPEC      FRF_InitialCMSsetup__CMS-Wave-FRF-extent.spec
+OBSE      FRF_InitialCMSsetup__CMS-Wave-FRF-extent.obs
+NEST      FRF_InitialCMSsetup__CMS-Wave-FRF-extent.nst
+BREAK     FRF_InitialCMSsetup__CMS-Wave-FRF-extent.brk
+SPGEN     FRF_InitialCMSsetup__CMS-Wave-FRF-extent.txt
+RADS      FRF_InitialCMSsetup__CMS-Wave-FRF-extent.rad
+STRUCT    FRF_InitialCMSsetup__CMS-Wave-FRF-extent.struct
+SELHTS    FRF_InitialCMSsetup__CMS-Wave-FRF-extent.out
+ETA       FRF_InitialCMSsetup__CMS-Wave-FRF-extent.eta
+FRIC      FRF_InitialCMSsetup__CMS-Wave-FRF-extent.fric
+FREF      FRF_InitialCMSsetup__CMS-Wave-FRF-extent.fref
+BREF      FRF_InitialCMSsetup__CMS-Wave-FRF-extent.bref
+MUD       FRF_InitialCMSsetup__CMS-Wave-FRF-extent.mud
+WIND      FRF_InitialCMSsetup__CMS-Wave-FRF-extent.wind
+WAVE      FRF_InitialCMSsetup__CMS-Wave-FRF-extent.wav
+CURR      FRF_InitialCMSsetup__CMS-Wave-FRF-extent.cur
