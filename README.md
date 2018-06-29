@@ -26,24 +26,25 @@ The test bed is established at the USACE CHL Field REsearch Facility in Duck, No
 ### How do I get set up? ###
 
 * Read the API
-* Reach out to Spicer Bak about new model inclusion 
-* propose study idea 
+* Reach out about including a new model (create an issue)
+
 
 #### Python Packages Required
 
-  * Dependencies (community Developed -submodules)
-    - sblib  - utility package, including wave and geoprocessing 
-    - gridtools - self explanitory
-    - prepdata - this holds 
+  * submodule dependencies (community Developed)
+    - testbedutils  - utility package, including wave and geoprocessing 
+    - prepdata - this holds model io packages and data preparation routines
     - getdatatestbed - operates - built with numpy 1.13 (at least)
   
-  * python packages, that can be installed by
+  * python packages required
+    - netCDF4
+    - pyproj
+    - utm
+    These can be installed by
     - pip install <package>
     - conda install <package>
-    
-    * netCDF4, pyproj, utm
   
-  - there's likely more, please add as you find!!  :-[]
+  - there's likely more, please add (or let me know) as you find!!  :-[]
   
 ### What is the structure?
 
