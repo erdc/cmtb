@@ -1,9 +1,9 @@
 [submodule "prepdata"]
 	path = prepdata
-	url = git@github.com:erdc/prepdata.git
+	url = git@github.com:chuanli2/prepdata.git
 [submodule "getdatatestbed"]
 	path = getdatatestbed
-	url = git@github.com:erdc/getdatatestbed.git
+	url = git@github.com:chuanli2/getdatatestbed.git
 [submodule "testbedutils"]
 	path = testbedutils
-	url = git@github.com:erdc/testbedutils.git
+	url = git@github.com:chuanli2/testbedutils.git
