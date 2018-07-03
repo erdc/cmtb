@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.dates as mdates
 import matplotlib.image as image
 import os, math
+from scipy.interpolate import interpn, RectBivariateSpline
 from getdatatestbed.getDataFRF import getObs
 from testbedutils import sblib as sb
 from testbedutils.sblib import statsBryant
@@ -138,7 +139,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     plt.savefig(fnameOut)
     plt.close()
 
-def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, **kwargs):
+def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, model='STWAVE', **kwargs):
     """This function plots a 2D field of data
 
     Args:
@@ -294,9 +295,7 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, **k
             y_Duck = (fieldpacket['ycoord'][-469])
             x_Duck = (fieldpacket['xcoord'][8])  # [-334])
             L_Duck = 'Town of Duck'
-            space = 10
         elif dxdy == None:  # this is the variable spaced grid from CMS
-            space = 10  # sub sample to every 10th point for quiver
 
             fgsize = (8,8)
             # corrolla beach Access
@@ -315,7 +314,6 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, **k
             # NOTE Xcoord and YCOORD are grid coords not plot coords
             nested = False  # this changes to plot the nearshore wave gauges
     elif nested == True:
-        space = int(3 * np.median(np.diff(xcoord)))
         if dxdy == 5:
             L_26m = '' # don't plot 26m
             L_17m = ''
@@ -345,9 +343,32 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, **k
         if 'directions' in kwargs:
             Us = -np.rad2deg(np.cos(np.deg2rad(kwargs['directions'][tt])))
             Vs = -np.rad2deg(np.sin(np.deg2rad(kwargs['directions'][tt])))
-            locsX, locsY = np.meshgrid(xcoord, ycoord)
-            Q = plt.quiver(locsX[::space, ::space], locsY[::space, ::space],
-                           Us[::space,::space], Vs[::space,::space], pivot='mid',  angles='xy')
+            xp = xcoord
+            yp = ycoord
+            if model == 'CMS':
+                if nested == False:
+                    nx = 20
+                    ny = 25
+                else:
+                    nx = 14
+                    ny = 25
+                    xInd = np.logical_and(xcoord > 0, xcoord < 1000)
+                    yInd = np.logical_and(ycoord > -200, ycoord < 1600)
+                    xIndGrd, yIndGrd = np.meshgrid(xInd, yInd)
+                    indGrd = np.logical_and(xIndGrd, yIndGrd)
+                    xp= xcoord[xInd]
+                    yp = ycoord[yInd]
+                    Us = Us[indGrd].reshape(yp.size, xp.size)
+                    Vs = Vs[indGrd].reshape(yp.size, xp.size)
+            elif model == 'STWAVE':
+                nx = 14
+                ny = 25
+            x = np.linspace(xp[0], xp[-1], nx)
+            y = np.linspace(yp[0], yp[-1], ny)
+            Us = RectBivariateSpline(yp, xp, Us)(y, x)
+            Vs = RectBivariateSpline(yp, xp, Vs)(y, x)
+            locsX, locsY = np.meshgrid(x, y)
+            Q = plt.quiver(locsX, locsY, Us, Vs, pivot='mid', angles='xy')
         ## write out text labels on plot
         if nested == True:
             ptStr = 'or'
@@ -378,6 +399,8 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, **k
             plt.text(x_pier[1], y_pier[1], L_pier, fontsize=12, va='bottom', ha='right',
                      color='black', rotation=315, weight='bold')
             cont_labels = [0, 2, 4, 6, 8, 10]  # labels for contours
+            plt.xlim(0, 1000)
+            plt.ylim(-200, 1600)
         elif nested == False:
             plt.plot(x_CBaccess, y_CBaccess, 'oy', ms=10)
             plt.text(x_CBaccess, y_CBaccess, L_CBaccess, ha='right', va='bottom', fontsize=12,
@@ -409,7 +432,7 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, **k
             cbar = plt.colorbar(cont)
         cbar.set_ticks(cbarlabels)
         cbar.set_label(clabel_text, fontsize=12)
-        con = plt.contour(xcoord, ycoord, contourpacket['bathy'][0], levels=cont_labels, colors='k')
+        con = plt.contour(xcoord, ycoord, contourpacket['bathymetry'][tt], levels=cont_labels, colors='k')
         plt.clabel(con, inline=True, fmt='%d')
 
         try:
@@ -842,16 +865,16 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
     # Alt05
     f, = ax1.plot(Alt05['xFRF'] * np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'k-',
-                  label='Gage Data')
-    g, = ax1.plot(Alt05['xFRF'] * np.ones(1), temp05, 'k_', label='Gage Data')
+                  label='Gauge Data')
+    g, = ax1.plot(Alt05['xFRF'] * np.ones(1), temp05, 'k_', label='Gauge Data')
     # Alt04
     h, = ax1.plot(Alt04['xFRF'] * np.ones(2), [temp04 - np.std(Alt04['zb']), temp04 + np.std(Alt04['zb'])], 'k-',
-                  label='Gage Data')
-    i, = ax1.plot(Alt04['xFRF'] * np.ones(1), temp04, 'k_', label='Gage Data')
+                  label='Gauge Data')
+    i, = ax1.plot(Alt04['xFRF'] * np.ones(1), temp04, 'k_', label='Gauge Data')
     # Alt03
     j, = ax1.plot(Alt03['xFRF'] * np.ones(2), [temp03 - np.std(Alt03['zb']), temp03 + np.std(Alt03['zb'])], 'k-',
-                  label='Gage Data')
-    k, = ax1.plot(Alt03['xFRF'] * np.ones(1), temp03, 'k_', label='Gage Data')
+                  label='Gauge Data')
+    k, = ax1.plot(Alt03['xFRF'] * np.ones(1), temp03, 'k_', label='Gauge Data')
 
     ax5 = ax1.twinx()
     d, = ax5.plot(p_dict['x'], p_dict['Hs'], 'g-', label='Model $H_{s}$')
@@ -864,16 +887,16 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     temp8m = AWAC8m['Hs'][AWAC8m['plot_ind'] == 1]
     # Adopp_35
     l, = ax5.plot(Adopp_35['xFRF'] * np.ones(2), [temp35 - np.std(Adopp_35['Hs']), temp35 + np.std(Adopp_35['Hs'])],
-                  'k-', label='Gage Data')
-    m, = ax5.plot(Adopp_35['xFRF'] * np.ones(1), temp35, 'k_', label='Gage Data')
+                  'k-', label='Gauge Data')
+    m, = ax5.plot(Adopp_35['xFRF'] * np.ones(1), temp35, 'k_', label='Gauge Data')
     # AWAC6m
     n, = ax5.plot(AWAC6m['xFRF'] * np.ones(2), [temp6m - np.std(AWAC6m['Hs']), temp6m + np.std(AWAC6m['Hs'])], 'k-',
-                  label='Gage Data')
-    o, = ax5.plot(AWAC6m['xFRF'] * np.ones(1), temp6m, 'k_', label='Gage Data')
+                  label='Gauge Data')
+    o, = ax5.plot(AWAC6m['xFRF'] * np.ones(1), temp6m, 'k_', label='Gauge Data')
     # AWAC8m
     p, = ax5.plot(AWAC8m['xFRF'] * np.ones(2), [temp8m - np.std(AWAC8m['Hs']), temp8m + np.std(AWAC8m['Hs'])], 'k-',
-                  label='Gage Data')
-    q, = ax5.plot(AWAC8m['xFRF'] * np.ones(1), temp8m, 'k_', label='Gage Data')
+                  label='Gauge Data')
+    q, = ax5.plot(AWAC8m['xFRF'] * np.ones(1), temp8m, 'k_', label='Gauge Data')
 
     ax1.set_ylabel('Elevation (NAVD88) [$%s$]' % (p_dict['units']), fontsize=16)
     ax1.set_xlabel('Cross-shore Position [$%s$]' % (p_dict['units']), fontsize=16)
@@ -1086,7 +1109,7 @@ def mod_results(ofname, p_dict, obs_dict):
     temp6m = AWAC6m['Hs'][AWAC6m['plot_ind'] == 1]
     temp8m = AWAC8m['Hs'][AWAC8m['plot_ind'] == 1]
     # Adopp_35
-    ax1.plot(Adopp_35['xFRF']*np.ones(2), [temp35 - np.std(Adopp_35['Hs']), temp35 + np.std(Adopp_35['Hs'])], 'k-', label='Gage Data')
+    ax1.plot(Adopp_35['xFRF']*np.ones(2), [temp35 - np.std(Adopp_35['Hs']), temp35 + np.std(Adopp_35['Hs'])], 'k-', label='Gauge Data')
     ax1.plot(Adopp_35['xFRF']*np.ones(1), [temp35], 'k_')
     # AWAC6m
     ax1.plot(AWAC6m['xFRF']*np.ones(2), [temp6m - np.std(AWAC6m['Hs']), temp6m + np.std(AWAC6m['Hs'])], 'k-')
@@ -1179,7 +1202,7 @@ def mod_results(ofname, p_dict, obs_dict):
     temp04 = Alt04['zb'][Alt04['plot_ind'] == 1]
     temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
     # Alt05
-    ax3.plot(Alt05['xFRF']*np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'k-', label='Gage Data')
+    ax3.plot(Alt05['xFRF']*np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'k-', label='Gauge Data')
     ax3.plot(Alt05['xFRF'] * np.ones(1), [temp05], 'k_')
     # Alt04
     ax3.plot(Alt04['xFRF']*np.ones(2), [temp04 - np.std(Alt04['zb']), temp04 + np.std(Alt04['zb'])], 'k-')
@@ -1542,7 +1565,7 @@ def alt_PlotData(name, mod_time, mod_times, THREDDS='FRF'):
         alt_data = frf_Data.getALT(name)
         dict['zb'] = alt_data['bottomElev']
         dict['time'] = alt_data['time']
-        dict['name'] = alt_data['gageName']
+        dict['name'] = alt_data['stationName']
         dict['xFRF'] = round(alt_data['xFRF'])
         plot_ind = np.where(abs(dict['time'] - mod_time) == min(abs(dict['time'] - mod_time)), 1, 0)
         dict['plot_ind'] = plot_ind
@@ -1778,14 +1801,14 @@ def obs_V_mod_bathy_TN(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_lo
 
     # add altimeter data!!
     # Alt05
-    f, = ax1.plot(Alt05['xFRF'] * np.ones(2), [min(Alt05['zb']), max(Alt05['zb'])], 'k-', label='Gage Data')
-    g, = ax1.plot(Alt05['xFRF'] * np.ones(1), Alt05['zb'][Alt05['plot_ind'] == 1], 'k_', label='Gage Data')
+    f, = ax1.plot(Alt05['xFRF'] * np.ones(2), [min(Alt05['zb']), max(Alt05['zb'])], 'k-', label='Gauge Data')
+    g, = ax1.plot(Alt05['xFRF'] * np.ones(1), Alt05['zb'][Alt05['plot_ind'] == 1], 'k_', label='Gauge Data')
     # Alt04
-    h, = ax1.plot(Alt04['xFRF'] * np.ones(2), [min(Alt04['zb']), max(Alt04['zb'])], 'k-', label='Gage Data')
-    i, = ax1.plot(Alt04['xFRF'] * np.ones(1), Alt04['zb'][Alt04['plot_ind'] == 1], 'k_', label='Gage Data')
+    h, = ax1.plot(Alt04['xFRF'] * np.ones(2), [min(Alt04['zb']), max(Alt04['zb'])], 'k-', label='Gauge Data')
+    i, = ax1.plot(Alt04['xFRF'] * np.ones(1), Alt04['zb'][Alt04['plot_ind'] == 1], 'k_', label='Gauge Data')
     # Alt03
-    j, = ax1.plot(Alt03['xFRF'] * np.ones(2), [min(Alt03['zb']), max(Alt03['zb'])], 'k-', label='Gage Data')
-    k, = ax1.plot(Alt03['xFRF'] * np.ones(1), Alt03['zb'][Alt03['plot_ind'] == 1], 'k_', label='Gage Data')
+    j, = ax1.plot(Alt03['xFRF'] * np.ones(2), [min(Alt03['zb']), max(Alt03['zb'])], 'k-', label='Gauge Data')
+    k, = ax1.plot(Alt03['xFRF'] * np.ones(1), Alt03['zb'][Alt03['plot_ind'] == 1], 'k_', label='Gauge Data')
 
     ax5 = ax1.twinx()
     d, = ax5.plot(p_dict['x'], p_dict['Hs'], 'g-', label='Model $H_{s}$')
@@ -1794,14 +1817,14 @@ def obs_V_mod_bathy_TN(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_lo
 
     # add wave data!!
     # Adopp_35
-    l, = ax5.plot(Adopp_35['xFRF'] * np.ones(2), [Adopp_35['Hs'][Adopp_35['plot_ind'] == 1] - np.std(Adopp_35['Hs']), Adopp_35['Hs'][Adopp_35['plot_ind'] == 1] + np.std(Adopp_35['Hs'])], 'k-', label='Gage Data')
-    m, = ax5.plot(Adopp_35['xFRF'] * np.ones(1), Adopp_35['Hs'][Adopp_35['plot_ind'] == 1], 'k_', label='Gage Data')
+    l, = ax5.plot(Adopp_35['xFRF'] * np.ones(2), [Adopp_35['Hs'][Adopp_35['plot_ind'] == 1] - np.std(Adopp_35['Hs']), Adopp_35['Hs'][Adopp_35['plot_ind'] == 1] + np.std(Adopp_35['Hs'])], 'k-', label='Gauge Data')
+    m, = ax5.plot(Adopp_35['xFRF'] * np.ones(1), Adopp_35['Hs'][Adopp_35['plot_ind'] == 1], 'k_', label='Gauge Data')
     # AWAC6m
-    n, = ax5.plot(AWAC6m['xFRF'] * np.ones(2), [AWAC6m['Hs'][AWAC6m['plot_ind'] == 1] - np.std(AWAC6m['Hs']), AWAC6m['Hs'][AWAC6m['plot_ind'] == 1] + np.std(AWAC6m['Hs'])], 'k-', label='Gage Data')
-    o, = ax5.plot(AWAC6m['xFRF'] * np.ones(1), AWAC6m['Hs'][AWAC6m['plot_ind'] == 1], 'k_', label='Gage Data')
+    n, = ax5.plot(AWAC6m['xFRF'] * np.ones(2), [AWAC6m['Hs'][AWAC6m['plot_ind'] == 1] - np.std(AWAC6m['Hs']), AWAC6m['Hs'][AWAC6m['plot_ind'] == 1] + np.std(AWAC6m['Hs'])], 'k-', label='Gauge Data')
+    o, = ax5.plot(AWAC6m['xFRF'] * np.ones(1), AWAC6m['Hs'][AWAC6m['plot_ind'] == 1], 'k_', label='Gauge Data')
     # AWAC8m
-    p, = ax5.plot(AWAC8m['xFRF'] * np.ones(2), [AWAC8m['Hs'][AWAC8m['plot_ind'] == 1] - np.std(AWAC8m['Hs']), AWAC8m['Hs'][AWAC8m['plot_ind'] == 1] + np.std(AWAC8m['Hs'])], 'k-', label='Gage Data')
-    q, = ax5.plot(AWAC8m['xFRF'] * np.ones(1), AWAC8m['Hs'][AWAC8m['plot_ind'] == 1], 'k_', label='Gage Data')
+    p, = ax5.plot(AWAC8m['xFRF'] * np.ones(2), [AWAC8m['Hs'][AWAC8m['plot_ind'] == 1] - np.std(AWAC8m['Hs']), AWAC8m['Hs'][AWAC8m['plot_ind'] == 1] + np.std(AWAC8m['Hs'])], 'k-', label='Gauge Data')
+    q, = ax5.plot(AWAC8m['xFRF'] * np.ones(1), AWAC8m['Hs'][AWAC8m['plot_ind'] == 1], 'k_', label='Gauge Data')
 
     ax1.set_ylabel('Elevation (NAVD88) [$%s$]' % (p_dict['units']), fontsize=16)
     ax1.set_xlabel('Cross-shore Position [$%s$]' % (p_dict['units']), fontsize=16)
