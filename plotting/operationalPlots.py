@@ -856,8 +856,11 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     # get the time strings!!
     obs_date = p_dict['obs_time'].strftime('%Y-%m-%d %H:%M')
     model_date = p_dict['model_time'].strftime('%Y-%m-%d %H:%M')
-    b, = ax1.plot(p_dict['x'], p_dict['obs'], 'r-', label='Observed \n' + obs_date)
+    b, = ax1.plot(p_dict['x'], p_dict['obs'], 'r-', label='Observed (initial) \n' + obs_date)
     c, = ax1.plot(p_dict['x'], p_dict['model'], 'y-', label='Model \n' + model_date)
+    if p_dict['obs2_time'] != []:
+        obs2_date = p_dict['obs2_time'].strftime('%Y-%m-%d %H:%M')
+        r, = ax1.plot(p_dict['x'], p_dict['obs2'], 'r--', label='Observed (final) \n' + obs2_date)
 
     # add altimeter data!!
     temp05 = Alt05['zb'][Alt05['plot_ind'] == 1]
@@ -917,7 +920,9 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     ax1.yaxis.label.set_color('red')
 
     ax5.tick_params('y', colors='g')
-    ax5.set_ylim([-1.05 * max(p_dict['Hs'] + p_dict['sigma_Hs']), 1.05 * max(p_dict['Hs'] + p_dict['sigma_Hs'])])
+    # ax5.set_ylim([-1.05 * np.nanmax(p_dict['Hs'] + p_dict['sigma_Hs']), 1.05 * np.nanmax(p_dict['Hs'] + p_dict['sigma_Hs'])])
+    ylim = ax1.get_ylim()
+    ax5.set_ylim(ylim)
     ax5.set_xlim([min(dum_x), max(dum_x)])
     ax5.yaxis.label.set_color('green')
 
@@ -931,9 +936,14 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
         tick.label.set_fontsize(14)
     ax1.tick_params(labelsize=14)
     ax5.tick_params(labelsize=14)
-    p = [a, b, c, f, d, e]
-    ax1.legend(p, [p_.get_label() for p_ in p], bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=len(p),
-               borderaxespad=0., fontsize=12, handletextpad=0.05)
+    if p_dict['obs2_time'] != []:
+        p = [a, d, b, e, r, c, f]
+        ax1.legend(p, [p_.get_label() for p_ in p], bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=5,
+                borderaxespad=0., fontsize=12, handletextpad=0.05)
+    else:
+        p = [a, b, c, f, d, e]
+        ax1.legend(p, [p_.get_label() for p_ in p], bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=len(p),
+                borderaxespad=0., fontsize=12, handletextpad=0.05)
 
     # 1 to 1
     one_one = np.linspace(min_val - 0.05 * (max_val - min_val), max_val + 0.05 * (max_val - min_val), 100)
@@ -942,8 +952,12 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     if min_val < 0 and max_val > 0:
         ax2.plot(one_one, np.zeros(len(one_one)), 'k--')
         ax2.plot(np.zeros(len(one_one)), one_one, 'k--')
-    ax2.plot(p_dict['obs'], p_dict['model'], 'r*')
-    ax2.set_xlabel('Observed %s [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
+    if p_dict['obs2_time'] != []:
+        ax2.plot(p_dict['obs2'], p_dict['model'], 'r*')
+        ax2.set_xlabel('Observed %s (final) [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
+    else:
+        ax2.plot(p_dict['obs'], p_dict['model'], 'r*')
+        ax2.set_xlabel('Observed %s (initial) [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
     ax2.set_ylabel('Model %s [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
     ax2.set_xlim([min_val - 0.025 * (max_val - min_val), max_val + 0.025 * (max_val - min_val)])
     ax2.set_ylim([min_val - 0.025 * (max_val - min_val), max_val + 0.025 * (max_val - min_val)])
@@ -1019,7 +1033,7 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     fig.savefig(ofname, dpi=300)
     plt.close()
 
-def mod_results(ofname, p_dict, obs_dict):
+def mod_results(ofname, p_dict, obs_dict, ylims=None):
     """This script just lets you visualize the model outputs at a particular time-step
 
     Args:
@@ -1130,8 +1144,11 @@ def mod_results(ofname, p_dict, obs_dict):
         sf2 = 1.1
     else:
         sf2 = 0.9
-    ax1.set_ylim([sf1 * min_val, sf2 * max_val])
     ax1.set_xlim([min(dum_x), max(dum_x)])
+    if ylims is None:
+        ax1.set_ylim([sf1 * min_val, sf2 * max_val])
+    else:
+        ax1.set_ylim(ylims[0])
 
     for tick in ax1.xaxis.get_major_ticks():
         tick.label.set_fontsize(14)
@@ -1164,7 +1181,10 @@ def mod_results(ofname, p_dict, obs_dict):
         sf2 = 1.1
     else:
         sf2 = 0.9
-    ax2.set_ylim([sf1 * min_val, sf2 * max_val])
+    if ylims is None:
+        ax2.set_ylim([sf1 * min_val, sf2 * max_val])
+    else:
+        ax2.set_ylim(ylims[1])
     ax2.set_xlim([min(dum_x), max(dum_x)])
 
     for tick in ax2.xaxis.get_major_ticks():
@@ -1238,7 +1258,7 @@ def mod_results(ofname, p_dict, obs_dict):
     fig.savefig(ofname, dpi=300)
     plt.close()
 
-def als_results(ofname, p_dict, obs_dict):
+def als_results(ofname, p_dict, obs_dict, ylims=None):
     """This is just some script to visualize the alongshore current results from the model output at a particular time step
 
     Args:
@@ -1393,7 +1413,10 @@ def als_results(ofname, p_dict, obs_dict):
         sf2 = 1.1
     else:
         sf2 = 0.9
-    ax2.set_ylim([sf1 * min_val, sf2 * max_val])
+    if ylims is None:
+        ax2.set_ylim([sf1 * min_val, sf2 * max_val])
+    else:
+        ax2.set_ylim(ylims[0])
     ax2.set_xlim([min(dum_x), max(dum_x)])
     ax2.tick_params('y', colors='b')
     ax2.yaxis.label.set_color('blue')
@@ -1506,7 +1529,10 @@ def als_results(ofname, p_dict, obs_dict):
         sf2 = 1.1
     else:
         sf2 = 0.9
-    ax4.set_ylim([sf1 * min_val, sf2 * max_val])
+    if ylims is None:
+        ax4.set_ylim([sf1 * min_val, sf2 * max_val])
+    else:
+        ax4.set_ylim(ylims[1])
     ax4.set_xlim([min(dum_x), max(dum_x)])
     ax4.tick_params('y', colors='b')
     ax4.yaxis.label.set_color('blue')
@@ -1625,20 +1651,23 @@ def wave_PlotData(name, mod_time, time, THREDDS='FRF'):
 
         dict = {}
         wave_data = frf_Data.getWaveSpec(gaugenumber=name)
-        cur_data = frf_Data.getCurrents(name)
-
+        # print(wave_data['time'])
         dict['name'] = name
         dict['wave_time'] = wave_data['time']
-        dict['cur_time'] = cur_data['time']
         dict['Hs'] = wave_data['Hs']
         dict['xFRF'] = wave_data['xFRF']
         dict['plot_ind'] = np.where(abs(dict['wave_time'] - mod_time) == min(abs(dict['wave_time'] - mod_time)), 1, 0)
-        dict['plot_ind_V'] = np.where(abs(dict['cur_time'] - mod_time) == min(abs(dict['cur_time'] - mod_time)), 1, 0)
-        # rotate my velocities!!!
-        test_fun = lambda x: vectorRotation(x, theta=360 - (71.8 + (90 - 71.8) + 71.8))
-        newV = [test_fun(x) for x in zip(cur_data['aveU'], cur_data['aveV'])]
-        dict['U'] = zip(*newV)[0]
-        dict['V'] = zip(*newV)[1]
+        if name in [2, 3, 4, 5, 6, 'awac-11m', 'awac-8m', 'awac-6m', 'awac-4.5m',
+                                'adop-3.5m']:
+            cur_data = frf_Data.getCurrents(name)
+            dict['cur_time'] = cur_data['time']
+            dict['plot_ind_V'] = np.where(abs(dict['cur_time'] - mod_time) == min(abs(dict['cur_time'] - mod_time)), 1, 0)
+            # rotate my velocities!!!
+            test_fun = lambda x: vectorRotation(x, theta=360 - (71.8 + (90 - 71.8) + 71.8))
+            newV = [test_fun(x) for x in zip(cur_data['aveU'], cur_data['aveV'])]
+            dict['U'] = np.array(zip(*newV)[0])
+            dict['V'] = np.array(zip(*newV)[1])
+        
         dict['TS_toggle'] = True
 
     except:
@@ -1690,6 +1719,7 @@ def lidar_PlotData(time, THREDDS='FRF'):
         dict['yFRF'] = lidar_data_WP['yFRF']
         dict['Hs'] = lidar_data_WP['waveHsTotal']
         dict['WL'] = lidar_data_WP['waterLevel']
+        dict['TS_toggle'] = True
 
     except:
         # just make it a masked array
