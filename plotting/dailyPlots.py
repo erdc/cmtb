@@ -28,7 +28,6 @@ logo_path = '../ArchiveFolder/CHL_logo.png'
 
 # MAIN CODE
 def main():
-    start = DT.datetime.now()
 
     startTime, endTime, model, prefix, workingDirectory = getUsrInp()
     datestring = (startTime.strftime('%Y-%m-%dT%H%M%SZ') + '_' +
@@ -81,8 +80,6 @@ def main():
                                   .format(model, prefix, grid, varName, datestring))
             sb.makegif(imList, ofname)
             [os.remove(ff) for ff in imList]
-    
-    print('Total runtime = ' + str(DT.datetime.now() - start))
 
 # SUBROUTINES
 def makeFieldpacket(varName, var, isLocal):
