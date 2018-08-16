@@ -1,4 +1,4 @@
-import sys, os, glob
+import sys, os, glob, argparse
 sys.path.append('../')
 import numpy as np
 import netCDF4 as nc
@@ -10,63 +10,84 @@ from getdatatestbed import getDataFRF
 from testbedutils.sblib import timeMatch_altimeter, makegif, timeMatch
 from prepdata import prepDataLib
 
-fpath = '../../../Figures/cmtb/CSHORE'
+# PARAMETERS
+workDir = '../../../Figures/cmtb/CSHORE'
 endTime = DT.datetime.strptime('2016-05-02T00:15:00Z', '%Y-%m-%dT%H:%M:%SZ')
-version_prefix = 'MOBILE_RESET'
+prefixList = ['MOBILE_RESET']
+altStations = ['Alt05', 'Alt04', 'Alt03']
+curStations = ['adop-3.5m', 'awac-4.5', 'awac-6m', 'awac-8m']
+waveOnlyStations = ['xp100m', 'xp125m', 'xp150m', 'xp200m']
 logo_path = '../ArchiveFolder/CHL_logo.png'
 
+# MAIN CODE
 def main():
 
-    if not os.path.exists(fpath):
-        os.makedirs(fpath)
-
-    dataLoc = 'morphModels/CSHORE/{0}/{0}.ncml'.format(version_prefix)
-    ncFile, allEpoch = getDataFRF.getnc(dataLoc, 'FRF', 'getDataTestBed')
-    ind = np.argwhere(np.diff(ncFile['bathymetryDate']) > 0).squeeze() + 1
-    bathyTimes = nc.num2date(ncFile['bathymetryDate'][ind], 
+    endTime, prefixList, workDir = getUsrInp()
+    if not os.path.exists(workDir):
+        os.makedirs(workDir)
+    for prefix in prefixList:
+        dataLoc = 'morphModels/CSHORE/{0}/{0}.ncml'.format(prefix)
+        ncFile, allEpoch = getDataFRF.getnc(dataLoc, 'FRF', 'getDataTestBed')
+        ind = np.argwhere(np.diff(ncFile['bathymetryDate']) > 0).squeeze() + 1
+        bathyTimes = nc.num2date(ncFile['bathymetryDate'][ind], 
                             ncFile['bathymetryDate'].units)
-    ini1Ind = ind[bathyTimes <= endTime][-2]
-    ini2Ind = ind[bathyTimes <= endTime][-1]
-    if np.any(bathyTimes > endTime):
-        finInd = ind[bathyTimes > endTime][0]
-        finBathyTime = nc.num2date(ncFile['bathymetryDate'][finInd], ncFile['bathymetryDate'].units)
-        finBathy = ncFile['bottomElevation'][finInd].data
+        ini1Ind = ind[bathyTimes <= endTime][-2]
+        ini2Ind = ind[bathyTimes <= endTime][-1]
+        if np.any(bathyTimes > endTime):
+            finInd = ind[bathyTimes > endTime][0]
+            finBathyTime = nc.num2date(ncFile['bathymetryDate'][finInd], ncFile['bathymetryDate'].units)
+            finBathy = ncFile['bottomElevation'][finInd].data
+        else:
+            finBathyTime = []
+            finBathy = []
+
+        ini1BathyTime = nc.num2date(ncFile['bathymetryDate'][ini1Ind], ncFile['bathymetryDate'].units)
+        ini2BathyTime = nc.num2date(ncFile['bathymetryDate'][ini2Ind], ncFile['bathymetryDate'].units)
+
+        ini1Bathy = ncFile['bottomElevation'][ini1Ind].data
+        ini2Bathy = ncFile['bottomElevation'][ini2Ind].data
+
+        start1Time = nc.num2date(ncFile['time'][ini1Ind], ncFile['bathymetryDate'].units)
+        start2Time = nc.num2date(ncFile['time'][ini2Ind], ncFile['bathymetryDate'].units)
+
+        print('Survey times:')
+        print(ini1BathyTime)
+        print(ini2BathyTime)
+        print(finBathyTime)
+        print('Model times:')
+        print(start1Time)
+        print(start2Time)
+        print(endTime)
+
+        makeGifs(start1Time, start2Time, ini1BathyTime, ini2BathyTime, ini1Bathy,
+                 ini2Bathy, prefix, workDir)
+        makeGifs(start2Time, endTime, ini2BathyTime, finBathyTime, ini2Bathy, 
+                 finBathy, prefix, workDir)
+        makeTS(start2Time, endTime, prefix, workDir)
+
+# SUBROUTINES
+def getUsrInp():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('endTime', type=str,
+                        help='ending datetime in the format like 2018-04-01T15:00:00Z')
+    parser.add_argument('-prefix', type=str,
+                        help=('list of model prefixes to process from, e.g. "[MOBILE_RESET]"'))
+    parser.add_argument('-workDir', type=str,
+                        help='path where the plots will be saved')
+    args = parser.parse_args()
+    args.endTime = DT.datetime.strptime(args.endTime, '%Y-%m-%dT%H:%M:%SZ')
+    if args.prefix == None:
+        args.prefix = prefixList
     else:
-        finBathyTime = []
-        finBathy = []
+        args.prefix = eval(args.prefix)
+    if args.workDir == None:
+        args.workDir = workDir
+    return args.endTime, args.prefix, args.workDir
 
-    ini1BathyTime = nc.num2date(ncFile['bathymetryDate'][ini1Ind], ncFile['bathymetryDate'].units)
-    ini2BathyTime = nc.num2date(ncFile['bathymetryDate'][ini2Ind], ncFile['bathymetryDate'].units)
-
-    ini1Bathy = ncFile['bottomElevation'][ini1Ind].data
-    ini2Bathy = ncFile['bottomElevation'][ini2Ind].data
-
-    start1Time = nc.num2date(ncFile['time'][ini1Ind], ncFile['bathymetryDate'].units)
-    start2Time = nc.num2date(ncFile['time'][ini2Ind], ncFile['bathymetryDate'].units)
-
-    print('Survey times:')
-    print(ini1BathyTime)
-    print(ini2BathyTime)
-    print(finBathyTime)
-    print('Model times:')
-    print(start1Time)
-    print(start2Time)
-    print(endTime)
-    print('Proceed? (y/n)')
-    inp = raw_input('> ')
-    if inp != 'y':
-        sys.exit()
-
-    makeGifs(start1Time, start2Time, ini1BathyTime, ini2BathyTime, ini1Bathy, ini2Bathy)
-    makeGifs(start2Time, endTime, ini2BathyTime, finBathyTime, ini2Bathy, finBathy)
-    makeTS(start2Time, endTime)
-
-def makeGifs(startTime, endTime, iniBathyTime, finBathyTime, iniBathy, finBathy):
-    altNames = ['Alt05', 'Alt04', 'Alt03']
-    curNames = ['adop-3.5m', 'awac-4.5', 'awac-6m', 'awac-8m']
-
+def makeGifs(startTime, endTime, iniBathyTime, finBathyTime, iniBathy, finBathy,
+             prefix, workDir):
     gm = getDataFRF.getDataTestBed(startTime, endTime)
-    mod = gm.getCSHOREOutput(version_prefix)
+    mod = gm.getCSHOREOutput(prefix)
     
     Hs = mod['Hs']
     sigma_Hs = np.nanstd(Hs, 0)
@@ -83,7 +104,7 @@ def makeGifs(startTime, endTime, iniBathyTime, finBathyTime, iniBathy, finBathy)
     curTime = startTime + DT.timedelta(1)
     while curTime <= endTime:
         gm = getDataFRF.getDataTestBed(curTime - DT.timedelta(1), curTime)
-        mod = gm.getCSHOREOutput(version_prefix)
+        mod = gm.getCSHOREOutput(prefix)
         if len(mod) == 0:
             curTime += DT.timedelta(1)
             continue
@@ -92,19 +113,19 @@ def makeGifs(startTime, endTime, iniBathyTime, finBathyTime, iniBathy, finBathy)
         model_time = times[-1]
 
         altData = [oP.alt_PlotData(station, model_time, times) for 
-                       station in altNames]
+                       station in altStations]
         curData = [oP.wave_PlotData(station, model_time, times) 
-                       for station in curNames]
+                       for station in curStations]
 
         for station in altData + curData:
             CSHORETimeMatch(station, mod)
 
-        obs_dict = {'Alt05': altData[altNames.index('Alt05')],
-                    'Alt04': altData[altNames.index('Alt04')],
-                    'Alt03': altData[altNames.index('Alt03')],
-                    'Adopp_35': curData[curNames.index('adop-3.5m')],
-                    'AWAC6m': curData[curNames.index('awac-6m')],
-                    'AWAC8m': curData[curNames.index('awac-8m')]}
+        obs_dict = {'Alt05': altData[altStations.index('Alt05')],
+                    'Alt04': altData[altStations.index('Alt04')],
+                    'Alt03': altData[altStations.index('Alt03')],
+                    'Adopp_35': curData[curStations.index('adop-3.5m')],
+                    'AWAC6m': curData[curStations.index('awac-6m')],
+                    'AWAC8m': curData[curStations.index('awac-8m')]}
 
         var_name = 'Bathymetry'
         p_dict = {'x': mod['xFRF'],
@@ -120,11 +141,11 @@ def makeGifs(startTime, endTime, iniBathyTime, finBathyTime, iniBathy, finBathy)
                 'time': times,
                 'var_name': var_name,
                 'units': 'm',
-                'p_title': '%s CSHORE %s - %s' % (version_prefix, curTime, var_name)}
+                'p_title': '%s CSHORE %s - %s' % (prefix, curTime, var_name)}
 
         datestring = curTime.strftime('%Y-%m-%dT%H%M%SZ')
         print('Plotting ' + datestring + ' obs_V_mod_bathy')
-        oP.obs_V_mod_bathy(os.path.join(fpath, datestring + '_obsVmodBathy.png'), 
+        oP.obs_V_mod_bathy(os.path.join(workDir, datestring + '_obsVmodBathy.png'), 
                         p_dict, obs_dict, logo_path)
         
         p_dict['zb_m'] = p_dict['model']
@@ -132,59 +153,56 @@ def makeGifs(startTime, endTime, iniBathyTime, finBathyTime, iniBathy, finBathy)
         p_dict['Hs_m'] = p_dict['Hs']
         p_dict['setup_m'] = mod['setup'][-1]
         p_dict['sigma_setup'] = np.nanstd(mod['setup'], 0)
-        p_dict['p_title'] = '%s CSHORE %s - Model Results' % (version_prefix, curTime)
+        p_dict['p_title'] = '%s CSHORE %s - Model Results' % (prefix, curTime)
 
         print('Plotting ' + datestring + ' mod_results')
-        oP.mod_results(os.path.join(fpath, datestring + '_modResults.png'), p_dict,
+        oP.mod_results(os.path.join(workDir, datestring + '_modResults.png'), p_dict,
                        obs_dict, ylims=[ylim_Hs, ylim_setup])
         
         p_dict['vmean_m'] = mod['aveN'][-1]
         p_dict['sigma_vm'] = mod['stdN'][-1]
-        p_dict['p_title'] = '%s CSHORE %s - Alongshore Current' % (version_prefix, startTime)
+        p_dict['p_title'] = '%s CSHORE %s - Alongshore Current' % (prefix, startTime)
 
         print('Plotting ' + datestring + ' als')
-        oP.als_results(os.path.join(fpath, datestring + '_als.png'), p_dict, obs_dict, 
+        oP.als_results(os.path.join(workDir, datestring + '_als.png'), p_dict, obs_dict, 
                                     ylims=[ylim_V, ylim_Hs])
 
         curTime += DT.timedelta(1)
 
     datestring = (startTime.strftime('%Y-%m-%dT%H%M%SZ') + '_' +
                 endTime.strftime('%Y-%m-%dT%H%M%SZ'))
-    imList = sorted(glob.glob(fpath + '/*_obsVmodBathy.png'))
-    ofname = os.path.join(fpath, 'obsVmodBathy_{}.gif'.format(datestring))
+    imList = sorted(glob.glob(workDir + '/*_obsVmodBathy.png'))
+    ofname = os.path.join(workDir, 'obsVmodBathy_{}.gif'.format(datestring))
     makegif(imList, ofname, dt=1.0)
     [os.remove(im) for im in imList]
 
-    imList = sorted(glob.glob(fpath + '/*_modResults.png'))
-    ofname = os.path.join(fpath, 'modResults_{}.gif'.format(datestring))
+    imList = sorted(glob.glob(workDir + '/*_modResults.png'))
+    ofname = os.path.join(workDir, 'modResults_{}.gif'.format(datestring))
     makegif(imList, ofname, dt=1.0)
     [os.remove(im) for im in imList]
 
-    imList = sorted(glob.glob(fpath + '/*_als.png'))
-    ofname = os.path.join(fpath, 'als_{}.gif'.format(datestring))
+    imList = sorted(glob.glob(workDir + '/*_als.png'))
+    ofname = os.path.join(workDir, 'als_{}.gif'.format(datestring))
     makegif(imList, ofname, dt=1.0)
     [os.remove(im) for im in imList]
 
-def makeTS(startTime, endTime):
-    altStations = ['Alt05', 'Alt04', 'Alt03']
-    curStations = ['adop-3.5m', 'awac-4.5m', 'awac-6m', 'awac-8m']
-    waveOnlyStations = ['xp100m', 'xp125m', 'xp150m', 'xp200m']
+def makeTS(startTime, endTime, prefix, workDir):
     gm = getDataFRF.getDataTestBed(startTime, endTime)
-    mod = gm.getCSHOREOutput(version_prefix)
+    mod = gm.getCSHOREOutput(prefix)
     times = mod['time']
     model_time = times[-1]
-    altStations = [oP.alt_PlotData(station, model_time, times) for 
+    altStations_ = [oP.alt_PlotData(station, model_time, times) for 
                    station in altStations]
-    curStations = [oP.wave_PlotData(station, model_time, times) 
+    curStations_ = [oP.wave_PlotData(station, model_time, times) 
                    for station in curStations]
-    waveOnlyStations = [oP.wave_PlotData(station, model_time, times) 
+    waveOnlyStations_ = [oP.wave_PlotData(station, model_time, times) 
                    for station in waveOnlyStations]
     lidar = oP.lidar_PlotData(times)
 
     datestring = (startTime.strftime('%Y-%m-%dT%H%M%SZ') + '_' +
                   endTime.strftime('%Y-%m-%dT%H%M%SZ'))
 
-    for station in curStations + waveOnlyStations:
+    for station in curStations_ + waveOnlyStations_:
         if not station['TS_toggle']:
             continue
         for varName in ['Hs', 'V']:
@@ -200,7 +218,7 @@ def makeTS(startTime, endTime):
                 varNameM = 'aveN'
             elif varName == 'V' and station['name'] not in curStations:
                 continue
-            plotTitle = '%s CSHORE %s - %s' % (version_prefix, startTime, station['name'])
+            plotTitle = '%s CSHORE %s - %s' % (prefix, startTime, station['name'])
             mod_Hs = mod[varNameM][:, np.where(abs(mod['xFRF'] - station['xFRF']) == 
                             min(abs(mod['xFRF'] - station['xFRF'])), 1, 0) == 1].squeeze()
             comp_time_n, obs_Hs_n, mod_Hs_n = timeMatch(station[varTime], 
@@ -213,10 +231,10 @@ def makeTS(startTime, endTime):
                       'p_title': plotTitle}
             
             print('Plotting {} {} {} timeseries'.format(datestring, station['name'], varName))
-            oP.obs_V_mod_TS(os.path.join(fpath, '{}_{}_{}.png'.format(datestring, 
+            oP.obs_V_mod_TS(os.path.join(workDir, '{}_{}_{}.png'.format(datestring, 
                             station['name'], varName)), p_dict, logo_path)
     
-    for station in altStations:
+    for station in altStations_:
         if not station['TS_toggle']:
             continue
         obs_zb = station['zb']
@@ -236,11 +254,11 @@ def makeTS(startTime, endTime):
                   'model': mod_zb,
                   'var_name': 'Bottom Elevation',
                   'units': 'm',
-                  'p_title': '%s CSHORE %s - %s' % (version_prefix, startTime, 'Alt-04')}
+                  'p_title': '%s CSHORE %s - %s' % (prefix, startTime, 'Alt-04')}
 
         if np.size(p_dict['obs']) >= 2:
             print('Plotting {} {} {} timeseries'.format(datestring, station['name'], 'BE'))
-            oP.obs_V_mod_TS(os.path.join(fpath, '{}_{}_{}.png'.format(datestring, 
+            oP.obs_V_mod_TS(os.path.join(workDir, '{}_{}_{}.png'.format(datestring, 
                             station['name'], '_BE')), p_dict, logo_path)
 
     if not  lidar['TS_toggle']:
@@ -264,11 +282,10 @@ def makeTS(startTime, endTime):
                       'model': mod_runup_n,
                       'var_name': plotName,
                       'units': 'm',
-                      'p_title': '%s CSHORE %s - %s' % (version_prefix, startTime, 'LiDAR')}
+                      'p_title': '%s CSHORE %s - %s' % (prefix, startTime, 'LiDAR')}
             print('Plotting {} lidar {} timeseries'.format(datestring, varName))
-            oP.obs_V_mod_TS(os.path.join(fpath, '{}_lidar_{}.png'.format(datestring, 
+            oP.obs_V_mod_TS(os.path.join(workDir, '{}_lidar_{}.png'.format(datestring, 
                             varName)), p_dict, logo_path)
-
 
 def CSHORETimeMatch(obs, mod):
     if obs['TS_toggle'] is False:
