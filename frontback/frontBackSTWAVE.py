@@ -77,10 +77,7 @@ def STsimSetup(startTime, inputDict):
     if version_prefix == 'FP':
         print 'FP = Full plane Chosen'
         full = True # full plane
-    elif version_prefix == 'HP':
-        print 'HP = Half plane Chosen'
-        full = False  # half plane
-    elif version_prefix == 'CBHP':
+    elif version_prefix in ['HP', 'CBHP']:
         print 'HP = Half plane Chosen'
         full = False  # half plane
     elif version_prefix in ['CB', 'CBThresh', 'CBT1', 'CBT2']:
@@ -93,7 +90,6 @@ def STsimSetup(startTime, inputDict):
         #     os.remove(pickleFname)
     else:
         raise NameError('Need version prefix to run')
-
 
     # _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
     # establishing the resolution of the input datetime
@@ -111,7 +107,6 @@ def STsimSetup(startTime, inputDict):
     if not os.path.exists(os.path.join(path_prefix ,date_str, "figures/")):
         os.makedirs(os.path.join(path_prefix, date_str, "figures/"))
 
-
     print "Model Time Start : %s  Model Time End:  %s" % (d1, d2)
     print u"files will be place in {0} folder".format(os.path.join(path_prefix, date_str))
     ###################################################################################################################
@@ -124,11 +119,11 @@ def STsimSetup(startTime, inputDict):
     try:
         rawspec = go.getWaveSpec(gaugenumber='waverider-26m')
         assert 'time' in rawspec, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
-        gridFlag = False
+
     except AssertionError:
         rawspec = go.getWaveSpec(gaugenumber='waverider-17m')
         background_grid_parent = os.path.join(os.path.split(inputDict['gridDEP_parent'])[0], 'Regional_17mGrid_50m.dep')
-        gridFlag = True
+
     if 'time' not in rawspec:
         print "\n++++\nThere's STILL No Wave data between %s and %s \n++++\n" % (d1, d2)
         return -1, -1 ## abort runs

@@ -46,8 +46,11 @@ def Master_STWAVE_run(inputDict):
     path_prefix = inputDict['workingDirectory']
     startTime = inputDict['startTime']
     endTime = inputDict['endTime']
-    simulationDuration = inputDict['simulationDuration']
-
+    simulationDuration = inputDict['simulationDuration']   # time of simulation (in hours)
+    if startTime == '$':  # this signifies daily or "live" run
+        endTime = DT.datetime.now().strftime('%Y-%m-%dT00:00:00Z')
+        startTime = (DT.datetime.strptime(endTime, '%Y-%m-%dT00:00:00Z') - DT.timedelta(seconds=simulationDuration*60)).strftime('%Y-%m-%dT00:00:00Z')
+        # simulationDuration = 24
     if 'hostfileLoc' in inputDict:
         hostfile = inputDict['hostfileLoc']
     else:
@@ -134,8 +137,8 @@ def Master_STWAVE_run(inputDict):
                 if nproc_par == -1 or nproc_nest == -1:
                     print '************************\nNo Data available\naborting run\n***********************'
                     # remove generated files?
-                    shutil.rmtree(simulation_workingDirectory+''.join(time.split(':')))
-                    continue  # this is to return to the next time step if there's no cbathy data
+                    shutil.rmtree(os.path.join(simulation_workingDirectory,''.join(time.split(':'))))
+                    continue  # this is to return to the next time step if there's no data
 
             if runFlag == True:
                 os.chdir(datadir)  # changing locations to where simulation files live
