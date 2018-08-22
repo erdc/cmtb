@@ -1,0 +1,34 @@
+#######################
+# Data control        #
+#######################
+THREDDS: FRF                                        # CHL or FRF 
+bathyLoc: integrated_bathy                          # bathymetry source
+########################
+#simulations parameters#
+########################
+startTime: '$'                   # project start time
+endTime: '$'                     # project end time
+simulationDuration: 24                              # duration in hours  ie. how frequently to get new data, size of individual simulations
+version_prefix: HP                                  # controls switches within the codegridDEP_nested: 'grids/STWAVE/Minigrid_5m.dep'
+gridDEP_parent: 'grids/STWAVE/Regional_50m.dep'     # base grid dep              
+gridDEP_nested: 'grids/STWAVE/Minigrid_5m.dep'
+########################
+# path stuff           #
+########################
+hostfileLoc: /home/number/cmtb/hostfile-IB           # when running with MPI across multiple machines 
+modelExecutable: /home/number/cmtb/bin/stwave_p      # path to the model executable
+# this is the directory where simulation files and QA/QC plots are made and existing architecture takes over
+workingDirectory: /data/STWAVE                       # /data/[model]                                  
+# this is the base directory where netCDF files are output to
+netCDFdir: /thredds_data/waveModels                  # netCDF output location, will append model/version_prefix... etc structure 
+#########################
+# testbed run control   #
+#########################
+# these are flags to control how the simulations are started and run
+pFlag: True                            # turn plotting on
+generateFlag: True                     # generate simulation input files (go get data, process, and write files)
+runFlag: True                          # run the simulation
+analyzeFlag: True                      # post process simulations (read files, post process data, make netCDF files, plot if desired)
+#ForcedSurveyDate: '2018-01-16T00:00:00Z'                                              # OPTIONAL -  STWAVE only
+
+
