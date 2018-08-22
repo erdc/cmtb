@@ -26,15 +26,15 @@ stationList = ['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array',
                'awac-6m', 'awac-4.5m', 'adop-3.5m', 'xp200m', 'xp150m', 'xp125m']
 fieldVarList = ['waveHs', 'xRadGrad', 'yRadGrad', 'dissipation']
 numDays = 7
-workDir = '/home/chuan/Documents/Figures/cmtb'
+workDir = '/home/number/cmtb/liveDataPlots'
 angadj = 70
 logo_path = '../ArchiveFolder/CHL_logo.png'
 
 # MAIN CODE
 def main():
     startTime, endTime, modelList, prefixList, workDir = getUsrInp()
-    datestring = (startTime.strftime('%Y-%m-%dT%H%M%SZ') + '_' +
-                  endTime.strftime('%Y-%m-%dT%H%M%SZ'))
+    datestring = (startTime.strftime('%Y-%m-%dT%H0000Z') + '_' +
+                  endTime.strftime('%Y-%m-%dT%H0000Z'))
     for model in modelList:
         prefixes = prefixList[model]
         for prefix in prefixes:
