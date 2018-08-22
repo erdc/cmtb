@@ -30,7 +30,9 @@ def Master_CMS_run(inputDict):
     runFlag = inputDict['runFlag']
     analyzeFlag = inputDict['analyzeFlag']
     pFlag = inputDict['pFlag']
-
+    if startTime == '$':  # this signifies daily or "live" run
+        endTime = DT.datetime.now().strftime('%Y-%m-%dT00:00:00Z')
+        startTime = (DT.datetime.strptime(endTime, '%Y-%m-%dT00:00:00Z') - DT.timedelta(seconds=simulationDuration*60)).strftime('%Y-%m-%dT00:00:00Z')
     # data check
     prefixList = np.array(['HP', 'UNTUNED'])
     assert (version_prefix == prefixList).any(), "Please enter a valid version prefix\n Prefix assigned = %s must be in List %s" % (version_prefix, prefixList)
