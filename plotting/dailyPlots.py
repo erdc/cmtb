@@ -1,14 +1,17 @@
+#!/urshome/number/anaconda2/bin/python
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jun 20 15:11:00 2018
 This makes observations vs model station plots for a user-specified number of days
+Must be run from plotting folder (given assumed architecture)
 
 @author: Chuan Li
 @contact: liC@oregonstate.edu
 @organization: USACE CHL FRF
 
 """
-import sys, getopt, warnings, os, glob, argparse, shutil
+import sys, getopt, warnings, os, glob, argparse, shutil, matplotlib
+matplotlib.use('Agg') # for cron
 import numpy as np
 import datetime as DT
 import netCDF4 as nc
@@ -17,7 +20,6 @@ from getdatatestbed import getDataFRF
 from testbedutils import waveLib as sbwave
 from testbedutils import sblib as sb
 from plotting import operationalPlots as oP
-
 # PARAMETERS
 modelList = ['STWAVE', 'CMS']
 prefixList = {'STWAVE': ['HP', 'FP', 'CB'],
@@ -226,10 +228,10 @@ def makePlots(ofname, param, time, obs, mod):
     print('Plotting ' + ofname)
     with warnings.catch_warnings(record=True) as w:
         oP.obs_V_mod_TS(ofname, dataDict, logo_path=logo_path)
-        if w != []:
-            assert str(w[0].message) == (
-                'This figure includes Axes that are not compatible ' +
-                'with tight_layout, so results might be incorrect.')
+        # if w != []:
+        #     assert str(w[0].message) == (
+        #         'This figure includes Axes that are not compatible ' +
+        #         'with tight_layout, so results might be incorrect.')
 
 if __name__ == '__main__':
     main()

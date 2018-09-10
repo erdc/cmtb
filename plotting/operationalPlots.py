@@ -161,7 +161,7 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
       prefix (str): prefix to savefile (path (Default value = '')
       namebase (str): a base to create filenames with, datetime will be appended (Default value = 'file')
       contourpacket(dict):
-        field:  field of data type: numpy array of [time, x coords, ycoords]
+        bathy:  field of data type: numpy array of [time, x coords, ycoords]
 
         title:  title for the plot
 
@@ -327,7 +327,11 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
     import matplotlib.colors as mc
     levels = np.linspace(cbar_min, cbar_max, 35)  # draw 35 levels
     norm = mc.BoundaryNorm(levels, 256)
-
+    # make the bathycontour loopable
+    if contourpacket['bathy'].shape[0] != numrecs:
+        bathyContour = np.tile(contourpacket['bathy'], (numrecs, 1,1))
+    else:
+        bathyContour = contourpacket['bathy']
     from plottingTools import  MidpointNormalize
     # __LOOPING THROUGH PLOTS___
     for tt in range(0, numrecs):
@@ -432,12 +436,12 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
             cbar = plt.colorbar(cont)
         cbar.set_ticks(cbarlabels)
         cbar.set_label(clabel_text, fontsize=12)
-        con = plt.contour(xcoord, ycoord, contourpacket['bathymetry'][tt], levels=cont_labels, colors='k')
+        con = plt.contour(xcoord, ycoord, bathyContour[tt], levels=cont_labels, colors='k')
         plt.clabel(con, inline=True, fmt='%d')
 
         try:
             plt.savefig(os.path.join(prefix +'_{}.png'.format(time[tt].strftime("%Y%m%d%H%M"))))
-        except AttributeError:
+        except AttributeError:  # what throws this error
             plt.savefig(os.path.join(prefix + '_{}.png'.format(time[tt][0].strftime("%Y%m%d%H%M"))))
         plt.close()
 
@@ -602,6 +606,14 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
     stats_dict = {}
     if isinstance(p_dict['obs'], np.ma.masked_array) and ~p_dict['obs'].mask.any():
         p_dict['obs'] = np.array(p_dict['obs'])
+    else:
+        p_dict['model'] = p_dict['model'][~p_dict['obs'].mask]
+        p_dict['obs'] =  np.array(p_dict['obs'][~p_dict['obs'].mask])
+    if isinstance(p_dict['model'], np.ma.masked_array) and ~p_dict['model'].mask.any():
+        p_dict['model'] = np.array(p_dict['model'])
+    else:
+        p_dict['obs'] = p_dict['obs'][~p_dict['model'].mask]
+        p_dict['model'] =  np.array(p_dict['model'][~p_dict['model'].mask])
     stats_dict = statsBryant(p_dict['obs'], p_dict['model'])
     stats_dict['m_mean'] = np.nanmean(p_dict['model'])
     stats_dict['o_mean'] = np.nanmean(p_dict['obs'])
