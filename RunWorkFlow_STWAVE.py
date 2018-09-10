@@ -156,9 +156,11 @@ def Master_STWAVE_run(inputDict):
                     child = check_output('mpiexec -n {} -f {} {} {}nested.sim'.format(nproc_nest, hostfile, executableLocation, ''.join(time.split(':'))), shell=True)
                 except AssertionError:
                     import multiprocessing
-                    count = multiprocessing.cpu_count()  #
+                    count = multiprocessing.cpu_count()
+                    if count > nproc_nest:
+                        count = nproc_nest # lower the processors called for to match sim file (otherwise will throw segfault)
                     child = check_output('mpiexec -n {} {} {}nested.sim'.format(count, executableLocation, ''.join(time.split(':'))), shell=True)
-                    print('  Simulations took {}'.format(DT.datetime.now() - t))
+                print('  Simulations took {}'.format(DT.datetime.now() - t))
             # run analyze and archive script
             os.chdir(curdir)  # change back after runing simulation locally
             if analyzeFlag == True:

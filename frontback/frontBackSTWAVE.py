@@ -773,6 +773,7 @@ def STanalyze(startTime, inputDict):
                 else:
                     modStats = sbwave.waveStat(obse_nested['ncSpec'][:, gg, :, :], obse_nested['Frequencies'], obse_nested['ncDirs'])  # compute model stats here
                     # time match data
+
                 time, obsi, modi = sb.timeMatch(w['epochtime'],
                                                 np.arange(w['time'].shape[0]),
                                                 nc.date2num(stat_packet['time'][:], 'seconds since 1970-01-01'),
