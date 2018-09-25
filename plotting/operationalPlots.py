@@ -606,12 +606,12 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
     stats_dict = {}
     if isinstance(p_dict['obs'], np.ma.masked_array) and ~p_dict['obs'].mask.any():
         p_dict['obs'] = np.array(p_dict['obs'])
-    else:
+    elif isinstance(p_dict['obs'], np.ma.masked_array):
         p_dict['model'] = p_dict['model'][~p_dict['obs'].mask]
         p_dict['obs'] =  np.array(p_dict['obs'][~p_dict['obs'].mask])
     if isinstance(p_dict['model'], np.ma.masked_array) and ~p_dict['model'].mask.any():
         p_dict['model'] = np.array(p_dict['model'])
-    else:
+    elif isinstance(p_dict['model'], np.ma.masked_array):
         p_dict['obs'] = p_dict['obs'][~p_dict['model'].mask]
         p_dict['model'] =  np.array(p_dict['model'][~p_dict['model'].mask])
     stats_dict = statsBryant(p_dict['obs'], p_dict['model'])
