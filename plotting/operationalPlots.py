@@ -87,7 +87,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     # subplot 1 - measured spectra
     sub1 = fig.add_subplot(2, 3, 4)
     sub1.set_title('Measured Spectra', y=1.05)
-    aaa = sub1.contourf(rawFreqBin, rawDirBin, zip(*pltrawdWED),
+    aaa = sub1.contourf(rawFreqBin, rawDirBin, list(zip(*pltrawdWED)),
                         vmin=cbar_min, vmax=cbar_max, levels=levels, norm=norm)
     sub1.plot([0, 1], [70, 70], '--k', linewidth=lw)  # pier angle
     if full == False:
@@ -113,7 +113,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
         for iii in range(0, nlines):
             lineloc = bounds[0] + diff * iii
             sub2.plot([0, 1], [lineloc, lineloc], '--w', linewidth=lw)
-    bbb = sub2.contourf(rotFreqBin, rotDirBin, zip(*pltrotdWED),
+    bbb = sub2.contourf(rotFreqBin, rotDirBin, list(zip(*pltrotdWED)),
                         vmin=cbar_min, vmax=cbar_max, levels=levels, norm=norm)
     sub2.set_ylabel('Wave Direction - (0$\degree$=Shore norm +south)')
     sub2.set_xlabel('Frequency(hz)')
@@ -124,7 +124,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     # subplot 3
     sub3 = fig.add_subplot(2, 3, 6)
     sub3.set_title('Centered Input Spectra', y=1.05)
-    ccc = sub3.contourf(interpFreqBin, interpDirBin, zip(*pltintdWED),
+    ccc = sub3.contourf(interpFreqBin, interpDirBin, list(zip(*pltintdWED)),
                         vmin=cbar_min, vmax=cbar_max, levels=levels, norm=norm)
     sub3.plot([0, 1], [0, 0], '--k', linewidth=3.0)
     sub3.set_ylabel('Wave Direction - (0$\degree$ Shore Norm +south)')
@@ -216,7 +216,7 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, **k
     elif (np.diff(xcoord) != np.median(xcoord)).all():
         dxdy = None
     else:
-        print "spatial plotting function cannot currently handle dx != dy"
+        print("spatial plotting function cannot currently handle dx != dy")
         raise NotImplementedError
 
     # applying colorbar labels
@@ -330,7 +330,7 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, **k
     levels = np.linspace(cbar_min, cbar_max, 35)  # draw 35 levels
     norm = mc.BoundaryNorm(levels, 256)
 
-    from plottingTools import  MidpointNormalize
+    from .plottingTools import  MidpointNormalize
     # __LOOPING THROUGH PLOTS___
     for tt in range(0, numrecs):
         plt.figure(figsize=fgsize, dpi=80, tight_layout=True)
@@ -592,7 +592,7 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
     SI_str = '\n Similarity Index $=%s$' % ("{0:.2f}".format(stats_dict['scatterIndex']))
     sym_slp_str = '\n Symmetric Slope $=%s$' % ("{0:.2f}".format(stats_dict['symSlope']))
     corr_coef_str = '\n Correlation Coefficient $=%s$' % ("{0:.2f}".format(stats_dict['corr']))
-    RMSE_Norm_str = u'\n %%RMSE $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['RMSEnorm']), p_dict['units'])
+    RMSE_Norm_str = '\n %%RMSE $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['RMSEnorm']), p_dict['units'])
     num_String = '\n Number of samples $= %s$' %len(stats_dict['residuals'])
     plot_str = m_mean_str + o_mean_str + bias_str + RMSE_str + SI_str + sym_slp_str + corr_coef_str + RMSE_Norm_str + num_String
     ax3 = plt.subplot2grid((2, 2), (1, 1), colspan=1)
@@ -607,7 +607,7 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
         ax4.imshow(CHL_logo)
         ax4.axis('off')
     except:
-        print 'Plot generated sans CHL Logo!'
+        print('Plot generated sans CHL Logo!')
 
     ax3.axis('off')
     ax3.text(0.01, 0.99, header_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=18,
@@ -984,7 +984,7 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
         ax4.imshow(CHL_logo)
         ax4.axis('off')
     except:
-        print 'Plot generated sans CHL logo!'
+        print('Plot generated sans CHL logo!')
     ax3.axis('off')
     ax3.text(0.01, 0.99, header_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=18,
              fontweight='bold')
@@ -1619,7 +1619,7 @@ def wave_PlotData(name, mod_time, time, THREDDS='FRF'):
         dict['TS_toggle'] = True
 
     except:
-        print('No data at %s!  Will return masked array.') %name
+        print(('No data at %s!  Will return masked array.') %name)
         # just make it a masked array
         dict = {}
         dict['wave_time'] = time
@@ -1931,7 +1931,7 @@ def obs_V_mod_bathy_TN(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_lo
         ax4.imshow(CHL_logo)
         ax4.axis('off')
     except:
-        print 'Plot generated sans CHL logo!'
+        print('Plot generated sans CHL logo!')
     ax3.axis('off')
     ax3.text(0.01, 0.99, header_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=16, fontweight='bold')
     ax3.text(0.00, 0.90, plot_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=14)
