@@ -136,12 +136,13 @@ if __name__ == "__main__":
 
     # we are no longer allowing a default yaml file.
     # It will throw and error and tell the user where to go look for the example yaml
-    try:
+    # try:
         # assume the user gave the path
-        yamlLoc = args[0]
-        with open(os.path.join(yamlLoc), 'r') as f:
-            inputDict = yaml.load(f)
-    except:
-        raise IOError('Input YAML file required.  See yaml_files/TestBedExampleInputs/CMS_Input_example for example yaml file.')
+    yamlLoc = args[0]
+    print(os.path.isfile(yamlLoc))
+    with open(os.path.join(yamlLoc), 'r') as f:
+        inputDict = yaml.load(f)
+    # except:
+    #     raise IOError('Input YAML file required.  See yaml_files/TestBedExampleInputs/CMS_Input_example for example yaml file.')
 
     Master_CMS_run(inputDict=inputDict)
