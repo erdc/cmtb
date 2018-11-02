@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.dates as mdates
 import matplotlib.image as image
 import os, math
-from scipy.interpolate import interpn, RectBivariateSpline
 from getdatatestbed.getDataFRF import getObs
 from testbedutils import sblib as sb
 from testbedutils.sblib import statsBryant
@@ -88,7 +87,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     # subplot 1 - measured spectra
     sub1 = fig.add_subplot(2, 3, 4)
     sub1.set_title('Measured Spectra', y=1.05)
-    aaa = sub1.contourf(rawFreqBin, rawDirBin, zip(*pltrawdWED),
+    aaa = sub1.contourf(rawFreqBin, rawDirBin, list(zip(*pltrawdWED)),
                         vmin=cbar_min, vmax=cbar_max, levels=levels, norm=norm)
     sub1.plot([0, 1], [70, 70], '--k', linewidth=lw)  # pier angle
     if full == False:
@@ -114,7 +113,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
         for iii in range(0, nlines):
             lineloc = bounds[0] + diff * iii
             sub2.plot([0, 1], [lineloc, lineloc], '--w', linewidth=lw)
-    bbb = sub2.contourf(rotFreqBin, rotDirBin, zip(*pltrotdWED),
+    bbb = sub2.contourf(rotFreqBin, rotDirBin, list(zip(*pltrotdWED)),
                         vmin=cbar_min, vmax=cbar_max, levels=levels, norm=norm)
     sub2.set_ylabel('Wave Direction - (0$\degree$=Shore norm +south)')
     sub2.set_xlabel('Frequency(hz)')
@@ -125,7 +124,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     # subplot 3
     sub3 = fig.add_subplot(2, 3, 6)
     sub3.set_title('Centered Input Spectra', y=1.05)
-    ccc = sub3.contourf(interpFreqBin, interpDirBin, zip(*pltintdWED),
+    ccc = sub3.contourf(interpFreqBin, interpDirBin, list(zip(*pltintdWED)),
                         vmin=cbar_min, vmax=cbar_max, levels=levels, norm=norm)
     sub3.plot([0, 1], [0, 0], '--k', linewidth=3.0)
     sub3.set_ylabel('Wave Direction - (0$\degree$ Shore Norm +south)')
@@ -139,7 +138,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     plt.savefig(fnameOut)
     plt.close()
 
-def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, model='STWAVE', **kwargs):
+def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, **kwargs):
     """This function plots a 2D field of data
 
     Args:
@@ -217,7 +216,7 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
     elif (np.diff(xcoord) != np.median(xcoord)).all():
         dxdy = None
     else:
-        print "spatial plotting function cannot currently handle dx != dy"
+        print("spatial plotting function cannot currently handle dx != dy")
         raise NotImplementedError
 
     # applying colorbar labels
@@ -295,7 +294,9 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
             y_Duck = (fieldpacket['ycoord'][-469])
             x_Duck = (fieldpacket['xcoord'][8])  # [-334])
             L_Duck = 'Town of Duck'
+            space = 10
         elif dxdy == None:  # this is the variable spaced grid from CMS
+            space = 10  # sub sample to every 10th point for quiver
 
             fgsize = (8,8)
             # corrolla beach Access
@@ -314,6 +315,7 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
             # NOTE Xcoord and YCOORD are grid coords not plot coords
             nested = False  # this changes to plot the nearshore wave gauges
     elif nested == True:
+        space = int(3 * np.median(np.diff(xcoord)))
         if dxdy == 5:
             L_26m = '' # don't plot 26m
             L_17m = ''
@@ -328,7 +330,7 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
     levels = np.linspace(cbar_min, cbar_max, 35)  # draw 35 levels
     norm = mc.BoundaryNorm(levels, 256)
 
-    from plottingTools import  MidpointNormalize
+    from .plottingTools import  MidpointNormalize
     # __LOOPING THROUGH PLOTS___
     for tt in range(0, numrecs):
         plt.figure(figsize=fgsize, dpi=80, tight_layout=True)
@@ -343,32 +345,9 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
         if 'directions' in kwargs:
             Us = -np.rad2deg(np.cos(np.deg2rad(kwargs['directions'][tt])))
             Vs = -np.rad2deg(np.sin(np.deg2rad(kwargs['directions'][tt])))
-            xp = xcoord
-            yp = ycoord
-            if model == 'CMS':
-                if nested == False:
-                    nx = 20
-                    ny = 25
-                else:
-                    nx = 14
-                    ny = 25
-                    xInd = np.logical_and(xcoord > 0, xcoord < 1000)
-                    yInd = np.logical_and(ycoord > -200, ycoord < 1600)
-                    xIndGrd, yIndGrd = np.meshgrid(xInd, yInd)
-                    indGrd = np.logical_and(xIndGrd, yIndGrd)
-                    xp= xcoord[xInd]
-                    yp = ycoord[yInd]
-                    Us = Us[indGrd].reshape(yp.size, xp.size)
-                    Vs = Vs[indGrd].reshape(yp.size, xp.size)
-            elif model == 'STWAVE':
-                nx = 14
-                ny = 25
-            x = np.linspace(xp[0], xp[-1], nx)
-            y = np.linspace(yp[0], yp[-1], ny)
-            Us = RectBivariateSpline(yp, xp, Us)(y, x)
-            Vs = RectBivariateSpline(yp, xp, Vs)(y, x)
-            locsX, locsY = np.meshgrid(x, y)
-            Q = plt.quiver(locsX, locsY, Us, Vs, pivot='mid', angles='xy')
+            locsX, locsY = np.meshgrid(xcoord, ycoord)
+            Q = plt.quiver(locsX[::space, ::space], locsY[::space, ::space],
+                           Us[::space,::space], Vs[::space,::space], pivot='mid',  angles='xy')
         ## write out text labels on plot
         if nested == True:
             ptStr = 'or'
@@ -399,8 +378,6 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
             plt.text(x_pier[1], y_pier[1], L_pier, fontsize=12, va='bottom', ha='right',
                      color='black', rotation=315, weight='bold')
             cont_labels = [0, 2, 4, 6, 8, 10]  # labels for contours
-            plt.xlim(0, 1000)
-            plt.ylim(-200, 1600)
         elif nested == False:
             plt.plot(x_CBaccess, y_CBaccess, 'oy', ms=10)
             plt.text(x_CBaccess, y_CBaccess, L_CBaccess, ha='right', va='bottom', fontsize=12,
@@ -432,7 +409,7 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
             cbar = plt.colorbar(cont)
         cbar.set_ticks(cbarlabels)
         cbar.set_label(clabel_text, fontsize=12)
-        con = plt.contour(xcoord, ycoord, contourpacket['bathymetry'][tt], levels=cont_labels, colors='k')
+        con = plt.contour(xcoord, ycoord, contourpacket['bathy'][0], levels=cont_labels, colors='k')
         plt.clabel(con, inline=True, fmt='%d')
 
         try:
@@ -615,7 +592,7 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
     SI_str = '\n Similarity Index $=%s$' % ("{0:.2f}".format(stats_dict['scatterIndex']))
     sym_slp_str = '\n Symmetric Slope $=%s$' % ("{0:.2f}".format(stats_dict['symSlope']))
     corr_coef_str = '\n Correlation Coefficient $=%s$' % ("{0:.2f}".format(stats_dict['corr']))
-    RMSE_Norm_str = u'\n %%RMSE $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['RMSEnorm']), p_dict['units'])
+    RMSE_Norm_str = '\n %%RMSE $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['RMSEnorm']), p_dict['units'])
     num_String = '\n Number of samples $= %s$' %len(stats_dict['residuals'])
     plot_str = m_mean_str + o_mean_str + bias_str + RMSE_str + SI_str + sym_slp_str + corr_coef_str + RMSE_Norm_str + num_String
     ax3 = plt.subplot2grid((2, 2), (1, 1), colspan=1)
@@ -630,7 +607,7 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
         ax4.imshow(CHL_logo)
         ax4.axis('off')
     except:
-        print 'Plot generated sans CHL Logo!'
+        print('Plot generated sans CHL Logo!')
 
     ax3.axis('off')
     ax3.text(0.01, 0.99, header_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=18,
@@ -856,11 +833,8 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     # get the time strings!!
     obs_date = p_dict['obs_time'].strftime('%Y-%m-%d %H:%M')
     model_date = p_dict['model_time'].strftime('%Y-%m-%d %H:%M')
-    b, = ax1.plot(p_dict['x'], p_dict['obs'], 'r-', label='Observed (initial) \n' + obs_date)
+    b, = ax1.plot(p_dict['x'], p_dict['obs'], 'r-', label='Observed \n' + obs_date)
     c, = ax1.plot(p_dict['x'], p_dict['model'], 'y-', label='Model \n' + model_date)
-    if p_dict['obs2_time'] != []:
-        obs2_date = p_dict['obs2_time'].strftime('%Y-%m-%d %H:%M')
-        r, = ax1.plot(p_dict['x'], p_dict['obs2'], 'r--', label='Observed (final) \n' + obs2_date)
 
     # add altimeter data!!
     temp05 = Alt05['zb'][Alt05['plot_ind'] == 1]
@@ -868,16 +842,16 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
     # Alt05
     f, = ax1.plot(Alt05['xFRF'] * np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'k-',
-                  label='Gauge Data')
-    g, = ax1.plot(Alt05['xFRF'] * np.ones(1), temp05, 'k_', label='Gauge Data')
+                  label='Gage Data')
+    g, = ax1.plot(Alt05['xFRF'] * np.ones(1), temp05, 'k_', label='Gage Data')
     # Alt04
     h, = ax1.plot(Alt04['xFRF'] * np.ones(2), [temp04 - np.std(Alt04['zb']), temp04 + np.std(Alt04['zb'])], 'k-',
-                  label='Gauge Data')
-    i, = ax1.plot(Alt04['xFRF'] * np.ones(1), temp04, 'k_', label='Gauge Data')
+                  label='Gage Data')
+    i, = ax1.plot(Alt04['xFRF'] * np.ones(1), temp04, 'k_', label='Gage Data')
     # Alt03
     j, = ax1.plot(Alt03['xFRF'] * np.ones(2), [temp03 - np.std(Alt03['zb']), temp03 + np.std(Alt03['zb'])], 'k-',
-                  label='Gauge Data')
-    k, = ax1.plot(Alt03['xFRF'] * np.ones(1), temp03, 'k_', label='Gauge Data')
+                  label='Gage Data')
+    k, = ax1.plot(Alt03['xFRF'] * np.ones(1), temp03, 'k_', label='Gage Data')
 
     ax5 = ax1.twinx()
     d, = ax5.plot(p_dict['x'], p_dict['Hs'], 'g-', label='Model $H_{s}$')
@@ -890,16 +864,16 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     temp8m = AWAC8m['Hs'][AWAC8m['plot_ind'] == 1]
     # Adopp_35
     l, = ax5.plot(Adopp_35['xFRF'] * np.ones(2), [temp35 - np.std(Adopp_35['Hs']), temp35 + np.std(Adopp_35['Hs'])],
-                  'k-', label='Gauge Data')
-    m, = ax5.plot(Adopp_35['xFRF'] * np.ones(1), temp35, 'k_', label='Gauge Data')
+                  'k-', label='Gage Data')
+    m, = ax5.plot(Adopp_35['xFRF'] * np.ones(1), temp35, 'k_', label='Gage Data')
     # AWAC6m
     n, = ax5.plot(AWAC6m['xFRF'] * np.ones(2), [temp6m - np.std(AWAC6m['Hs']), temp6m + np.std(AWAC6m['Hs'])], 'k-',
-                  label='Gauge Data')
-    o, = ax5.plot(AWAC6m['xFRF'] * np.ones(1), temp6m, 'k_', label='Gauge Data')
+                  label='Gage Data')
+    o, = ax5.plot(AWAC6m['xFRF'] * np.ones(1), temp6m, 'k_', label='Gage Data')
     # AWAC8m
     p, = ax5.plot(AWAC8m['xFRF'] * np.ones(2), [temp8m - np.std(AWAC8m['Hs']), temp8m + np.std(AWAC8m['Hs'])], 'k-',
-                  label='Gauge Data')
-    q, = ax5.plot(AWAC8m['xFRF'] * np.ones(1), temp8m, 'k_', label='Gauge Data')
+                  label='Gage Data')
+    q, = ax5.plot(AWAC8m['xFRF'] * np.ones(1), temp8m, 'k_', label='Gage Data')
 
     ax1.set_ylabel('Elevation (NAVD88) [$%s$]' % (p_dict['units']), fontsize=16)
     ax1.set_xlabel('Cross-shore Position [$%s$]' % (p_dict['units']), fontsize=16)
@@ -920,9 +894,7 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     ax1.yaxis.label.set_color('red')
 
     ax5.tick_params('y', colors='g')
-    # ax5.set_ylim([-1.05 * np.nanmax(p_dict['Hs'] + p_dict['sigma_Hs']), 1.05 * np.nanmax(p_dict['Hs'] + p_dict['sigma_Hs'])])
-    ylim = ax1.get_ylim()
-    ax5.set_ylim(ylim)
+    ax5.set_ylim([-1.05 * max(p_dict['Hs'] + p_dict['sigma_Hs']), 1.05 * max(p_dict['Hs'] + p_dict['sigma_Hs'])])
     ax5.set_xlim([min(dum_x), max(dum_x)])
     ax5.yaxis.label.set_color('green')
 
@@ -936,14 +908,9 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
         tick.label.set_fontsize(14)
     ax1.tick_params(labelsize=14)
     ax5.tick_params(labelsize=14)
-    if p_dict['obs2_time'] != []:
-        p = [a, d, b, e, r, c, f]
-        ax1.legend(p, [p_.get_label() for p_ in p], bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=5,
-                borderaxespad=0., fontsize=12, handletextpad=0.05)
-    else:
-        p = [a, b, c, f, d, e]
-        ax1.legend(p, [p_.get_label() for p_ in p], bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=len(p),
-                borderaxespad=0., fontsize=12, handletextpad=0.05)
+    p = [a, b, c, f, d, e]
+    ax1.legend(p, [p_.get_label() for p_ in p], bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=len(p),
+               borderaxespad=0., fontsize=12, handletextpad=0.05)
 
     # 1 to 1
     one_one = np.linspace(min_val - 0.05 * (max_val - min_val), max_val + 0.05 * (max_val - min_val), 100)
@@ -952,12 +919,8 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     if min_val < 0 and max_val > 0:
         ax2.plot(one_one, np.zeros(len(one_one)), 'k--')
         ax2.plot(np.zeros(len(one_one)), one_one, 'k--')
-    if p_dict['obs2_time'] != []:
-        ax2.plot(p_dict['obs2'], p_dict['model'], 'r*')
-        ax2.set_xlabel('Observed %s (final) [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
-    else:
-        ax2.plot(p_dict['obs'], p_dict['model'], 'r*')
-        ax2.set_xlabel('Observed %s (initial) [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
+    ax2.plot(p_dict['obs'], p_dict['model'], 'r*')
+    ax2.set_xlabel('Observed %s [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
     ax2.set_ylabel('Model %s [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
     ax2.set_xlim([min_val - 0.025 * (max_val - min_val), max_val + 0.025 * (max_val - min_val)])
     ax2.set_ylim([min_val - 0.025 * (max_val - min_val), max_val + 0.025 * (max_val - min_val)])
@@ -1021,7 +984,7 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
         ax4.imshow(CHL_logo)
         ax4.axis('off')
     except:
-        print 'Plot generated sans CHL logo!'
+        print('Plot generated sans CHL logo!')
     ax3.axis('off')
     ax3.text(0.01, 0.99, header_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=18,
              fontweight='bold')
@@ -1033,7 +996,7 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     fig.savefig(ofname, dpi=300)
     plt.close()
 
-def mod_results(ofname, p_dict, obs_dict, ylims=None):
+def mod_results(ofname, p_dict, obs_dict):
     """This script just lets you visualize the model outputs at a particular time-step
 
     Args:
@@ -1123,7 +1086,7 @@ def mod_results(ofname, p_dict, obs_dict, ylims=None):
     temp6m = AWAC6m['Hs'][AWAC6m['plot_ind'] == 1]
     temp8m = AWAC8m['Hs'][AWAC8m['plot_ind'] == 1]
     # Adopp_35
-    ax1.plot(Adopp_35['xFRF']*np.ones(2), [temp35 - np.std(Adopp_35['Hs']), temp35 + np.std(Adopp_35['Hs'])], 'k-', label='Gauge Data')
+    ax1.plot(Adopp_35['xFRF']*np.ones(2), [temp35 - np.std(Adopp_35['Hs']), temp35 + np.std(Adopp_35['Hs'])], 'k-', label='Gage Data')
     ax1.plot(Adopp_35['xFRF']*np.ones(1), [temp35], 'k_')
     # AWAC6m
     ax1.plot(AWAC6m['xFRF']*np.ones(2), [temp6m - np.std(AWAC6m['Hs']), temp6m + np.std(AWAC6m['Hs'])], 'k-')
@@ -1144,11 +1107,8 @@ def mod_results(ofname, p_dict, obs_dict, ylims=None):
         sf2 = 1.1
     else:
         sf2 = 0.9
+    ax1.set_ylim([sf1 * min_val, sf2 * max_val])
     ax1.set_xlim([min(dum_x), max(dum_x)])
-    if ylims is None:
-        ax1.set_ylim([sf1 * min_val, sf2 * max_val])
-    else:
-        ax1.set_ylim(ylims[0])
 
     for tick in ax1.xaxis.get_major_ticks():
         tick.label.set_fontsize(14)
@@ -1181,10 +1141,7 @@ def mod_results(ofname, p_dict, obs_dict, ylims=None):
         sf2 = 1.1
     else:
         sf2 = 0.9
-    if ylims is None:
-        ax2.set_ylim([sf1 * min_val, sf2 * max_val])
-    else:
-        ax2.set_ylim(ylims[1])
+    ax2.set_ylim([sf1 * min_val, sf2 * max_val])
     ax2.set_xlim([min(dum_x), max(dum_x)])
 
     for tick in ax2.xaxis.get_major_ticks():
@@ -1222,7 +1179,7 @@ def mod_results(ofname, p_dict, obs_dict, ylims=None):
     temp04 = Alt04['zb'][Alt04['plot_ind'] == 1]
     temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
     # Alt05
-    ax3.plot(Alt05['xFRF']*np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'k-', label='Gauge Data')
+    ax3.plot(Alt05['xFRF']*np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'k-', label='Gage Data')
     ax3.plot(Alt05['xFRF'] * np.ones(1), [temp05], 'k_')
     # Alt04
     ax3.plot(Alt04['xFRF']*np.ones(2), [temp04 - np.std(Alt04['zb']), temp04 + np.std(Alt04['zb'])], 'k-')
@@ -1258,7 +1215,7 @@ def mod_results(ofname, p_dict, obs_dict, ylims=None):
     fig.savefig(ofname, dpi=300)
     plt.close()
 
-def als_results(ofname, p_dict, obs_dict, ylims=None):
+def als_results(ofname, p_dict, obs_dict):
     """This is just some script to visualize the alongshore current results from the model output at a particular time step
 
     Args:
@@ -1413,10 +1370,7 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
         sf2 = 1.1
     else:
         sf2 = 0.9
-    if ylims is None:
-        ax2.set_ylim([sf1 * min_val, sf2 * max_val])
-    else:
-        ax2.set_ylim(ylims[0])
+    ax2.set_ylim([sf1 * min_val, sf2 * max_val])
     ax2.set_xlim([min(dum_x), max(dum_x)])
     ax2.tick_params('y', colors='b')
     ax2.yaxis.label.set_color('blue')
@@ -1529,10 +1483,7 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
         sf2 = 1.1
     else:
         sf2 = 0.9
-    if ylims is None:
-        ax4.set_ylim([sf1 * min_val, sf2 * max_val])
-    else:
-        ax4.set_ylim(ylims[1])
+    ax4.set_ylim([sf1 * min_val, sf2 * max_val])
     ax4.set_xlim([min(dum_x), max(dum_x)])
     ax4.tick_params('y', colors='b')
     ax4.yaxis.label.set_color('blue')
@@ -1591,7 +1542,7 @@ def alt_PlotData(name, mod_time, mod_times, THREDDS='FRF'):
         alt_data = frf_Data.getALT(name)
         dict['zb'] = alt_data['bottomElev']
         dict['time'] = alt_data['time']
-        dict['name'] = alt_data['stationName']
+        dict['name'] = alt_data['gageName']
         dict['xFRF'] = round(alt_data['xFRF'])
         plot_ind = np.where(abs(dict['time'] - mod_time) == min(abs(dict['time'] - mod_time)), 1, 0)
         dict['plot_ind'] = plot_ind
@@ -1651,27 +1602,24 @@ def wave_PlotData(name, mod_time, time, THREDDS='FRF'):
 
         dict = {}
         wave_data = frf_Data.getWaveSpec(gaugenumber=name)
-        # print(wave_data['time'])
+        cur_data = frf_Data.getCurrents(name)
+
         dict['name'] = name
         dict['wave_time'] = wave_data['time']
+        dict['cur_time'] = cur_data['time']
         dict['Hs'] = wave_data['Hs']
         dict['xFRF'] = wave_data['xFRF']
         dict['plot_ind'] = np.where(abs(dict['wave_time'] - mod_time) == min(abs(dict['wave_time'] - mod_time)), 1, 0)
-        if name in [2, 3, 4, 5, 6, 'awac-11m', 'awac-8m', 'awac-6m', 'awac-4.5m',
-                                'adop-3.5m']:
-            cur_data = frf_Data.getCurrents(name)
-            dict['cur_time'] = cur_data['time']
-            dict['plot_ind_V'] = np.where(abs(dict['cur_time'] - mod_time) == min(abs(dict['cur_time'] - mod_time)), 1, 0)
-            # rotate my velocities!!!
-            test_fun = lambda x: vectorRotation(x, theta=360 - (71.8 + (90 - 71.8) + 71.8))
-            newV = [test_fun(x) for x in zip(cur_data['aveU'], cur_data['aveV'])]
-            dict['U'] = np.array(zip(*newV)[0])
-            dict['V'] = np.array(zip(*newV)[1])
-        
+        dict['plot_ind_V'] = np.where(abs(dict['cur_time'] - mod_time) == min(abs(dict['cur_time'] - mod_time)), 1, 0)
+        # rotate my velocities!!!
+        test_fun = lambda x: vectorRotation(x, theta=360 - (71.8 + (90 - 71.8) + 71.8))
+        newV = [test_fun(x) for x in zip(cur_data['aveU'], cur_data['aveV'])]
+        dict['U'] = zip(*newV)[0]
+        dict['V'] = zip(*newV)[1]
         dict['TS_toggle'] = True
 
     except:
-        print('No data at %s!  Will return masked array.') %name
+        print(('No data at %s!  Will return masked array.') %name)
         # just make it a masked array
         dict = {}
         dict['wave_time'] = time
@@ -1719,7 +1667,6 @@ def lidar_PlotData(time, THREDDS='FRF'):
         dict['yFRF'] = lidar_data_WP['yFRF']
         dict['Hs'] = lidar_data_WP['waveHsTotal']
         dict['WL'] = lidar_data_WP['waterLevel']
-        dict['TS_toggle'] = True
 
     except:
         # just make it a masked array
@@ -1831,14 +1778,14 @@ def obs_V_mod_bathy_TN(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_lo
 
     # add altimeter data!!
     # Alt05
-    f, = ax1.plot(Alt05['xFRF'] * np.ones(2), [min(Alt05['zb']), max(Alt05['zb'])], 'k-', label='Gauge Data')
-    g, = ax1.plot(Alt05['xFRF'] * np.ones(1), Alt05['zb'][Alt05['plot_ind'] == 1], 'k_', label='Gauge Data')
+    f, = ax1.plot(Alt05['xFRF'] * np.ones(2), [min(Alt05['zb']), max(Alt05['zb'])], 'k-', label='Gage Data')
+    g, = ax1.plot(Alt05['xFRF'] * np.ones(1), Alt05['zb'][Alt05['plot_ind'] == 1], 'k_', label='Gage Data')
     # Alt04
-    h, = ax1.plot(Alt04['xFRF'] * np.ones(2), [min(Alt04['zb']), max(Alt04['zb'])], 'k-', label='Gauge Data')
-    i, = ax1.plot(Alt04['xFRF'] * np.ones(1), Alt04['zb'][Alt04['plot_ind'] == 1], 'k_', label='Gauge Data')
+    h, = ax1.plot(Alt04['xFRF'] * np.ones(2), [min(Alt04['zb']), max(Alt04['zb'])], 'k-', label='Gage Data')
+    i, = ax1.plot(Alt04['xFRF'] * np.ones(1), Alt04['zb'][Alt04['plot_ind'] == 1], 'k_', label='Gage Data')
     # Alt03
-    j, = ax1.plot(Alt03['xFRF'] * np.ones(2), [min(Alt03['zb']), max(Alt03['zb'])], 'k-', label='Gauge Data')
-    k, = ax1.plot(Alt03['xFRF'] * np.ones(1), Alt03['zb'][Alt03['plot_ind'] == 1], 'k_', label='Gauge Data')
+    j, = ax1.plot(Alt03['xFRF'] * np.ones(2), [min(Alt03['zb']), max(Alt03['zb'])], 'k-', label='Gage Data')
+    k, = ax1.plot(Alt03['xFRF'] * np.ones(1), Alt03['zb'][Alt03['plot_ind'] == 1], 'k_', label='Gage Data')
 
     ax5 = ax1.twinx()
     d, = ax5.plot(p_dict['x'], p_dict['Hs'], 'g-', label='Model $H_{s}$')
@@ -1847,14 +1794,14 @@ def obs_V_mod_bathy_TN(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_lo
 
     # add wave data!!
     # Adopp_35
-    l, = ax5.plot(Adopp_35['xFRF'] * np.ones(2), [Adopp_35['Hs'][Adopp_35['plot_ind'] == 1] - np.std(Adopp_35['Hs']), Adopp_35['Hs'][Adopp_35['plot_ind'] == 1] + np.std(Adopp_35['Hs'])], 'k-', label='Gauge Data')
-    m, = ax5.plot(Adopp_35['xFRF'] * np.ones(1), Adopp_35['Hs'][Adopp_35['plot_ind'] == 1], 'k_', label='Gauge Data')
+    l, = ax5.plot(Adopp_35['xFRF'] * np.ones(2), [Adopp_35['Hs'][Adopp_35['plot_ind'] == 1] - np.std(Adopp_35['Hs']), Adopp_35['Hs'][Adopp_35['plot_ind'] == 1] + np.std(Adopp_35['Hs'])], 'k-', label='Gage Data')
+    m, = ax5.plot(Adopp_35['xFRF'] * np.ones(1), Adopp_35['Hs'][Adopp_35['plot_ind'] == 1], 'k_', label='Gage Data')
     # AWAC6m
-    n, = ax5.plot(AWAC6m['xFRF'] * np.ones(2), [AWAC6m['Hs'][AWAC6m['plot_ind'] == 1] - np.std(AWAC6m['Hs']), AWAC6m['Hs'][AWAC6m['plot_ind'] == 1] + np.std(AWAC6m['Hs'])], 'k-', label='Gauge Data')
-    o, = ax5.plot(AWAC6m['xFRF'] * np.ones(1), AWAC6m['Hs'][AWAC6m['plot_ind'] == 1], 'k_', label='Gauge Data')
+    n, = ax5.plot(AWAC6m['xFRF'] * np.ones(2), [AWAC6m['Hs'][AWAC6m['plot_ind'] == 1] - np.std(AWAC6m['Hs']), AWAC6m['Hs'][AWAC6m['plot_ind'] == 1] + np.std(AWAC6m['Hs'])], 'k-', label='Gage Data')
+    o, = ax5.plot(AWAC6m['xFRF'] * np.ones(1), AWAC6m['Hs'][AWAC6m['plot_ind'] == 1], 'k_', label='Gage Data')
     # AWAC8m
-    p, = ax5.plot(AWAC8m['xFRF'] * np.ones(2), [AWAC8m['Hs'][AWAC8m['plot_ind'] == 1] - np.std(AWAC8m['Hs']), AWAC8m['Hs'][AWAC8m['plot_ind'] == 1] + np.std(AWAC8m['Hs'])], 'k-', label='Gauge Data')
-    q, = ax5.plot(AWAC8m['xFRF'] * np.ones(1), AWAC8m['Hs'][AWAC8m['plot_ind'] == 1], 'k_', label='Gauge Data')
+    p, = ax5.plot(AWAC8m['xFRF'] * np.ones(2), [AWAC8m['Hs'][AWAC8m['plot_ind'] == 1] - np.std(AWAC8m['Hs']), AWAC8m['Hs'][AWAC8m['plot_ind'] == 1] + np.std(AWAC8m['Hs'])], 'k-', label='Gage Data')
+    q, = ax5.plot(AWAC8m['xFRF'] * np.ones(1), AWAC8m['Hs'][AWAC8m['plot_ind'] == 1], 'k_', label='Gage Data')
 
     ax1.set_ylabel('Elevation (NAVD88) [$%s$]' % (p_dict['units']), fontsize=16)
     ax1.set_xlabel('Cross-shore Position [$%s$]' % (p_dict['units']), fontsize=16)
@@ -1984,7 +1931,7 @@ def obs_V_mod_bathy_TN(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_lo
         ax4.imshow(CHL_logo)
         ax4.axis('off')
     except:
-        print 'Plot generated sans CHL logo!'
+        print('Plot generated sans CHL logo!')
     ax3.axis('off')
     ax3.text(0.01, 0.99, header_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=16, fontweight='bold')
     ax3.text(0.00, 0.90, plot_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=14)

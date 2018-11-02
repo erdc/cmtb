@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.colors as colors
+import matplotlib.pyplot as plt
 
 # set the colormap and centre the colorbar
 class MidpointNormalize(colors.Normalize):
@@ -114,7 +115,7 @@ def gradient_fill(x, y, fill_color=None, ax=None, zfunc=False, **kwargs):
         xy = (np.column_stack([x, y]))
         xy -= xmin, ymin
         # Draw a blurred line using PIL
-        draw.line(map(tuple, xy.tolist()), fill=255, width=15)
+        draw.line(list(map(tuple, xy.tolist())), fill=255, width=15)
         img = img.filter(ImageFilter.GaussianBlur(radius=100))
         # Convert the PIL image to an array
         zalpha = np.asarray(img).astype(float)

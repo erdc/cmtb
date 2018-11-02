@@ -90,7 +90,7 @@ def init_nc_file(nc_filename, attributes):
     ncfile = nc.Dataset(nc_filename, 'w', clobber=True)
 
     # Write some Global Attributes
-    for key, value in attributes.iteritems():
+    for key, value in attributes.items():
 
         if value is not None:
             setattr(ncfile, key, value)
@@ -181,7 +181,7 @@ def write_data_to_nc(ncfile, template_vars, data_dict, write_vars='_variables'):
                 elif len(template_vars[var]["dim"]) == 0:
                     try:
                         new_var[:] = data_dict[var]
-                    except Exception, e:
+                    except Exception as e:
                         new_var = data_dict[var]
 
                 elif len(template_vars[var]["dim"]) == 1:
@@ -195,7 +195,7 @@ def write_data_to_nc(ncfile, template_vars, data_dict, write_vars='_variables'):
                         except IndexError:
                             try:
                                 new_var[:] = data_dict[var][0][0]
-                            except Exception, e:
+                            except Exception as e:
                                 raise e
 
                 elif len(template_vars[var]["dim"]) == 2:
@@ -211,7 +211,7 @@ def write_data_to_nc(ncfile, template_vars, data_dict, write_vars='_variables'):
                             # squeeze the 3d array in to 2d as dimension is not needed
                             x[i] = np.squeeze(data_dict[var][i])
                         new_var[:, :] = x
-                    except Exception, e:
+                    except Exception as e:
                         # if the tuple fails must be right...right?
                         new_var[:] = data_dict[var]
 
@@ -224,9 +224,9 @@ def write_data_to_nc(ncfile, template_vars, data_dict, write_vars='_variables'):
                         x[i] = data_dict[var][i]
                     new_var[:, :, :] = x[:, :, :]
 
-            except Exception, e:
+            except Exception as e:
                 num_errors += 1
-                print('ERROR WRITING VARIABLE: {} - {} \n'.format(var, str(e)))
+                print(('ERROR WRITING VARIABLE: {} - {} \n'.format(var, str(e))))
 
 
     return num_errors, error_str
@@ -417,8 +417,8 @@ def makenc_Station(stat_data, globalyaml_fname, flagfname, ofname, stat_yaml_fna
     tdim = fid.createDimension('time', np.shape(stat_data['time'])[0])  # None = size of the dimension, what does this gain me if i know it
     inputtypes = fid.createDimension('input_types_length', np.shape(flags)[1]) # there are 4 input dtaa types for flags
     statnamelen = fid.createDimension('station_name_length', len(stat_data['station_name']))
-    northing = fid.createDimension('Northing', 1L)
-    easting = fid.createDimension('Easting', 1L )
+    northing = fid.createDimension('Northing', 1)
+    easting = fid.createDimension('Easting', 1 )
     Lon = fid.createDimension('Longitude', np.size(stat_data['Longitude']))
     Lat = fid.createDimension('Latitude', np.size(stat_data['Latitude']))
     dirbin = fid.createDimension('waveDirectionBins', np.size(stat_data['waveDirectionBins']))
@@ -657,18 +657,21 @@ def makenc_CSHORErun(ofname, dataDict, globalYaml, varYaml):
     array8m_loc = 914
 
     # creating dimensions of data
-    new_s = np.shape(range(-50, array8m_loc+1))[0]
+    new_s = np.shape(list(range(-50, array8m_loc+1)))[0]
     new_t = np.shape(dataDict['waveHs'])[0]
     xFRF = fid.createDimension('xFRF', new_s)
     time = fid.createDimension('time', new_t)
 
     # check to see if the grid I am importing is smaller than my netCDF grid
-    if np.shape(range(-50, array8m_loc+1))[0] == np.shape(dataDict['xFRF']):
+
+    # if np.shape(range(-50, array8m_loc + 1))[0] == np.shape(dataDict['xFRF'])[0]:
+
+    if np.shape(list(range(-50, array8m_loc+1)))[0] == np.shape(dataDict['xFRF']):
         # the model grid is the same as the netCDF grid, so do nothing
         dataDict_n = dataDict
         pass
     else:
-        dataDict_n = {'xFRF': np.flipud(np.array(range(-50, array8m_loc+1)) + 0.0),
+        dataDict_n = {'xFRF': np.flipud(np.array(list(range(-50, array8m_loc+1))) + 0.0),
                       'time': dataDict['time'],
                       'aveE': np.full((new_t, new_s), fill_value=np.nan),
                       'stdE': np.full((new_t, new_s), fill_value=np.nan),
@@ -694,14 +697,15 @@ def makenc_CSHORErun(ofname, dataDict, globalYaml, varYaml):
                       'surveyNumber': dataDict['surveyNumber'],
                       'profileNumber': dataDict['profileNumber'],
                       'bathymetryDate': dataDict['bathymetryDate'],
-                      'yFRF': dataDict['yFRF'],}
+                      'yFRF': dataDict['yFRF'],
+                      'waveFlag': dataDict['waveFlag'],}
 
         if 'FIXED' in ofname:
             dataDict_n['bottomElevation'] = np.full((new_s), fill_value=np.nan)
         elif 'MOBILE' in ofname:
             dataDict_n['bottomElevation'] = np.full((new_t, new_s), fill_value=np.nan)
         else:
-            print 'You need to modify makenc_CSHORErun in makenc.py to accept your new version name!'
+            print('You need to modify makenc_CSHORErun in makenc.py to accept your new version name!')
 
         # find index of first point on dataDict grid
         min_x = min(dataDict['xFRF'])
@@ -736,7 +740,7 @@ def makenc_CSHORErun(ofname, dataDict, globalYaml, varYaml):
             for ii in range(0, int(new_t)):
                 dataDict_n['bottomElevation'][ii][ind_maxx:ind_minx + 1] = dataDict['bottomElevation'][ii]
         else:
-            print 'You need to modify makenc_CSHORErun in makenc.py to accept your new version name!'
+            print('You need to modify makenc_CSHORErun in makenc.py to accept your new version name!')
 
     # get rid of all masks
     test = np.ma.masked_array(dataDict_n['aveE'], np.isnan(dataDict_n['aveE']))
@@ -804,7 +808,7 @@ def makenc_CSHORErun(ofname, dataDict, globalYaml, varYaml):
     dataDict = dataDict_n
     del dataDict_n
 
-    # now we flip everything that has a spatial dimension around so it will be all pretty like spicer wants?
+    # now we flip everything that has a spatial dimension around?
     dataDict['aveN'] = np.flip(dataDict['aveN'], 1)
     dataDict['waveHs'] = np.flip(dataDict['waveHs'], 1)
     dataDict['aveE'] = np.flip(dataDict['aveE'], 1)
@@ -813,7 +817,10 @@ def makenc_CSHORErun(ofname, dataDict, globalYaml, varYaml):
     dataDict['probabilitySuspension'] = np.flip(dataDict['probabilitySuspension'], 1)
     dataDict['stdN'] = np.flip(dataDict['stdN'], 1)
     dataDict['stdE'] = np.flip(dataDict['stdE'], 1)
-    dataDict['bottomElevation'] = np.flip(dataDict['bottomElevation'], 1)
+    if 'MOBILE' in ofname:
+        dataDict['bottomElevation'] = np.flip(dataDict['bottomElevation'], 1)
+    else:
+        dataDict['bottomElevation'] = np.flip(dataDict['bottomElevation'], 0)
     dataDict['xFRF'] = np.flip(dataDict['xFRF'], 0)
     dataDict['qsy'] = np.flip(dataDict['qsy'], 1)
     dataDict['qsx'] = np.flip(dataDict['qsx'], 1)

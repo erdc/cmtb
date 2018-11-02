@@ -1,6 +1,6 @@
 # CSHORE template
 
-_variables: ['time', 'xFRF', 'aveE', 'stdE', 'aveN', 'stdN', 'waveHs', 'waveMeanDirection', 'waterLevel', 'stdWaterLevel', 'setup', 'runup2perc', 'runupMean', 'qbx', 'qsx', 'qby', 'qsy', 'probabilitySuspension', 'probabilityMovement', 'suspendedSedVolume', 'bottomElevation', 'latitude', 'longitude', 'surveyNumber', 'profileNumber', 'bathymetryDate', 'yFRF']
+_variables: ['time', 'xFRF', 'aveE', 'stdE', 'aveN', 'stdN', 'waveHs', 'waveMeanDirection', 'waterLevel', 'stdWaterLevel', 'setup', 'runup2perc', 'runupMean', 'qbx', 'qsx', 'qby', 'qsy', 'probabilitySuspension', 'probabilityMovement', 'suspendedSedVolume', 'bottomElevation', 'latitude', 'longitude', 'surveyNumber', 'profileNumber', 'bathymetryDate', 'yFRF', 'waveFlag']
 _attributes: ['notes']
 _dimensions: ['time', 'xFRF']
 
@@ -334,3 +334,15 @@ yFRF:
     short_name: 'yFRF'
     coordinates: 'xFRF yFRF'
     description: 'The yFRF position of the BC used in the model (and therefore the entire transit)'
+
+waveFlag:
+    name: 'waveFlag'
+    units: ''
+    standard_name: ''
+    long_name: 'Wave quality control flag value'
+    data_type: 'u2'
+    dim: ['time']
+    fill_value: '-999'
+    short_name: 'waveFlag'
+    coordinates: ''
+    description: 'These flags are markers for the quality of wave input data into the model.  There are 2 main flags in place currently:\n 0: Good Data\n1:Linearly Interpolated Data - these data are interpolated due to missing or poorly flagged input data'

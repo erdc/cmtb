@@ -1,8 +1,8 @@
 # CSHORE template
 
-_variables: ['time', 'X_shore', 'aveE', 'stdE', 'aveN', 'stdN', 'waveHs', 'waveMeanDirection', 'waterLevel', 'stdWaterLevel', 'setup', 'runup2perc', 'runupMean', 'qbx', 'qsx', 'qby', 'qsy', 'probabilitySuspension', 'probabilityMovement', 'suspendedSedVolume', 'bottomElevation', 'latitude', 'longitude', 'surveyNumber', 'profileNumber', 'bathymetryDate', 'yFRF']
+_variables: ['time', 'xFRF', 'aveE', 'stdE', 'aveN', 'stdN', 'waveHs', 'waveMeanDirection', 'waterLevel', 'stdWaterLevel', 'setup', 'runup2perc', 'runupMean', 'qbx', 'qsx', 'qby', 'qsy', 'probabilitySuspension', 'probabilityMovement', 'suspendedSedVolume', 'bottomElevation', 'latitude', 'longitude', 'surveyNumber', 'profileNumber', 'bathymetryDate', 'yFRF', 'waveFlag']
 _attributes: ['notes']
-_dimensions: ['time', 'X_shore']
+_dimensions: ['time', 'xFRF']
 
 
 time:
@@ -15,15 +15,15 @@ time:
     calendar: 'gregorian'
     fill_value: '-999.99'
 
-X_shore:
-    name: 'X_shore'
+xFRF:
+    name: 'xFRF'
     units: 'm'
     standard_name: ''
     long_name: 'Cross-shore position in m'
     data_type: 'f8'
-    dim: ['X_shore']
+    dim: ['xFRF']
     fill_value: '-999.99'
-    short_name: 'X_shore'
+    short_name: 'xFRF'
     coordinates: 'xFRF yFRF'
     description: 'Cross-shore position of the CMTB CSHORE model nodes in FRF coordinates (xFRF)'
 
@@ -35,7 +35,7 @@ aveE:
     standard_name: ''
     long_name: 'Depth averaged eastward current'
     data_type: 'f8'
-    dim: ['time', 'X_shore']
+    dim: ['time', 'xFRF']
     fill_value: '-999.99'
     short_name: 'Mean Eastward Current'
     coordinates: 'xFRF yFRF'
@@ -47,7 +47,7 @@ stdE:
     standard_name: ''
     long_name: 'Standard deviation of the depth averaged eastward current'
     data_type: 'f8'
-    dim: ['time', 'X_shore']
+    dim: ['time', 'xFRF']
     fill_value: '-999.99'
     short_name: 'Standard Deviation of Eastward Current'
     coordinates: 'xFRF yFRF'
@@ -59,7 +59,7 @@ aveN:
     standard_name: ''
     long_name: 'Depth averaged northward current'
     data_type: 'f8'
-    dim: ['time', 'X_shore']
+    dim: ['time', 'xFRF']
     fill_value: '-999.99'
     short_name: 'Mean Northward Current'
     coordinates: 'xFRF yFRF'
@@ -71,7 +71,7 @@ stdN:
     standard_name: ''
     long_name: 'Standard deviation of the depth averaged northward current'
     data_type: 'f8'
-    dim: ['time', 'X_shore']
+    dim: ['time', 'xFRF']
     fill_value: '-999.99'
     short_name: 'Standard Deviation of Northward Current'
     coordinates: 'xFRF yFRF'
@@ -83,7 +83,7 @@ waveHs:
     standard_name: ''
     long_name: 'Significant Wave Height'
     data_type: 'f8'
-    dim: ['time', 'X_shore']
+    dim: ['time', 'xFRF']
     fill_value: '-999.99'
     short_name: 'Wave Height'
     coordinates: 'xFRF yFRF'
@@ -95,7 +95,7 @@ waveMeanDirection:
     standard_name: ''
     long_name: 'Mean Wave Direction measured from true north'
     data_type: 'f8'
-    dim: ['time', 'X_shore']
+    dim: ['time', 'xFRF']
     fill_value: '-999.99'
     short_name: 'Mean Direction'
     coordinates: 'xFRF yFRF'
@@ -107,7 +107,7 @@ waterLevel:
     standard_name: ''
     long_name: 'mean water surface elevation'
     data_type: 'f8'
-    dim: ['time', 'X_shore']
+    dim: ['time', 'xFRF']
     fill_value: '-999.99'
     short_name: 'mwl'
     coordinates: 'xFRF yFRF'
@@ -119,7 +119,7 @@ stdWaterLevel:
     standard_name: ''
     long_name: 'standard deviation of the water surface elevation'
     data_type: 'f8'
-    dim: ['time', 'X_shore']
+    dim: ['time', 'xFRF']
     fill_value: '-999.99'
     short_name: 'stdWaterLevel'
     coordinates: 'xFRF yFRF'
@@ -131,7 +131,7 @@ setup:
     standard_name: ''
     long_name: 'wave setup/setdown'
     data_type: 'f8'
-    dim: ['time', 'X_shore']
+    dim: ['time', 'xFRF']
     fill_value: '-999.99'
     short_name: 'setup'
     coordinates: 'xFRF yFRF'
@@ -169,7 +169,7 @@ qbx:
     standard_name: ''
     long_name: 'cross-shore bedload sediment transport rate'
     data_type: 'f8'
-    dim: ['time', 'X_shore']
+    dim: ['time', 'xFRF']
     fill_value: '-999.99'
     short_name: 'qbx'
     coordinates: 'xFRF yFRF'
@@ -181,7 +181,7 @@ qsx:
     standard_name: ''
     long_name: 'cross-shore suspended sediment transport rate'
     data_type: 'f8'
-    dim: ['time', 'X_shore']
+    dim: ['time', 'xFRF']
     fill_value: '-999.99'
     short_name: 'qsx'
     coordinates: 'xFRF yFRF'
@@ -193,7 +193,7 @@ qby:
     standard_name: ''
     long_name: 'along-shore bedload sediment transport rate'
     data_type: 'f8'
-    dim: ['time', 'X_shore']
+    dim: ['time', 'xFRF']
     fill_value: '-999.99'
     short_name: 'qby'
     coordinates: 'xFRF yFRF'
@@ -205,7 +205,7 @@ qsy:
     standard_name: ''
     long_name: 'along-shore suspended sediment transport rate'
     data_type: 'f8'
-    dim: ['time', 'X_shore']
+    dim: ['time', 'xFRF']
     fill_value: '-999.99'
     short_name: 'qsy'
     coordinates: 'xFRF yFRF'
@@ -217,7 +217,7 @@ probabilitySuspension:
     standard_name: ''
     long_name: 'probability of sediment suspension (0-1)'
     data_type: 'f8'
-    dim: ['time', 'X_shore']
+    dim: ['time', 'xFRF']
     fill_value: '-999.99'
     short_name: 'ps'
     coordinates: 'xFRF yFRF'
@@ -229,7 +229,7 @@ probabilityMovement:
     standard_name: ''
     long_name: 'probability of sediment movement (0-1)'
     data_type: 'f8'
-    dim: ['time', 'X_shore']
+    dim: ['time', 'xFRF']
     fill_value: '-999.99'
     short_name: 'pb'
     coordinates: 'xFRF yFRF'
@@ -241,7 +241,7 @@ suspendedSedVolume:
     standard_name: ''
     long_name: 'suspended sediment volume per unit horizontal bottom area'
     data_type: 'f8'
-    dim: ['time', 'X_shore']
+    dim: ['time', 'xFRF']
     fill_value: '-999.99'
     short_name: 'vs'
     coordinates: 'xFRF yFRF'
@@ -255,7 +255,7 @@ bottomElevation:
     standard_name: ''
     long_name: 'bed elevation for the model bathymetry'
     data_type: 'f8'
-    dim: ['X_shore']
+    dim: ['xFRF']
     fill_value: '-999.99'
     short_name: 'bathy'
     coordinates: 'xFRF yFRF'
@@ -269,7 +269,7 @@ latitude:
     standard_name: ''
     long_name: 'Latitude of each node in decimal degrees'
     data_type: 'f8'
-    dim: ['X_shore']
+    dim: ['xFRF']
     fill_value: '-999.99'
     short_name: 'lat'
     coordinates: 'xFRF yFRF'
@@ -281,7 +281,7 @@ longitude:
     standard_name: ''
     long_name: 'Longitude of each node in decimal degrees'
     data_type: 'f8'
-    dim: ['X_shore']
+    dim: ['xFRF']
     fill_value: '-999.99'
     short_name: 'lon'
     coordinates: 'xFRF yFRF'
@@ -334,3 +334,15 @@ yFRF:
     short_name: 'yFRF'
     coordinates: 'xFRF yFRF'
     description: 'The yFRF position of the BC used in the model (and therefore the entire transect)'
+
+waveFlag:
+    name: 'waveFlag'
+    units: ''
+    standard_name: ''
+    long_name: 'Wave quality control flag value'
+    data_type: 'u2'
+    dim: ['time']
+    fill_value: '-999'
+    short_name: 'waveFlag'
+    coordinates: ''
+    description: 'These flags are markers for the quality of wave input data into the model.  There are 2 main flags in place currently:\n 0: Good Data\n1:Linearly Interpolated Data - these data are interpolated due to missing or poorly flagged input data'

@@ -81,17 +81,17 @@ def Master_CMS_run(inputDict):
     curdir = os.getcwd()
     # ______________________________decide process and run _____________________________
     # run the process through each of the above dates
-    print '\n-\n-\nMASTER WorkFLOW for STWAVE SIMULATIONS\n-\n-\n'
-    print 'Batch Process Start: %s     Finish: %s '% (projectStart, projectEnd)
-    print 'The batch simulation is Run in %s Version' % version_prefix
-    print 'Check for simulation errors here %s' % LOG_FILENAME
-    print '------------------------------------\n\n************************************\n\n------------------------------------\n\n'
+    print('\n-\n-\nMASTER WorkFLOW for STWAVE SIMULATIONS\n-\n-\n')
+    print('Batch Process Start: %s     Finish: %s '% (projectStart, projectEnd))
+    print('The batch simulation is Run in %s Version' % version_prefix)
+    print('Check for simulation errors here %s' % LOG_FILENAME)
+    print('------------------------------------\n\n************************************\n\n------------------------------------\n\n')
 
     # ________________________________________________ RUN LOOP ________________________________________________
     for time in dateStringList:
         try:
-            print '**\nBegin '
-            print 'Beginning Simulation %s' %DT.datetime.now()
+            print('**\nBegin ')
+            print('Beginning Simulation %s' %DT.datetime.now())
 
             if generateFlag == True:
                 CMSsimSetup(time, inputDict=inputDict)
@@ -99,16 +99,16 @@ def Master_CMS_run(inputDict):
 
             if runFlag == True: # run model
                 os.chdir(datadir) # changing locations to where input files should be made
-                print 'Running CMS Simulation'
+                print('Running CMS Simulation')
                 dt = DT.datetime.now()
 
                 simOutput = check_output(codeDir + '%s %s.sim' %(inputDict['modelExecutable'], ''.join(time.split(':'))), shell=True)
 
-                print 'Simulation took %s ' % (DT.datetime.now() - dt)
+                print('Simulation took %s ' % (DT.datetime.now() - dt))
                 os.chdir(curdir)
 
             if analyzeFlag == True:
-                print '**\nBegin Analyze Script %s ' % DT.datetime.now()
+                print('**\nBegin Analyze Script %s ' % DT.datetime.now())
                 CMSanalyze(time, inputDict=inputDict)
 
             if pFlag == True and DT.date.today() == projectEnd:
@@ -117,20 +117,20 @@ def Master_CMS_run(inputDict):
                 moveFnames.extend(glob.glob(curdir + 'cmtb*.gif'))
                 for file in moveFnames:
                     shutil.move(file,  '/mnt/gaia/cmtb')
-                    print 'moved %s ' % file
+                    print('moved %s ' % file)
             print('------------------SUCCESSS-----------------------------------------')
 
-        except Exception, e:
-            print '<< ERROR >> HAPPENED IN THIS TIME STEP '
-            print e
+        except Exception as e:
+            print('<< ERROR >> HAPPENED IN THIS TIME STEP ')
+            print(e)
             logging.exception('\nERROR FOUND @ %s\n' %time, exc_info=True)
             os.chdir(curdir)
 
 
 if __name__ == "__main__":
     opts, args = getopt.getopt(sys.argv[1:], "h", ["help"])
-    print '___________________\n________________\n___________________\n________________\n___________________\n________________\n'
-    print 'USACE FRF Coastal Model Test Bed : CMS Wave'
+    print('___________________\n________________\n___________________\n________________\n___________________\n________________\n')
+    print('USACE FRF Coastal Model Test Bed : CMS Wave')
 
     # we are no longer allowing a default yaml file.
     # It will throw and error and tell the user where to go look for the example yaml
