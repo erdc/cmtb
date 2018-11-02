@@ -1087,7 +1087,7 @@ def CSHOREsimSetup(startTime, inputDict):
     try:
         # Pull water level data
         dum_class = prepDataLib.PrepDataTools()
-        wl_data = dum_class.prep_WL(frf_Data.getPierWL(), [start_time + DT.timedelta(days=0, seconds=tt) for tt in BC_dict['timebc_wave']])
+        wl_data = dum_class.prep_WL(frf_Data.getWL(), [start_time + DT.timedelta(days=0, seconds=tt) for tt in BC_dict['timebc_wave']])
         BC_dict['swlbc'] = wl_data['avgWL'] #gives me the avg water level at "date_list"
         BC_dict['Wsetup'] = np.zeros(len(BC_dict['timebc_wave']))  # we are HARD CODING the wave setup to always be zero!!!
         meta_dict['blank_wl_data'] = wl_data['flag']
