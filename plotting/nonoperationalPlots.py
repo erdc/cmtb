@@ -593,7 +593,7 @@ def plotTS(ofname, plotpacket1, plotpacket2, plotpacket3, **kwargs):
     ts.savefig(fname)
     plt.close()
 
-# these are all the ones thatgit  were formerly in gridTools!
+# these are all the ones that were formerly in gridTools!
 def plotBathyInterp(ofname, dataDict, title):
     """This is a quick plot of the bathy interp, Not sure if its used in any work flow or was part of a quality check
     This can probably be moved to a plotting library maybe be a more generic
