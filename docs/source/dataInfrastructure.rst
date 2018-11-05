@@ -26,7 +26,7 @@ If you'd like help in matlab (or python), we have similar scripts in place pleas
 
 Data Dissemination
 ------------------
-There is a google group where information about the datadissemination is shared.  Please sign up if you're interested
+There is a google group where information about the data dissemination is shared.  Please sign up if you're interested
 
 https://groups.google.com/d/forum/frfdata
 
