@@ -139,10 +139,7 @@ def master_CSHORE_run(inputDict):
             check_date = [DT.timedelta(hours=12).total_seconds() >= abs(((dateTimeList[ss] - check_time) + DT.timedelta(minutes=1)).total_seconds()) for check_time in my_times]
             if any(check_date):
                 reset_list[ss] = True
-            else:
-                pass
-    else:
-        pass
+
 
     cnt = 0
     for time in dateStringList:

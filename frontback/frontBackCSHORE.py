@@ -136,16 +136,12 @@ def CSHORE_analysis(startTime, inputDict):
         if AWAC6m['xFRF'] > max(x_n):
             # if it is, round it down to nearest 1m - this will move it to the boundary if it IS the boundary gage
             AWAC6m['xFRF'] = float(int(AWAC6m['xFRF']))
-        else:
-            pass
         AWAC8m = oP.wave_PlotData('awac-8m', model_time, times)
         # this is just to check to see if I rounded down when i set my bathymetry,
         # in which case the 8m AWAC would not be inside the plot limits.
         if AWAC8m['xFRF'] > max(x_n):
             # if it is, round it down to nearest 1m - this will move it to the boundary if it IS the boundary gage
             AWAC8m['xFRF'] = float(int(AWAC8m['xFRF']))
-        else:
-            pass
 
         # go ahead and time match the wave and current dat!
 
@@ -424,8 +420,6 @@ def CSHORE_analysis(startTime, inputDict):
                           'p_title': '%s CSHORE %s - %s' % (version_prefix, startTime, 'Adopp 3.5')}
 
                 oP.obs_V_mod_TS(path+'adop35_V.png', p_dict)
-        else:
-            pass
 
 
         # AWAC6m
@@ -472,8 +466,6 @@ def CSHORE_analysis(startTime, inputDict):
                           'p_title': '%s CSHORE %s - %s' % (version_prefix, startTime, 'AWAC 6m')}
 
                 oP.obs_V_mod_TS(path+'AWAC6m_V.png', p_dict)
-        else:
-            pass
 
 
         # 5 c) AWAC8m Hs
@@ -591,8 +583,6 @@ def CSHORE_analysis(startTime, inputDict):
                 # check to see if we masked anything!!
                 if np.sum(matchObs['mask']) > 0:
                     mod_zb = mod_zb[np.where(~matchObs['mask'])]
-                else:
-                    pass
 
                 p_dict = {'time': matchObs['time'],
                           'obs': matchObs['meanObs'],
@@ -645,12 +635,6 @@ def CSHORE_analysis(startTime, inputDict):
                           'p_title': '%s CSHORE %s - %s' % (version_prefix, startTime, 'LiDAR')}
 
                 oP.obs_V_mod_TS(path + 'runup2perc.png', p_dict)
-
-        else:
-            pass
-
-    else:
-        pass
 
     # make the nc files
     nc_dict = makeCSHORE_ncdict(startTime=startTime, inputDict=inputDict)
@@ -879,17 +863,27 @@ def CSHOREsimSetup(startTime, inputDict):
     print("Model Time Start : %s  Model Time End:  %s" % (start_time, end_time))
     print("Files will be placed in {0} folder".format(path_prefix + date_str))
 
-    # decision time - fixed vs mobile
+    # ______________________________________________________________________________
+    # _____________Initialize the Classes___________________________________________
+    prep = PDL.PrepDataTools()
+    # this is the getObs instance for waves!!!
+    # it includes three hours to either side so the simulation can still run if we are missing wave data at the start and end points!!!
+    frf_DataW = getObs(start_time - DT.timedelta(days=0, hours=3, minutes=0), end_time + DT.timedelta(days=0, hours=3, minutes=1), server)
+    # go ahead and pull both wave gauges so I won't have to repeat this line over and over!
+    wave_data8m = frf_DataW.getWaveSpec(gaugenumber=12)
+    wave_data6m = frf_DataW.getWaveSpec(gaugenumber=4)
+    # getObs instance for bathy!! - only pull something that is on that day!
+    frf_DataB = getObs(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), server)
+    cmtb_data = getDataTestBed(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), server)
+
+    # _____________________________________________________________________________
+    # ______________Decision Time - Fixed vs. Mobile_______________________________
     if version_prefix == 'FIXED':
         # if it is fixed, first thing to do is get waves
 
         ## _____________WAVES____________________________
         # which wave gage?
-        frf_Data = getObs(start_time - DT.timedelta(days=0, hours=3, minutes=0), end_time + DT.timedelta(days=0, hours=3, minutes=1), server)
-        wave_data8m = frf_Data.getWaveSpec(gaugenumber=12)
-        wave_data6m = frf_Data.getWaveSpec(gaugenumber=4)
-        t_class = PDL.PrepDataTools()
-        o_dict = t_class.waveTree_CSHORE(wave_data8m, wave_data6m, BC_dict['timebc_wave'], start_time)
+        o_dict = prep.waveTree_CSHORE(wave_data8m, wave_data6m, BC_dict['timebc_wave'], start_time)
         assert o_dict is not None, 'Simulation broken.  Missing wave data!'
 
         # ____________ BATHY ______________________
@@ -901,20 +895,17 @@ def CSHOREsimSetup(startTime, inputDict):
         b_dict = {}
         if bathy_loc == 'survey':
             # is this profile number in the survey?
-            frf_Data = getObs(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), server)
-            prof_nums = frf_Data.getBathyTransectProfNum()
+            prof_nums = frf_DataB.getBathyTransectProfNum()
             assert profile_num in prof_nums, 'Please begin simulations with a survey that includes profile number %s.' %(str(profile_num))
             # get the bathy packet
-            bathy_data = frf_Data.getBathyTransectFromNC(profilenumbers=profile_num)
+            bathy_data = frf_DataB.getBathyTransectFromNC(profilenumbers=profile_num)
         elif bathy_loc == 'integrated_bathy':
-            # pull the bathymetry from the integrated product - see Spike's getdatatestbed function
-            cmtb_data = getDataTestBed(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), server)
+            # pull the bathymetry from the integrated product - see getdatatestbed module
             bathy_data = cmtb_data.getBathyIntegratedTransect()
         else:
             bathy_data = None
-        # prep the packet?
-        t_class = PDL.PrepDataTools()
-        b_dict = t_class.prep_CSHOREbathy(bathy_data, bathy_loc, profile_num, dx, o_dict, fric_fac)
+        # prep the packet
+        b_dict = prep.prep_CSHOREbathy(bathy_data, bathy_loc, profile_num, dx, o_dict, fric_fac)
 
     elif version_prefix == 'MOBILE':
 
@@ -929,34 +920,24 @@ def CSHOREsimSetup(startTime, inputDict):
             prev_wg = meta0['BC_gage']
 
             # which gage was it?
-            frf_Data = getObs(start_time - DT.timedelta(days=0, hours=3, minutes=0), end_time + DT.timedelta(days=0, hours=3, minutes=1), server)
-            wave_data8m = frf_Data.getWaveSpec(gaugenumber=12)
-            wave_data6m = frf_Data.getWaveSpec(gaugenumber=4)
-            t_class = PDL.PrepDataTools()
-            o_dict = t_class.waveTree_CSHORE(wave_data8m, wave_data6m, BC_dict['timebc_wave'], start_time)
+            o_dict = prep.waveTree_CSHORE(wave_data8m, wave_data6m, BC_dict['timebc_wave'], start_time)
             assert o_dict is not None, 'Simulation broken.  Missing wave data!'
 
             # bathy stuff here
             bathy_data = {}
             bathy_data['meta0'] = meta0
             bathy_data['morpho0'] = morpho0
-            t_class = PDL.PrepDataTools()
-            b_dict = t_class.prep_CSHOREbathy(bathy_data, 'prior_model', profile_num, dx, o_dict, fric_fac)
+            b_dict = prep.prep_CSHOREbathy(bathy_data, 'prior_model', profile_num, dx, o_dict, fric_fac)
 
             # check to see if we stepped down and I have to adjust my x, zb
             if prev_wg == wave_data8m['name'] and meta_dict['BC_gage'] == wave_data6m['name']:
-                t_class = PDL.PrepDataTools()
-                b_dict = t_class.prep_CSHOREbathy(b_dict, o_dict)
+                b_dict = prep.prep_CSHOREbathy(b_dict, o_dict)
 
         except:
             # couldnt find old simulation - this is the start of a new simulation - proceed as normal
 
             # which gage was it?
-            frf_Data = getObs(start_time - DT.timedelta(days=0, hours=3, minutes=0), end_time + DT.timedelta(days=0, hours=3, minutes=1), server)
-            wave_data8m = frf_Data.getWaveSpec(gaugenumber=12)
-            wave_data6m = frf_Data.getWaveSpec(gaugenumber=4)
-            t_class = PDL.PrepDataTools()
-            o_dict = t_class.waveTree_CSHORE(wave_data8m, wave_data6m, BC_dict['timebc_wave'], start_time)
+            o_dict = prep.waveTree_CSHORE(wave_data8m, wave_data6m, BC_dict['timebc_wave'], start_time)
             assert o_dict is not None, 'Simulation broken.  Missing wave data!'
 
             # ____________ BATHY ______________________
@@ -969,21 +950,19 @@ def CSHOREsimSetup(startTime, inputDict):
             b_dict = {}
             if bathy_loc == 'survey':
                 # is this profile number in the survey?
-                frf_Data = getObs(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), server)
-                prof_nums = frf_Data.getBathyTransectProfNum()
+                prof_nums = frf_DataB.getBathyTransectProfNum()
                 assert profile_num in prof_nums, 'Please begin simulations with a survey that includes profile number %s.' % (
                     str(profile_num))
                 # get the bathy packet
-                bathy_data = frf_Data.getBathyTransectFromNC(profilenumbers=profile_num)
+                bathy_data = frf_DataB.getBathyTransectFromNC(profilenumbers=profile_num)
             elif bathy_loc == 'integrated_bathy':
-                # pull the bathymetry from the integrated product - see Spike's getdatatestbed function
+                # pull the bathymetry from the integrated product - see getdatatestbed module
                 cmtb_data = getDataTestBed(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), server)
                 bathy_data = cmtb_data.getBathyIntegratedTransect()
             else:
                 bathy_data = None
-            # prep the packet?
-            t_class = PDL.PrepDataTools()
-            b_dict = t_class.prep_CSHOREbathy(bathy_data, bathy_loc, profile_num, dx, o_dict, fric_fac)
+            # prep the packet
+            b_dict = prep.prep_CSHOREbathy(bathy_data, bathy_loc, profile_num, dx, o_dict, fric_fac)
 
     # version 2.0 of MOBILE_RESET goes here...
     elif version_prefix == 'MOBILE_RESET':
@@ -993,11 +972,7 @@ def CSHOREsimSetup(startTime, inputDict):
             # yes i am
 
             # which wave gage?
-            frf_Data = getObs(start_time - DT.timedelta(days=0, hours=3, minutes=0), end_time + DT.timedelta(days=0, hours=3, minutes=1), server)
-            wave_data8m = frf_Data.getWaveSpec(gaugenumber=12)
-            wave_data6m = frf_Data.getWaveSpec(gaugenumber=4)
-            t_class = PDL.PrepDataTools()
-            o_dict = t_class.waveTree_CSHORE(wave_data8m, wave_data6m, BC_dict['timebc_wave'], start_time)
+            o_dict = prep.waveTree_CSHORE(wave_data8m, wave_data6m, BC_dict['timebc_wave'], start_time)
             assert o_dict is not None, 'Simulation broken.  Missing wave data!'
 
             # do I want the integrated bathy or the survey
@@ -1005,20 +980,17 @@ def CSHOREsimSetup(startTime, inputDict):
             print('\n____________________\nGetting Bathymetric Data\n')
             if bathy_loc == 'survey':
                 # is this profile number in the survey?
-                frf_Data = getObs(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), server)
-                prof_nums = frf_Data.getBathyTransectProfNum()
+                prof_nums = frf_DataB.getBathyTransectProfNum()
                 assert profile_num in prof_nums, 'Please begin simulations with a survey that includes profile number %s.' % (str(profile_num))
                 # get the bathy packet
-                bathy_data = frf_Data.getBathyTransectFromNC(profilenumbers=profile_num)
+                bathy_data = frf_DataB.getBathyTransectFromNC(profilenumbers=profile_num)
             elif bathy_loc == 'integrated_bathy':
-                # pull the bathymetry from the integrated product - see Spike's getdatatestbed function
-                cmtb_data = getDataTestBed(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), server)
+                # pull the bathymetry from the integrated product - see getdatatestbed module
                 bathy_data = cmtb_data.getBathyIntegratedTransect()
             else:
                 bathy_data = None
-            # prep the packet?
-            t_class = PDL.PrepDataTools()
-            b_dict = t_class.prep_CSHOREbathy(bathy_data, bathy_loc, profile_num, dx, o_dict, fric_fac)
+            # prep the packet
+            b_dict = prep.prep_CSHOREbathy(bathy_data, bathy_loc, profile_num, dx, o_dict, fric_fac)
 
         else:
             # no i am not
@@ -1033,11 +1005,7 @@ def CSHOREsimSetup(startTime, inputDict):
                 prev_wg = meta0['BC_gage']
 
                 # which gage was it?
-                frf_Data = getObs(start_time - DT.timedelta(days=0, hours=3, minutes=0), end_time + DT.timedelta(days=0, hours=3, minutes=1), server)
-                wave_data8m = frf_Data.getWaveSpec(gaugenumber=12)
-                wave_data6m = frf_Data.getWaveSpec(gaugenumber=4)
-                t_class = PDL.PrepDataTools()
-                o_dict = t_class.waveTree_CSHORE(wave_data8m, wave_data6m, BC_dict['timebc_wave'], start_time, prev_wg=prev_wg)
+                o_dict = prep.waveTree_CSHORE(wave_data8m, wave_data6m, BC_dict['timebc_wave'], start_time, prev_wg=prev_wg)
                 assert o_dict is not None, 'Simulation broken.  Missing wave data!'
 
                 # bathy stuff here
@@ -1046,18 +1014,14 @@ def CSHOREsimSetup(startTime, inputDict):
                 bathy_data = {}
                 bathy_data['meta0'] = meta0
                 bathy_data['morpho0'] = morpho0
-                t_class = PDL.PrepDataTools()
-                b_dict = t_class.prep_CSHOREbathy(bathy_data, 'prior_model', profile_num, dx, o_dict, fric_fac)
+                b_dict = prep.prep_CSHOREbathy(bathy_data, 'prior_model', profile_num, dx, o_dict, fric_fac)
 
                 # check to see if we stepped down and I have to adjust my x, zb
                 if prev_wg == wave_data8m['name'] and o_dict['BC_gage'] == wave_data6m['name']:
-                    t_class = PDL.PrepDataTools()
-                    b_dict = t_class.prep_CSHOREbathy(b_dict, o_dict)
+                    b_dict = prep.prep_CSHOREbathy(b_dict, o_dict)
             except:
-                assert 'zb' in list(b_dict.keys()), 'Please begin simulations the day after a new integrated bathymetry'
+                assert 'zb' in list(b_dict.keys()), 'Please begin simulations the day after a newly collected bathymetry'
 
-    else:
-        pass
 
     # now assign my boundary condition stuff
     meta_dict['bathy_surv_num'] = b_dict['bathy_surv_num']
@@ -1086,8 +1050,7 @@ def CSHOREsimSetup(startTime, inputDict):
     print('_________________\nGetting Water Level Data')
     try:
         # Pull water level data
-        dum_class = prepDataLib.PrepDataTools()
-        wl_data = dum_class.prep_WL(frf_Data.getWL(), [start_time + DT.timedelta(days=0, seconds=tt) for tt in BC_dict['timebc_wave']])
+        wl_data = prep.prep_WL(frf_DataW.getWL(), [start_time + DT.timedelta(days=0, seconds=tt) for tt in BC_dict['timebc_wave']])
         BC_dict['swlbc'] = wl_data['avgWL'] #gives me the avg water level at "date_list"
         BC_dict['Wsetup'] = np.zeros(len(BC_dict['timebc_wave']))  # we are HARD CODING the wave setup to always be zero!!!
         meta_dict['blank_wl_data'] = wl_data['flag']
@@ -1097,11 +1060,13 @@ def CSHOREsimSetup(startTime, inputDict):
     assert wl_data is not None, 'Error: water level data missing for simulation'
 
     # ___________TEMP AND SALINITY ______________________
-    ctd_data = frf_Data.getCTD()
+    ctd_data = frf_DataB.getCTD()
     if ctd_data == None:
         BC_dict['salin'] = 30  # salin in ppt
         BC_dict['temp'] = 15  # water temp in degrees C
     else:
+        # DLY note 11/06/2018: this may break if we ever get getCTD() to work and the time stamps are NOT
+        # the same as the cshore time steps!
         BC_dict['salin'] = ctd_data['salin']  # salin in ppt
         BC_dict['temp'] = ctd_data['temp']  # water temp in degrees C
 
@@ -1119,7 +1084,6 @@ def CSHOREsimSetup(startTime, inputDict):
 
     # write infile
     cshore_io.make_CSHORE_infile(path_prefix + date_str + '/infile', BC_dict, meta_dict)
-    t = 1
     # write metadata file
     # cshore_io.write_flags(date_str, path_prefix, wavepacket, windpacket, WLpacket, curpacket, gridFlag)
 

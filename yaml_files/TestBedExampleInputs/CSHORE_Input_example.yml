@@ -14,10 +14,10 @@ simulationDuration: 24     # duration in hours - size of individual simulations 
 ########################
 # path stuff           #
 ########################
-modelExecutable: '/home/david/PycharmProjects/cmtb/bin/cshore.out'     # path to the model   REQUIRED
-workingDirectory: '/home/david/PycharmProjects/cmtb/data'      # REQUIRED - this is the location where the input and output text files are saved.
-netCDFdir: '/home/david/PycharmProjects/cmtb/ncFiles'   # parent directory for where the netCDF files go. OPTIONAL: will default to home/[whoami]/thredds_data
-logfileLoc:  '/home/david/PycharmProjects/cmtb/data'                # location where we will be storing the logfiles.  will default to workingDir if not specified. OPTIONAL
+modelExecutable: 'cmtb/bin/cshore.out'     # path to the model   REQUIRED
+workingDirectory: '/data'      # REQUIRED - this is the location where the input and output text files are saved.
+netCDFdir: '/thredds_data'   # parent directory for where the netCDF files go. OPTIONAL: will default to home/[whoami]/thredds_data
+logfileLoc:  '/cmtb/data'                # location where we will be storing the logfiles.  will default to workingDir if not specified. OPTIONAL
 #########################
 # testbed run control   #
 #########################
