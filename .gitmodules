@@ -1,9 +1,0 @@
-[submodule "testbedutils"]
-	path = testbedutils
-	url = git@bitbucket.org:SBFRF/testbedutils.git
-[submodule "prepdata"]
-	path = prepdata
-	url = git@bitbucket.org:SBFRF/prepdata.git
-[submodule "getdatatestbed"]
-	path = getdatatestbed
-	url = git@bitbucket.org:SBFRF/getdatatestbed.git
