@@ -1,3 +1,6 @@
 [submodule "testbedutils"]
 	path = testbedutils
 	url = git@github.com:SBFRF/testbedutils.git
+[submodule "getdatatestbed"]
+	path = getdatatestbed
+	url = git@github.com:SBFRF/getdatatestbed.git
