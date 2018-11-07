@@ -1,0 +1,3 @@
+[submodule "testbedutils"]
+	path = testbedutils
+	url = git@github.com:SBFRF/testbedutils.git
