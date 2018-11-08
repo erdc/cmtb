@@ -126,9 +126,7 @@ def master_CSHORE_run(inputDict):
         a.append(a[-1] + dt_DT)
         dateStringList.append(a[-1].strftime("%Y-%m-%dT%H:%M:%SZ"))
 
-    errors, errorDates = [],[]
-    # change this to be the same as the data folder?
-    # os.chdir(workingDir)  # is this right?  NO it's not
+    # store the currrent working directory for the analysis code
     curdir = os.getcwd()
 
     # figure out which days need to be reset days
