@@ -6,8 +6,8 @@ bathyLoc: 'integrated_bathy' # bathymetry source. OPTIONAL, defaults to integrat
 ########################
 #simulations parameters#
 ########################
-start_date: '2015-10-01T00:00:00Z'   # project start time, REQUIRED
-end_date: '2015-11-13T00:00:00Z'     # project end time, REQUIRED
+start_time: '2015-10-01T00:00:00Z'   # project start time, REQUIRED
+end_time: '2015-11-13T00:00:00Z'     # project end time, REQUIRED
 version_prefix: 'MOBILE_RESET'        # which version do we want today, REQUIRED
 profileNumber: 960 # alongshore position of your cross-shore transect for the model, in m yFRF - OPTIONAL: default is 960
 simulationDuration: 24     # duration in hours - size of individual simulations - OPTIONAL: default is 24

@@ -36,8 +36,8 @@ def master_CSHORE_run(inputDict):
     """
 
     version_prefix = inputDict['version_prefix']
-    endTime = inputDict['end_date']
-    startTime = inputDict['start_date']
+    endTime = inputDict['end_time']
+    startTime = inputDict['start_time']
     simulationDuration = inputDict['simulationDuration']
     THREDDS = inputDict['THREDDS']
     workingDir = inputDict['workingDirectory']
