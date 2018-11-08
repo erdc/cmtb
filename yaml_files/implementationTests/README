@@ -1,0 +1,4 @@
+This Folder should hold various, short tests that can be used to run with the purpose of
+ensuring that any new improvements to the code do not cause problems with any already
+established functionality.  They should be run before merging anything into master
+to ensure that nothing is broken

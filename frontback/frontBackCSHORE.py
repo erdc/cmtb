@@ -1,18 +1,15 @@
-import math
-from scipy.interpolate import griddata
 from prepdata import inputOutput, prepDataLib
 import os
 import datetime as DT
 import netCDF4 as nc
 import numpy as np
 from getdatatestbed.getDataFRF import getObs, getDataTestBed
-from testbedutils.geoprocess import FRFcoord
 from testbedutils.sblib import timeMatch, timeMatch_altimeter, makeNCdir
-from testbedutils.anglesLib import geo2STWangle, STWangle2geo, vectorRotation
+from testbedutils.anglesLib import STWangle2geo, vectorRotation
 import plotting.operationalPlots as oP
 import makenc
-from matplotlib import pyplot as plt
 from subprocess import check_output
+import prepdata.prepDataLib as PDL
 
 def CSHORE_analysis(startTime, inputDict):
     """
@@ -22,7 +19,7 @@ def CSHORE_analysis(startTime, inputDict):
             version_prefix - right now we have MOBILE, MOBILE_RESET. FIXED
             workingDir - path to the working directory the user wants
             pFlag - do you want plots or not?
-            netCDFdir - directory where the netCDF files will be saved, like a boss
+            netCDFdir - directory where the netCDF files will be saved
     Returns:
           None
 
@@ -30,7 +27,7 @@ def CSHORE_analysis(startTime, inputDict):
     version_prefix = inputDict['version_prefix']
     workingDir = inputDict['workingDirectory']
     pFlag = inputDict['pFlag']
-    if 'netCDFdir' in inputDict.keys():
+    if 'netCDFdir' in list(inputDict.keys()):
         netCDFdir = inputDict['netCDFdir']
     else:
         whoami = check_output('whoami')[:-1]
@@ -139,16 +136,12 @@ def CSHORE_analysis(startTime, inputDict):
         if AWAC6m['xFRF'] > max(x_n):
             # if it is, round it down to nearest 1m - this will move it to the boundary if it IS the boundary gage
             AWAC6m['xFRF'] = float(int(AWAC6m['xFRF']))
-        else:
-            pass
         AWAC8m = oP.wave_PlotData('awac-8m', model_time, times)
         # this is just to check to see if I rounded down when i set my bathymetry,
         # in which case the 8m AWAC would not be inside the plot limits.
         if AWAC8m['xFRF'] > max(x_n):
             # if it is, round it down to nearest 1m - this will move it to the boundary if it IS the boundary gage
             AWAC8m['xFRF'] = float(int(AWAC8m['xFRF']))
-        else:
-            pass
 
         # go ahead and time match the wave and current dat!
 
@@ -427,8 +420,6 @@ def CSHORE_analysis(startTime, inputDict):
                           'p_title': '%s CSHORE %s - %s' % (version_prefix, startTime, 'Adopp 3.5')}
 
                 oP.obs_V_mod_TS(path+'adop35_V.png', p_dict)
-        else:
-            pass
 
 
         # AWAC6m
@@ -475,8 +466,6 @@ def CSHORE_analysis(startTime, inputDict):
                           'p_title': '%s CSHORE %s - %s' % (version_prefix, startTime, 'AWAC 6m')}
 
                 oP.obs_V_mod_TS(path+'AWAC6m_V.png', p_dict)
-        else:
-            pass
 
 
         # 5 c) AWAC8m Hs
@@ -594,8 +583,6 @@ def CSHORE_analysis(startTime, inputDict):
                 # check to see if we masked anything!!
                 if np.sum(matchObs['mask']) > 0:
                     mod_zb = mod_zb[np.where(~matchObs['mask'])]
-                else:
-                    pass
 
                 p_dict = {'time': matchObs['time'],
                           'obs': matchObs['meanObs'],
@@ -784,7 +771,20 @@ def makeCSHORE_ncdict(startTime,inputDict):
     # if the fixed bed just copies the same bathy to each time-step, you will need to just take the first one!!!
     nc_dict['surveyNumber'] = np.zeros([dim_t]) + meta['bathy_surv_num']
     nc_dict['profileNumber'] = np.zeros([dim_t]) + meta['bathy_prof_num']
-    nc_dict['bathymetryDate'] = nc.date2num(np.array([meta['bathy_surv_stime'] + DT.timedelta(hours=0) for i in xrange(dim_t)]), timeunits)
+    nc_dict['bathymetryDate'] = nc.date2num(np.array([meta['bathy_surv_stime'] + DT.timedelta(hours=0) for i in range(dim_t)]), timeunits)
+
+    # wave flag stuff
+    wFlag = meta['blank_wave_data']
+    if np.size(wFlag) == 0:
+        nc_dict['waveFlag'] = np.zeros(np.shape(nc_dict['time'])).astype(int)
+    else:
+        nc_dict['waveFlag'] = []
+        for tt in range(0, len(times)):
+            if times[tt] in wFlag:
+                nc_dict['waveFlag'].append(1)
+            else:
+                nc_dict['waveFlag'].append(0)
+        nc_dict['waveFlag'] = np.array(nc_dict['waveFlag']).astype(int)
 
     return nc_dict
 
@@ -796,14 +796,14 @@ def CSHOREsimSetup(startTime, inputDict):
     This Function is the master call for the  data preperation for the Coastal Model
     Test Bed (CMTB).  It is designed to pull from GetData and utilize
     prep_datalib for development of the FRF CMTB
-    NOTE: input to the function is the end of the duration.  All Files are labeled by this convention
+    NOTE: input to the function is the start time of the model run.  All Files are labeled by this convention
     all time stamps otherwise are top of the data collection
 
     Args:
         startTime (str): this is the start time for the simulation (string in format e.g., '2016-06-02T10:00:00Z' )
                 THIS MAY NOT BE THE SAME AS THE ONE IN INPUT DICT
                 i.e., if it is looping over a bunch of 24 hour simulations
-                that is also why it is a seperate variable
+                that is also why it is a separate variable
         inputDict (dict): input dictionary with keys
             simulationDuration - duration of each simulation in hours
             version_prefix - right now we have FIXED, MOBILE, and MOBILE_RESET
@@ -860,177 +860,52 @@ def CSHOREsimSetup(startTime, inputDict):
     if not os.path.exists(path_prefix + date_str + "/figures/"):
         os.makedirs(path_prefix + date_str + "/figures/")
 
-    print "Model Time Start : %s  Model Time End:  %s" % (start_time, end_time)
-    print u"Files will be placed in {0} folder".format(path_prefix + date_str)
+    print("Model Time Start : %s  Model Time End:  %s" % (start_time, end_time))
+    print("Files will be placed in {0} folder".format(path_prefix + date_str))
 
+    # ______________________________________________________________________________
+    # _____________Initialize the Classes___________________________________________
+    prep = PDL.PrepDataTools()
+    # this is the getObs instance for waves!!!
+    # it includes three hours to either side so the simulation can still run if we are missing wave data at the start and end points!!!
+    frf_DataW = getObs(start_time - DT.timedelta(days=0, hours=3, minutes=0), end_time + DT.timedelta(days=0, hours=3, minutes=1), server)
+    # go ahead and pull both wave gauges so I won't have to repeat this line over and over!
+    wave_data8m = frf_DataW.getWaveSpec(gaugenumber=12)
+    wave_data6m = frf_DataW.getWaveSpec(gaugenumber=4)
+    # getObs instance for bathy!! - only pull something that is on that day!
+    frf_DataB = getObs(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), server)
+    cmtb_data = getDataTestBed(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), server)
 
-    # decision time - fixed vs mobile
+    # _____________________________________________________________________________
+    # ______________Decision Time - Fixed vs. Mobile_______________________________
     if version_prefix == 'FIXED':
         # if it is fixed, first thing to do is get waves
+
         ## _____________WAVES____________________________
-        frf_Data = getObs(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), THREDDS=server)
-
-        # Attempt to get 8m array first!!!
-        try:
-            wave_data = frf_Data.getWaveSpec(gaugenumber=12)
-            meta_dict['BC_gage'] = wave_data['name']
-            print "_________________\nGathering Wave Data from %s" % (wave_data['name'])
-
-            # check to see if I am missing my first and last points - if so then I can't interpolate
-            assert start_time in wave_data['time'] and end_time in wave_data['time'], 'Wave data are missing for simulation start time or end time!'
-            # if I am missing more than 1/4 of the data I should have, abort the run
-            assert len(wave_data['Hs']) > 0.75 * len(BC_dict['timebc_wave']), 'Missing more than 25% of wave data'
-
-            # get missing wave data if there is any!
-            date_list = np.array([start_time + DT.timedelta(hours=x) for x in range(0, timerun + 1)])
-            dum_var = [x not in wave_data['time'] for x in date_list]
-            if sum(dum_var) == 0:
-                meta_dict['blank_wave_data'] = np.nan
-            else:
-                meta_dict['blank_wave_data'] = date_list[np.argwhere( dum_var).flatten()]  # this will list all the times that wave data should exist, but doesn't
-            print "%d wave records with %d interpolated points" % (np.shape(wave_data['dWED'])[0], timerun + 1 - len(wave_data['dWED']))
-
-            helper = np.vectorize(lambda x: x.total_seconds())
-            BC_dict['Hs'] = np.interp(BC_dict['timebc_wave'], helper(wave_data['time'] - wave_data['time'][0]), wave_data['Hs'])  # WE ARE USING Hmo (Hs in wave_data dictionary) INSTEAD OF Hs!!!!! -> convert during infile write!!!
-            BC_dict['Tp'] = np.interp(BC_dict['timebc_wave'], helper(wave_data['time'] - wave_data['time'][0]), np.divide(1, wave_data['peakf']))  # we are inverting the peak frequency to get peak period
-            BC_dict['angle'] = np.interp(BC_dict['timebc_wave'], helper(wave_data['time'] - wave_data['time'][0]), geo2STWangle(wave_data['waveDp'], zeroAngle=71.8, fixanglesout=1))  # i am assuming that the angle is the peak of the directional spectra, not the MEAN ANGLE!!!  also I'm assuming 0-360 degrees!
-
-        except:
-            # If that craps out, try to get the 6m AWAC!!!
-            try:
-                wave_data = frf_Data.getWaveSpec(gaugenumber=4)
-                meta_dict['BC_gage'] = wave_data['name']
-                print "_________________\nGathering Wave Data from %s" % (wave_data['name'])
-
-                # check to see if I am missing my first and last points - if so then I can't interpolate
-                assert start_time in wave_data['time'] and end_time in wave_data['time'], 'Wave data are missing for simulation start time or end time!'
-                # if I am missing more than 1/4 of the data I should have, abort the run
-                assert len(wave_data['Hs']) > 0.75 * len(BC_dict['timebc_wave']), 'Missing more than 25% of wave data'
-
-                # get missing wave data if there is any!
-                date_list = np.array([start_time + DT.timedelta(hours=x) for x in range(0, timerun + 1)])
-                dum_var = [x not in wave_data['time'] for x in date_list]
-                if sum(dum_var) == 0:
-                    meta_dict['blank_wave_data'] = np.nan
-                else:
-                    meta_dict['blank_wave_data'] = date_list[np.argwhere(dum_var).flatten()]  # this will list all the times that wave data should exist, but doesn't
-                print "%d wave records with %d interpolated points" % (
-                np.shape(wave_data['dWED'])[0], timerun + 1 - len(wave_data['dWED']))
-
-                helper = np.vectorize(lambda x: x.total_seconds())
-                BC_dict['Hs'] = np.interp(BC_dict['timebc_wave'], helper(wave_data['time'] - wave_data['time'][0]), wave_data['Hs'])  # WE ARE USING Hmo (Hs in wave_data dictionary) INSTEAD OF Hs!!!!! -> convert during infile write!!!
-                BC_dict['Tp'] = np.interp(BC_dict['timebc_wave'], helper(wave_data['time'] - wave_data['time'][0]), np.divide(1, wave_data['peakf']))  # we are inverting the peak frequency to get peak period
-                BC_dict['angle'] = np.interp(BC_dict['timebc_wave'], helper(wave_data['time'] - wave_data['time'][0]), geo2STWangle(wave_data['waveDp'], zeroAngle=71.8, fixanglesout=1))  # i am assuming that the angle is the peak of the directional spectra, not the MEAN ANGLE!!!  also I'm assuming 0-360 degrees!
-            except:
-                # If that doesn't work, you are done....
-                assert 'Hs' in BC_dict.keys(), 'Simulation broken.  Wave data are missing for both 8m array and 6m AWAC.!'
-
+        # which wave gage?
+        o_dict = prep.waveTree_CSHORE(wave_data8m, wave_data6m, BC_dict['timebc_wave'], start_time)
+        assert o_dict is not None, 'Simulation broken.  Missing wave data!'
 
         # ____________ BATHY ______________________
-        print '\n____________________\nGetting Bathymetric Data\n'
+        print('\n____________________\nGetting Bathymetric Data\n')
 
         # what do I use as my initial bathy?
         bathy_loc_List = np.array(['integrated_bathy', 'survey'])
         assert bathy_loc in bathy_loc_List, "Please enter a valid source bathymetry location \n Assigned location = %s must be in List %s" % (bathy_loc, bathy_loc_List)
-
+        b_dict = {}
         if bathy_loc == 'survey':
-
             # is this profile number in the survey?
-            prof_nums = frf_Data.getBathyTransectProfNum()
+            prof_nums = frf_DataB.getBathyTransectProfNum()
             assert profile_num in prof_nums, 'Please begin simulations with a survey that includes profile number %s.' %(str(profile_num))
-
-            # go ahead and proceed as normal
-            bathy_data = frf_Data.getBathyTransectFromNC(profilenumbers=profile_num)
-
-            # calculate some stuff about the along-shore variation of your transect!
-            meta_dict['bathy_surv_num'] = np.unique(bathy_data['surveyNumber'])  # tag the survey number!
-            meta_dict['bathy_surv_stime'] = bathy_data['time'][0]  # tag the survey start time!
-            meta_dict['bathy_surv_etime'] = bathy_data['time'][-1]  # tag the survey end time!
-            meta_dict['bathy_prof_num'] = profile_num  # tag the profile number!
-            meta_dict['bathy_y_max_diff'] = bathy_data['yFRF'].max() - bathy_data['yFRF'].min()  # what is the difference between the largest y-position of this transect and the smallest y-position of this transect in FRF coordinates (FRF units)
-            meta_dict['bathy_y_sdev'] = np.std(bathy_data['yFRF'])  # standard deviation of the y-positions of this transect in FRF coordinate (FRF units)
-
-            master_bathy = {'xFRF': np.asarray(range(int(math.ceil(min(bathy_data['xFRF']))), int(max(bathy_data['xFRF']) + dx), dx))}  # xFRF coordinates of master bathy indices in m
-            master_bathy['elev'] = np.interp(master_bathy['xFRF'], bathy_data['xFRF'], bathy_data['elevation'])  # elevation at master bathy nodes in m
-
-            # actually convert the bathy_data to the coordinates of the model!
-            bc_coords = FRFcoord(wave_data['lon'], wave_data['lat'])
-            meta_dict['BC_FRF_X'] = int(round(bc_coords['xFRF']))  # this is because I force the gage to be at a grid node
-            meta_dict['BC_FRF_Y'] = bc_coords['yFRF']
-            # check that the gage is inside my "master_bathy" x bounds
-            assert bc_coords['xFRF'] <= max(master_bathy['xFRF']) and bc_coords['xFRF'] >= min(master_bathy['xFRF']), 'The wave gage selected as the boundary condition is outside the known bathymetry.'
-
-            # make the shift from "master bathy" to model bathy convention (zero at forcing instrument and positive increasing towards shore)
-            BC_dict['x'] = np.flipud(int(round(bc_coords['xFRF'])) - master_bathy['xFRF'][np.argwhere(master_bathy['xFRF'] <= int(round(bc_coords['xFRF'])))].flatten())
-            BC_dict['zb'] = np.flipud(master_bathy['elev'][np.argwhere(master_bathy['xFRF'] <= int(round(bc_coords['xFRF'])))].flatten())
-            BC_dict['fw'] = np.flipud(fric_fac * np.ones(BC_dict['x'].size))  # cross-shore values of the bottom friction (just sets it to be fric_fac at every point in the array)
-
+            # get the bathy packet
+            bathy_data = frf_DataB.getBathyTransectFromNC(profilenumbers=profile_num)
         elif bathy_loc == 'integrated_bathy':
-
-            # pull the bathymetry from the integrated product - see Spike's getdatatestbed function
-            cmtb_data = getDataTestBed(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), THREDDS)
-
+            # pull the bathymetry from the integrated product - see getdatatestbed module
             bathy_data = cmtb_data.getBathyIntegratedTransect()
-
-            # get my master bathy x-array
-            master_bathy = {'xFRF': np.asarray(range(int(math.ceil(min(bathy_data['xFRF']))), int(max(bathy_data['xFRF']) + dx), dx))}  # xFRF coordinates of master bathy indices in m
-            elev_mat = bathy_data['elevation']
-            xFRF_mat = np.matlib.repmat(bathy_data['xFRF'], np.shape(elev_mat)[0], 1)
-            yFRF_mat = np.matlib.repmat(bathy_data['yFRF'].T, np.shape(elev_mat)[1], 1).T
-
-            """
-            # did I do this right?
-            fig_loc = 'C:\Users\dyoung8\Desktop\David Stuff\Projects\CSHORE'
-            fig_name = 'test_bathy' + '.png'
-            plt.pcolor(xFRF_mat, yFRF_mat, elev_mat, cmap=plt.cm.jet, vmin=-13, vmax=5)
-            cbar = plt.colorbar()
-            cbar.set_label('(m)')
-            plt.xlabel('xFRF (m)')
-            plt.ylabel('yFRF (m)')
-            plt.savefig(os.path.join(fig_loc, fig_name))
-            plt.close()
-            """
-
-            # have to do 2D interpolation instead of 1D!!!!!!
-            points = np.array((xFRF_mat.flatten(), yFRF_mat.flatten())).T
-            values = elev_mat.flatten()
-            interp_pts = np.array((master_bathy['xFRF'], profile_num * np.ones(np.shape(master_bathy['xFRF'])))).T
-            master_bathy['elev'] = griddata(points, values, interp_pts)
-
-            """"
-            # did this work?
-            fig_loc = 'C:\Users\dyoung8\Desktop\David Stuff\Projects\CSHORE'
-            fig_name = 'test_transect' + '.png'
-            plt.plot(master_bathy['xFRF'], master_bathy['elev'])
-            plt.xlabel('xFRF (m)')
-            plt.ylabel('elevation (m)')
-            plt.savefig(os.path.join(fig_loc, fig_name))
-            plt.close()
-            """
-
-            # calculate some stuff about the along-shore variation of your transect!
-            meta_dict['bathy_surv_num'] = np.unique(bathy_data['surveyNumber'])  # tag the survey number!
-            meta_dict['bathy_surv_stime'] = bathy_data['time']  # same for integrated bathy
-            meta_dict['bathy_surv_etime'] = bathy_data['time']  # same for integrated bathy
-            meta_dict['bathy_prof_num'] = profile_num  # tag the profile number!
-            meta_dict['bathy_y_max_diff'] = 0  # always zero for intergrated bathy
-            meta_dict['bathy_y_sdev'] = 0  # always zero for intergrated bathy
-
-            # actually convert the bathy_data to the coordinates of the model!
-            bc_coords = FRFcoord(wave_data['lon'], wave_data['lat'])
-            meta_dict['BC_FRF_X'] = int(round(bc_coords['xFRF']))  # this is because I force the gage to be at a grid node
-            meta_dict['BC_FRF_Y'] = bc_coords['yFRF']
-            # check that the gage is inside my "master_bathy" x bounds
-            assert bc_coords['xFRF'] <= max(master_bathy['xFRF']) and bc_coords['xFRF'] >= min(master_bathy['xFRF']), 'The wave gage selected as the boundary condition is outside the known bathymetry.'
-
-            # make the shift from "master bathy" to model bathy convention (zero at forcing instrument and positive increasing towards shore)
-            BC_dict['x'] = np.flipud(int(round(bc_coords['xFRF'])) - master_bathy['xFRF'][np.argwhere(master_bathy['xFRF'] <= int(round(bc_coords['xFRF'])))].flatten())
-            BC_dict['zb'] = np.flipud(master_bathy['elev'][np.argwhere(master_bathy['xFRF'] <= int(round(bc_coords['xFRF'])))].flatten())
-            BC_dict['fw'] = np.flipud(fric_fac * np.ones(BC_dict['x'].size))  # cross-shore values of the bottom friction (just sets it to be fric_fac at every point in the array)
-
         else:
-            # if you still have no bathy, Error out the simualtion
-            raise EnvironmentError('No Bathymetry available')
+            bathy_data = None
+        # prep the packet
+        b_dict = prep.prep_CSHOREbathy(bathy_data, bathy_loc, profile_num, dx, o_dict, fric_fac)
 
     elif version_prefix == 'MOBILE':
 
@@ -1040,845 +915,163 @@ def CSHOREsimSetup(startTime, inputDict):
             # initialize the class
             cshore_io_O = inputOutput.cshoreIO()
             # get into the directory I need
-            start_dir_O = workingDir
             path_prefix_O = path_prefix
             params0, bc0, veg0, hydro0, sed0, morpho0, meta0 = cshore_io_O.load_CSHORE_results(path_prefix_O + Time_O)
-
-            # calculate some stuff about the along-shore variation of your transect!
-            meta_dict['bathy_surv_num'] = meta0['bathy_surv_num']
-            meta_dict['bathy_surv_stime'] = meta0['bathy_surv_stime']
-            meta_dict['bathy_surv_etime'] = meta0['bathy_surv_etime']
-            meta_dict['bathy_prof_num'] = meta0['bathy_prof_num']  # tag the profile number!
-            meta_dict['bathy_y_max_diff'] = meta0['bathy_y_max_diff']  # what is the difference between the largest y-position of this transect and the smallest y-position of this transect in FRF coordinates (FRF units)
-            meta_dict['bathy_y_sdev'] = meta0['bathy_y_sdev']  # standard deviation of the y-positions of this transect in FRF coordinate (FRF units)
-
-            meta_dict['BC_FRF_X'] = meta0["BC_FRF_X"]
-            meta_dict['BC_FRF_Y'] = meta0["BC_FRF_Y"]
-
-            BC_dict['x'] = morpho0['x'][-1]
-            BC_dict['zb'] = morpho0['zb'][-1]
-            BC_dict['fw'] = np.flipud(fric_fac * np.ones(BC_dict['x'].size))
-
             prev_wg = meta0['BC_gage']
 
             # which gage was it?
-            frf_Data = getObs(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), THREDDS=server)
-            wave_data8m = frf_Data.getWaveSpec(gaugenumber=12)
-            wave_data6m = frf_Data.getWaveSpec(gaugenumber=4)
+            o_dict = prep.waveTree_CSHORE(wave_data8m, wave_data6m, BC_dict['timebc_wave'], start_time)
+            assert o_dict is not None, 'Simulation broken.  Missing wave data!'
 
-
-            if prev_wg == wave_data6m['name']:
-                # go straight to 6m awac
-                try:
-                    wave_data = wave_data6m
-                    meta_dict['BC_gage'] = wave_data['name']
-                    print "_________________\nGathering Wave Data from %s" % (wave_data['name'])
-
-                    # check to see if I am missing my first and last points - if so then I can't interpolate
-                    assert start_time in wave_data['time'] and end_time in wave_data['time'], 'Wave data are missing for simulation start time or end time!'
-                    # if I am missing more than 1/4 of the data I should have, abort the run
-                    assert len(wave_data['Hs']) > 0.75 * len(BC_dict['timebc_wave']), 'Missing more than 25% of wave data'
-
-                    # get missing wave data if there is any!
-                    date_list = np.array([start_time + DT.timedelta(hours=x) for x in range(0, timerun + 1)])
-                    dum_var = [x not in wave_data['time'] for x in date_list]
-                    if sum(dum_var) == 0:
-                        meta_dict['blank_wave_data'] = np.nan
-                    else:
-                        meta_dict['blank_wave_data'] = date_list[np.argwhere(dum_var).flatten()]  # this will list all the times that wave data should exist, but doesn't
-                    print "%d wave records with %d interpolated points" % (np.shape(wave_data['dWED'])[0], timerun + 1 - len(wave_data['dWED']))
-
-                    helper = np.vectorize(lambda x: x.total_seconds())
-                    BC_dict['Hs'] = np.interp(BC_dict['timebc_wave'], helper(wave_data['time'] - wave_data['time'][0]),wave_data['Hs'])  # WE ARE USING Hmo (Hs in wave_data dictionary) INSTEAD OF Hs!!!!! -> convert during infile write!!!
-                    BC_dict['Tp'] = np.interp(BC_dict['timebc_wave'], helper(wave_data['time'] - wave_data['time'][0]),np.divide(1, wave_data['peakf']))  # we are inverting the peak frequency to get peak period
-                    BC_dict['angle'] = np.interp(BC_dict['timebc_wave'], helper(wave_data['time'] - wave_data['time'][0]), geo2STWangle(wave_data['waveDp'], zeroAngle=71.8, fixanglesout=1))  # i am assuming that the angle is the peak of the directional spectra, not the MEAN ANGLE!!!  also I'm assuming 0-360 degrees!
-                except:
-                    # If that doesn't work, you are done....
-                    assert 'Hs' in BC_dict.keys(), 'Simulation broken.  Previous simulation ran from 6m AWAC and wave data missing 6m AWAC.!'
-            else:
-                # go through my normal decision tree
-                # Attempt to get 8m array first!!!
-                try:
-                    wave_data = wave_data8m
-                    meta_dict['BC_gage'] = wave_data['name']
-                    print "_________________\nGathering Wave Data from %s" % (wave_data['name'])
-
-                    # check to see if I am missing my first and last points - if so then I can't interpolate
-                    assert start_time in wave_data['time'] and end_time in wave_data['time'], 'Wave data are missing for simulation start time or end time!'
-                    # if I am missing more than 1/4 of the data I should have, abort the run
-                    assert len(wave_data['Hs']) > 0.75 * len(BC_dict['timebc_wave']), 'Missing more than 25% of wave data'
-
-                    # get missing wave data if there is any!
-                    date_list = np.array([start_time + DT.timedelta(hours=x) for x in range(0, timerun + 1)])
-                    dum_var = [x not in wave_data['time'] for x in date_list]
-                    if sum(dum_var) == 0:
-                        meta_dict['blank_wave_data'] = np.nan
-                    else:
-                        meta_dict['blank_wave_data'] = date_list[np.argwhere(dum_var).flatten()]  # this will list all the times that wave data should exist, but doesn't
-                    print "%d wave records with %d interpolated points" % (
-                    np.shape(wave_data['dWED'])[0], timerun + 1 - len(wave_data['dWED']))
-
-                    helper = np.vectorize(lambda x: x.total_seconds())
-                    BC_dict['Hs'] = np.interp(BC_dict['timebc_wave'], helper(wave_data['time'] - wave_data['time'][0]), wave_data['Hs'])  # WE ARE USING Hmo (Hs in wave_data dictionary) INSTEAD OF Hs!!!!! -> convert during infile write!!!
-                    BC_dict['Tp'] = np.interp(BC_dict['timebc_wave'], helper(wave_data['time'] - wave_data['time'][0]),np.divide(1, wave_data['peakf']))  # we are inverting the peak frequency to get peak period
-                    BC_dict['angle'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]),geo2STWangle(wave_data['waveDp'], zeroAngle=71.8,fixanglesout=1))  # i am assuming that the angle is the peak of the directional spectra, not the MEAN ANGLE!!!  also I'm assuming 0-360 degrees!
-
-                except:
-                    # If that craps out, try to get the 6m AWAC!!!
-                    try:
-                        wave_data = wave_data6m
-                        meta_dict['BC_gage'] = wave_data['name']
-                        print "_________________\nGathering Wave Data from %s" % (wave_data['name'])
-
-                        # check to see if I am missing my first and last points - if so then I can't interpolate
-                        assert start_time in wave_data['time'] and end_time in wave_data['time'], 'Wave data are missing for simulation start time or end time!'
-                        # if I am missing more than 1/4 of the data I should have, abort the run
-                        assert len(wave_data['Hs']) > 0.75 * len(BC_dict['timebc_wave']), 'Missing more than 25% of wave data'
-
-                        # get missing wave data if there is any!
-                        date_list = np.array([start_time + DT.timedelta(hours=x) for x in range(0, timerun + 1)])
-                        dum_var = [x not in wave_data['time'] for x in date_list]
-                        if sum(dum_var) == 0:
-                            meta_dict['blank_wave_data'] = np.nan
-                        else:
-                            meta_dict['blank_wave_data'] = date_list[np.argwhere(dum_var).flatten()]  # this will list all the times that wave data should exist, but doesn't
-                        print "%d wave records with %d interpolated points" % (np.shape(wave_data['dWED'])[0], timerun + 1 - len(wave_data['dWED']))
-
-                        helper = np.vectorize(lambda x: x.total_seconds())
-                        BC_dict['Hs'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]), wave_data['Hs'])  # WE ARE USING Hmo (Hs in wave_data dictionary) INSTEAD OF Hs!!!!! -> convert during infile write!!!
-                        BC_dict['Tp'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]), np.divide(1,wave_data['peakf']))  # we are inverting the peak frequency to get peak period
-                        BC_dict['angle'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]),geo2STWangle(wave_data['waveDp'], zeroAngle=71.8,fixanglesout=1))  # i am assuming that the angle is the peak of the directional spectra, not the MEAN ANGLE!!!  also I'm assuming 0-360 degrees!
-                    except:
-                        # If that doesn't work, you are done....
-                        assert 'Hs' in BC_dict.keys(), 'Simulation broken.  Wave data are missing for both 8m array and 6m AWAC.!'
+            # bathy stuff here
+            bathy_data = {}
+            bathy_data['meta0'] = meta0
+            bathy_data['morpho0'] = morpho0
+            b_dict = prep.prep_CSHOREbathy(bathy_data, 'prior_model', profile_num, dx, o_dict, fric_fac)
 
             # check to see if we stepped down and I have to adjust my x, zb
             if prev_wg == wave_data8m['name'] and meta_dict['BC_gage'] == wave_data6m['name']:
-
-                # re-assign this to my new WG
-                bc_coords = FRFcoord(wave_data['lon'], wave_data['lat'])
-                meta_dict['BC_FRF_X'] = int(round(bc_coords['xFRF']))  # this is because I force the gage to be at a grid node
-                meta_dict['BC_FRF_Y'] = bc_coords['yFRF']
-
-                # if I was at the 8m but now I'm at the 6, I need to shave off some of my domain!
-                nBC_x = BC_dict['x']
-                nBC_zb = BC_dict['zb']
-                nBC_fw = BC_dict['fw']
-
-                # change the bc stuff so that 0 is at the 6m awac now, then drop all points with less than zero!
-                nBC_x = nBC_x - (max(nBC_x) - meta_dict['BC_FRF_X'])
-                keep_ind = np.where(nBC_x >= 0)
-                nBC_zb = nBC_zb[keep_ind]
-                nBC_fw = nBC_fw[keep_ind]
-                nBC_x = nBC_x[keep_ind]
-
-                # delete the old ones and re-assign
-                del BC_dict['x']
-                del BC_dict['zb']
-                del BC_dict['fw']
-                BC_dict['x'] = nBC_x
-                BC_dict['zb'] = nBC_zb
-                BC_dict['fw'] = nBC_fw
-
+                b_dict = prep.prep_CSHOREbathy(b_dict, o_dict)
 
         except:
             # couldnt find old simulation - this is the start of a new simulation - proceed as normal
-            frf_Data = getObs(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), THREDDS=server)
-            # Attempt to get 8m array first!!!
-            try:
-                wave_data = frf_Data.getWaveSpec(gaugenumber=12)
-                meta_dict['BC_gage'] = wave_data['name']
-                print "_________________\nGathering Wave Data from %s" % (wave_data['name'])
 
-                # check to see if I am missing my first and last points - if so then I can't interpolate
-                assert start_time in wave_data['time'] and end_time in wave_data['time'], 'Wave data are missing for simulation start time or end time!'
-                # if I am missing more than 1/4 of the data I should have, abort the run
-                assert len(wave_data['Hs']) > 0.75 * len(BC_dict['timebc_wave']), 'Missing more than 25% of wave data'
+            # which gage was it?
+            o_dict = prep.waveTree_CSHORE(wave_data8m, wave_data6m, BC_dict['timebc_wave'], start_time)
+            assert o_dict is not None, 'Simulation broken.  Missing wave data!'
 
-                # get missing wave data if there is any!
-                date_list = np.array([start_time + DT.timedelta(hours=x) for x in range(0, timerun + 1)])
-                dum_var = [x not in wave_data['time'] for x in date_list]
-                if sum(dum_var) == 0:
-                    meta_dict['blank_wave_data'] = np.nan
-                else:
-                    meta_dict['blank_wave_data'] = date_list[np.argwhere(dum_var).flatten()]  # this will list all the times that wave data should exist, but doesn't
-                print "%d wave records with %d interpolated points" % (np.shape(wave_data['dWED'])[0], timerun + 1 - len(wave_data['dWED']))
+            # ____________ BATHY ______________________
+            print('\n____________________\nGetting Bathymetric Data\n')
 
-                helper = np.vectorize(lambda x: x.total_seconds())
-                BC_dict['Hs'] = np.interp(BC_dict['timebc_wave'], helper(wave_data['time'] - wave_data['time'][0]),wave_data['Hs'])  # WE ARE USING Hmo (Hs in wave_data dictionary) INSTEAD OF Hs!!!!! -> convert during infile write!!!
-                BC_dict['Tp'] = np.interp(BC_dict['timebc_wave'], helper(wave_data['time'] - wave_data['time'][0]),np.divide(1, wave_data['peakf']))  # we are inverting the peak frequency to get peak period
-                BC_dict['angle'] = np.interp(BC_dict['timebc_wave'], helper(wave_data['time'] - wave_data['time'][0]),geo2STWangle(wave_data['waveDp'], zeroAngle=71.8,fixanglesout=1))  # i am assuming that the angle is the peak of the directional spectra, not the MEAN ANGLE!!!  also I'm assuming 0-360 degrees!
-
-            except:
-                # If that craps out, try to get the 6m AWAC!!!
-                try:
-                    wave_data = frf_Data.getWaveSpec(gaugenumber=4)
-                    meta_dict['BC_gage'] = wave_data['name']
-                    print "_________________\nGathering Wave Data from %s" % (wave_data['name'])
-
-                    # check to see if I am missing my first and last points - if so then I can't interpolate
-                    assert start_time in wave_data['time'] and end_time in wave_data['time'], 'Wave data are missing for simulation start time or end time!'
-                    # if I am missing more than 1/4 of the data I should have, abort the run
-                    assert len(wave_data['Hs']) > 0.75 * len(BC_dict['timebc_wave']), 'Missing more than 25% of wave data'
-
-                    # get missing wave data if there is any!
-                    date_list = np.array([start_time + DT.timedelta(hours=x) for x in range(0, timerun + 1)])
-                    dum_var = [x not in wave_data['time'] for x in date_list]
-                    if sum(dum_var) == 0:
-                        meta_dict['blank_wave_data'] = np.nan
-                    else:
-                        meta_dict['blank_wave_data'] = date_list[np.argwhere(dum_var).flatten()]  # this will list all the times that wave data should exist, but doesn't
-                    print "%d wave records with %d interpolated points" % (
-                    np.shape(wave_data['dWED'])[0], timerun + 1 - len(wave_data['dWED']))
-
-                    helper = np.vectorize(lambda x: x.total_seconds())
-                    BC_dict['Hs'] = np.interp(BC_dict['timebc_wave'], helper(wave_data['time'] - wave_data['time'][0]),wave_data['Hs'])  # WE ARE USING Hmo (Hs in wave_data dictionary) INSTEAD OF Hs!!!!! -> convert during infile write!!!
-                    BC_dict['Tp'] = np.interp(BC_dict['timebc_wave'], helper(wave_data['time'] - wave_data['time'][0]), np.divide(1, wave_data['peakf']))  # we are inverting the peak frequency to get peak period
-                    BC_dict['angle'] = np.interp(BC_dict['timebc_wave'], helper(wave_data['time'] - wave_data['time'][0]), geo2STWangle(wave_data['waveDp'], zeroAngle=71.8,fixanglesout=1))  # i am assuming that the angle is the peak of the directional spectra, not the MEAN ANGLE!!!  also I'm assuming 0-360 degrees!
-                except:
-                    # If that doesn't work, you are done....
-                    assert 'Hs' in BC_dict.keys(), 'Simulation broken.  Wave data are missing for both 8m array and 6m AWAC.!'
-
-
-            # now we get the bathy from our chosen location...
+            # what do I use as my initial bathy?
+            bathy_loc_List = np.array(['integrated_bathy', 'survey'])
+            assert bathy_loc in bathy_loc_List, "Please enter a valid source bathymetry location \n Assigned location = %s must be in List %s" % (
+            bathy_loc, bathy_loc_List)
+            b_dict = {}
             if bathy_loc == 'survey':
-
                 # is this profile number in the survey?
-                prof_nums = frf_Data.getBathyTransectProfNum()
-                assert profile_num in prof_nums, 'Please begin simulations with a survey that includes profile number %s.' % (str(profile_num))
-
-                # go ahead and proceed as normal
-                bathy_data = frf_Data.getBathyTransectFromNC(profilenumbers=profile_num)
-
-                # calculate some stuff about the along-shore variation of your transect!
-                meta_dict['bathy_surv_num'] = np.unique(bathy_data['surveyNumber'])  # tag the survey number!
-                meta_dict['bathy_surv_stime'] = bathy_data['time'][0]  # tag the survey start time!
-                meta_dict['bathy_surv_etime'] = bathy_data['time'][-1]  # tag the survey end time!
-                meta_dict['bathy_prof_num'] = profile_num  # tag the profile number!
-                meta_dict['bathy_y_max_diff'] = bathy_data['yFRF'].max() - bathy_data['yFRF'].min()  # what is the difference between the largest y-position of this transect and the smallest y-position of this transect in FRF coordinates (FRF units)
-                meta_dict['bathy_y_sdev'] = np.std(bathy_data['yFRF'])  # standard deviation of the y-positions of this transect in FRF coordinate (FRF units)
-
-                master_bathy = {'xFRF': np.asarray(range(int(math.ceil(min(bathy_data['xFRF']))), int(max(bathy_data['xFRF']) + dx),dx))}  # xFRF coordinates of master bathy indices in m
-                master_bathy['elev'] = np.interp(master_bathy['xFRF'], bathy_data['xFRF'], bathy_data['elevation'])  # elevation at master bathy nodes in m
-
-                # actually convert the bathy_data to the coordinates of the model!
-                bc_coords = FRFcoord(wave_data['lon'], wave_data['lat'])
-                meta_dict['BC_FRF_X'] = int(round(bc_coords['xFRF']))  # this is because I force the gage to be at a grid node
-                meta_dict['BC_FRF_Y'] = bc_coords['yFRF']
-                # check that the gage is inside my "master_bathy" x bounds
-                assert bc_coords['xFRF'] <= max(master_bathy['xFRF']) and bc_coords['xFRF'] >= min(master_bathy['xFRF']), 'The wave gage selected as the boundary condition is outside the known bathymetry.'
-
-                # make the shift from "master bathy" to model bathy convention (zero at forcing instrument and positive increasing towards shore)
-                BC_dict['x'] = np.flipud(int(round(bc_coords['xFRF'])) - master_bathy['xFRF'][np.argwhere(master_bathy['xFRF'] <= int(round(bc_coords['xFRF'])))].flatten())
-                BC_dict['zb'] = np.flipud(master_bathy['elev'][np.argwhere(master_bathy['xFRF'] <= int(round(bc_coords['xFRF'])))].flatten())
-                BC_dict['fw'] = np.flipud(fric_fac * np.ones(BC_dict['x'].size))  # cross-shore values of the bottom friction (just sets it to be fric_fac at every point in the array)
-
+                prof_nums = frf_DataB.getBathyTransectProfNum()
+                assert profile_num in prof_nums, 'Please begin simulations with a survey that includes profile number %s.' % (
+                    str(profile_num))
+                # get the bathy packet
+                bathy_data = frf_DataB.getBathyTransectFromNC(profilenumbers=profile_num)
             elif bathy_loc == 'integrated_bathy':
-
-                # pull the bathymetry from the integrated product - see Spike's getdatatestbed function
-                cmtb_data = getDataTestBed(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), THREDDS)
-
+                # pull the bathymetry from the integrated product - see getdatatestbed module
+                cmtb_data = getDataTestBed(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), server)
                 bathy_data = cmtb_data.getBathyIntegratedTransect()
-
-                # get my master bathy x-array
-                master_bathy = {'xFRF': np.asarray(range(int(math.ceil(min(bathy_data['xFRF']))), int(max(bathy_data['xFRF']) + dx),dx))}  # xFRF coordinates of master bathy indices in m
-                elev_mat = bathy_data['elevation']
-                xFRF_mat = np.matlib.repmat(bathy_data['xFRF'], np.shape(elev_mat)[0], 1)
-                yFRF_mat = np.matlib.repmat(bathy_data['yFRF'].T, np.shape(elev_mat)[1], 1).T
-
-                """
-                # did I do this right?
-                fig_loc = 'C:\Users\dyoung8\Desktop\David Stuff\Projects\CSHORE'
-                fig_name = 'test_bathy' + '.png'
-                plt.pcolor(xFRF_mat, yFRF_mat, elev_mat, cmap=plt.cm.jet, vmin=-13, vmax=5)
-                cbar = plt.colorbar()
-                cbar.set_label('(m)')
-                plt.xlabel('xFRF (m)')
-                plt.ylabel('yFRF (m)')
-                plt.savefig(os.path.join(fig_loc, fig_name))
-                plt.close()
-                """
-
-                # have to do 2D interpolation instead of 1D!!!!!!
-                points = np.array((xFRF_mat.flatten(), yFRF_mat.flatten())).T
-                values = elev_mat.flatten()
-                interp_pts = np.array((master_bathy['xFRF'], profile_num * np.ones(np.shape(master_bathy['xFRF'])))).T
-                master_bathy['elev'] = griddata(points, values, interp_pts)
-
-                """"
-                # did this work?
-                fig_loc = 'C:\Users\dyoung8\Desktop\David Stuff\Projects\CSHORE'
-                fig_name = 'test_transect' + '.png'
-                plt.plot(master_bathy['xFRF'], master_bathy['elev'])
-                plt.xlabel('xFRF (m)')
-                plt.ylabel('elevation (m)')
-                plt.savefig(os.path.join(fig_loc, fig_name))
-                plt.close()
-                """
-
-                # calculate some stuff about the along-shore variation of your transect!
-                meta_dict['bathy_surv_num'] = np.unique(bathy_data['surveyNumber'])  # tag the survey number!
-                meta_dict['bathy_surv_stime'] = bathy_data['time']  # same for integrated bathy
-                meta_dict['bathy_surv_etime'] = bathy_data['time']  # same for integrated bathy
-                meta_dict['bathy_prof_num'] = profile_num  # tag the profile number!
-                meta_dict['bathy_y_max_diff'] = 0  # always zero for intergrated bathy
-                meta_dict['bathy_y_sdev'] = 0  # always zero for intergrated bathy
-
-                # actually convert the bathy_data to the coordinates of the model!
-                bc_coords = FRFcoord(wave_data['lon'], wave_data['lat'])
-                meta_dict['BC_FRF_X'] = int(round(bc_coords['xFRF']))  # this is because I force the gage to be at a grid node
-                meta_dict['BC_FRF_Y'] = bc_coords['yFRF']
-                # check that the gage is inside my "master_bathy" x bounds
-                assert bc_coords['xFRF'] <= max(master_bathy['xFRF']) and bc_coords['xFRF'] >= min(master_bathy['xFRF']), 'The wave gage selected as the boundary condition is outside the known bathymetry.'
-
-                # make the shift from "master bathy" to model bathy convention (zero at forcing instrument and positive increasing towards shore)
-                BC_dict['x'] = np.flipud(int(round(bc_coords['xFRF'])) - master_bathy['xFRF'][np.argwhere(master_bathy['xFRF'] <= int(round(bc_coords['xFRF'])))].flatten())
-                BC_dict['zb'] = np.flipud(master_bathy['elev'][np.argwhere(master_bathy['xFRF'] <= int(round(bc_coords['xFRF'])))].flatten())
-                BC_dict['fw'] = np.flipud(fric_fac * np.ones(BC_dict['x'].size))  # cross-shore values of the bottom friction (just sets it to be fric_fac at every point in the array)
-
             else:
-                raise EnvironmentError('No Bathymetry available')
+                bathy_data = None
+            # prep the packet
+            b_dict = prep.prep_CSHOREbathy(bathy_data, bathy_loc, profile_num, dx, o_dict, fric_fac)
 
+    # version 2.0 of MOBILE_RESET goes here...
     elif version_prefix == 'MOBILE_RESET':
 
-        # do I want the integrated bathy or the survey
-        if bathy_loc == 'survey':
+        # first thing to check... am I resetting today
+        if inputDict['reset']:
+            # yes i am
 
-            # pull down the survey dates.
-            frf_Data = getObs(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), THREDDS=server)
+            # which wave gage?
+            o_dict = prep.waveTree_CSHORE(wave_data8m, wave_data6m, BC_dict['timebc_wave'], start_time)
+            assert o_dict is not None, 'Simulation broken.  Missing wave data!'
 
-            # is this profile number in the survey?
-            prof_nums = frf_Data.getBathyTransectProfNum()
-            assert profile_num in prof_nums, 'Please begin simulations with a survey that includes profile number %s.' %(str(profile_num))
-
-
-            # what time am I dealing with?
-            bathy_data = frf_Data.getBathyTransectFromNC(profilenumbers=profile_num)
-            wave_data8m = frf_Data.getWaveSpec(gaugenumber=12)
-            wave_data6m = frf_Data.getWaveSpec(gaugenumber=4)
-            check_time = max(bathy_data['time'])
-
-            if DT.timedelta(hours=24) >= start_time - check_time:
-                # we are reseting today!
-
-                # go through waves decision tree
-                # Attempt to get 8m array first!!!
-                try:
-                    wave_data = wave_data8m
-                    meta_dict['BC_gage'] = wave_data['name']
-                    print "_________________\nGathering Wave Data from %s" % (wave_data['name'])
-
-                    # check to see if I am missing my first and last points - if so then I can't interpolate
-                    assert start_time in wave_data['time'] and end_time in wave_data['time'], 'Wave data are missing for simulation start time or end time!'
-                    # if I am missing more than 1/4 of the data I should have, abort the run
-                    assert len(wave_data['Hs']) > 0.75 * len(BC_dict['timebc_wave']), 'Missing more than 25% of wave data'
-
-                    # get missing wave data if there is any!
-                    date_list = np.array([start_time + DT.timedelta(hours=x) for x in range(0, timerun + 1)])
-                    dum_var = [x not in wave_data['time'] for x in date_list]
-                    if sum(dum_var) == 0:
-                        meta_dict['blank_wave_data'] = np.nan
-                    else:
-                        meta_dict['blank_wave_data'] = date_list[np.argwhere(dum_var).flatten()]  # this will list all the times that wave data should exist, but doesn't
-                    print "%d wave records with %d interpolated points" % (np.shape(wave_data['dWED'])[0], timerun + 1 - len(wave_data['dWED']))
-
-                    helper = np.vectorize(lambda x: x.total_seconds())
-                    BC_dict['Hs'] = np.interp(BC_dict['timebc_wave'], helper(wave_data['time'] - wave_data['time'][0]),wave_data['Hs'])  # WE ARE USING Hmo (Hs in wave_data dictionary) INSTEAD OF Hs!!!!! -> convert during infile write!!!
-                    BC_dict['Tp'] = np.interp(BC_dict['timebc_wave'], helper(wave_data['time'] - wave_data['time'][0]),np.divide(1, wave_data['peakf']))  # we are inverting the peak frequency to get peak period
-                    BC_dict['angle'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]),geo2STWangle(wave_data['waveDp'], zeroAngle=71.8,fixanglesout=1))  # i am assuming that the angle is the peak of the directional spectra, not the MEAN ANGLE!!!  also I'm assuming 0-360 degrees!
-
-                except:
-                    # If that craps out, try to get the 6m AWAC!!!
-                    try:
-                        wave_data = wave_data6m
-                        meta_dict['BC_gage'] = wave_data['name']
-                        print "_________________\nGathering Wave Data from %s" % (wave_data['name'])
-
-                        # check to see if I am missing my first and last points - if so then I can't interpolate
-                        assert start_time in wave_data['time'] and end_time in wave_data['time'], 'Wave data are missing for simulation start time or end time!'
-                        # if I am missing more than 1/4 of the data I should have, abort the run
-                        assert len(wave_data['Hs']) > 0.75 * len(BC_dict['timebc_wave']), 'Missing more than 25% of wave data'
-
-                        # get missing wave data if there is any!
-                        date_list = np.array([start_time + DT.timedelta(hours=x) for x in range(0, timerun + 1)])
-                        dum_var = [x not in wave_data['time'] for x in date_list]
-                        if sum(dum_var) == 0:
-                            meta_dict['blank_wave_data'] = np.nan
-                        else:
-                            meta_dict['blank_wave_data'] = date_list[np.argwhere(dum_var).flatten()]  # this will list all the times that wave data should exist, but doesn't
-                        print "%d wave records with %d interpolated points" % (np.shape(wave_data['dWED'])[0], timerun + 1 - len(wave_data['dWED']))
-
-                        helper = np.vectorize(lambda x: x.total_seconds())
-                        BC_dict['Hs'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]), wave_data['Hs'])  # WE ARE USING Hmo (Hs in wave_data dictionary) INSTEAD OF Hs!!!!! -> convert during infile write!!!
-                        BC_dict['Tp'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]), np.divide(1, wave_data['peakf']))  # we are inverting the peak frequency to get peak period
-                        BC_dict['angle'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]),geo2STWangle(wave_data['waveDp'], zeroAngle=71.8,fixanglesout=1))  # i am assuming that the angle is the peak of the directional spectra, not the MEAN ANGLE!!!  also I'm assuming 0-360 degrees!
-                    except:
-                        # If that doesn't work, you are done....
-                        assert 'Hs' in BC_dict.keys(), 'Simulation broken.  Wave data are missing for both 8m array and 6m AWAC.!'
-
-
-                # then we are going to use this bathy!
-                # calculate some stuff about the along-shore variation of your transect!
-                meta_dict['bathy_surv_num'] = np.unique(bathy_data['surveyNumber'])  # tag the survey number!
-                meta_dict['bathy_surv_stime'] = bathy_data['time'][0]  # tag the survey start time!
-                meta_dict['bathy_surv_etime'] = bathy_data['time'][-1]  # tag the survey end time!
-                meta_dict['bathy_prof_num'] = profile_num  # tag the profile number!
-                meta_dict['bathy_y_max_diff'] = bathy_data['yFRF'].max() - bathy_data['yFRF'].min()  # what is the difference between the largest y-position of this transect and the smallest y-position of this transect in FRF coordinates (FRF units)
-                meta_dict['bathy_y_sdev'] = np.std(bathy_data['yFRF'])  # standard deviation of the y-positions of this transect in FRF coordinate (FRF units)
-
-                master_bathy = {'xFRF': np.asarray(range(int(math.ceil(min(bathy_data['xFRF']))), int(max(bathy_data['xFRF']) + dx),dx))}  # xFRF coordinates of master bathy indices in m
-                master_bathy['elev'] = np.interp(master_bathy['xFRF'], bathy_data['xFRF'],bathy_data['elevation'])  # elevation at master bathy nodes in m
-
-                # actually convert the bathy_data to the coordinates of the model!
-                bc_coords = FRFcoord(wave_data['lon'], wave_data['lat'])
-                meta_dict['BC_FRF_X'] = int(round(bc_coords['xFRF']))  # this is because I force the gage to be at a grid node
-                meta_dict['BC_FRF_Y'] = bc_coords['yFRF']
-                # check that the gage is inside my "master_bathy" x bounds
-                assert bc_coords['xFRF'] <= max(master_bathy['xFRF']) and bc_coords['xFRF'] >= min(master_bathy['xFRF']), 'The wave gage selected as the boundary condition is outside the known bathymetry.'
-
-                # make the shift from "master bathy" to model bathy convention (zero at forcing instrument and positive increasing towards shore)
-                BC_dict['x'] = np.flipud(int(round(bc_coords['xFRF'])) - master_bathy['xFRF'][np.argwhere(master_bathy['xFRF'] <= int(round(bc_coords['xFRF'])))].flatten())
-                BC_dict['zb'] = np.flipud(master_bathy['elev'][np.argwhere(master_bathy['xFRF'] <= int(round(bc_coords['xFRF'])))].flatten())
-                BC_dict['fw'] = np.flipud(fric_fac * np.ones(BC_dict['x'].size))  # cross-shore values of the bottom friction (just sets it to be fric_fac at every point in the array)
-
+            # do I want the integrated bathy or the survey
+            # ____________ BATHY ______________________
+            print('\n____________________\nGetting Bathymetric Data\n')
+            if bathy_loc == 'survey':
+                # is this profile number in the survey?
+                prof_nums = frf_DataB.getBathyTransectProfNum()
+                assert profile_num in prof_nums, 'Please begin simulations with a survey that includes profile number %s.' % (str(profile_num))
+                # get the bathy packet
+                bathy_data = frf_DataB.getBathyTransectFromNC(profilenumbers=profile_num)
+            elif bathy_loc == 'integrated_bathy':
+                # pull the bathymetry from the integrated product - see getdatatestbed module
+                bathy_data = cmtb_data.getBathyIntegratedTransect()
             else:
-                # we are not resetting and have to pull the previously written file.
-                try:
-                    Time_O = (DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') - DT.timedelta(days=1)).strftime('%Y-%m-%dT%H%M%SZ')
-                    # initialize the class
-                    cshore_io_O = inputOutput.cshoreIO()
-                    # get into the directory I need
-                    start_dir_O = workingDir
-                    path_prefix_O = path_prefix
-                    params0, bc0, veg0, hydro0, sed0, morpho0, meta0 = cshore_io_O.load_CSHORE_results(path_prefix_O + Time_O)
+                bathy_data = None
+            # prep the packet
+            b_dict = prep.prep_CSHOREbathy(bathy_data, bathy_loc, profile_num, dx, o_dict, fric_fac)
 
-                    # calculate some stuff about the along-shore variation of your transect!
-                    meta_dict['bathy_surv_num'] = meta0['bathy_surv_num']
-                    meta_dict['bathy_surv_stime'] = meta0['bathy_surv_stime']
-                    meta_dict['bathy_surv_etime'] = meta0['bathy_surv_etime']
-                    meta_dict['bathy_prof_num'] = meta0['bathy_prof_num']  # tag the profile number!
-                    meta_dict['bathy_y_max_diff'] = meta0['bathy_y_max_diff']  # what is the difference between the largest y-position of this transect and the smallest y-position of this transect in FRF coordinates (FRF units)
-                    meta_dict['bathy_y_sdev'] = meta0['bathy_y_sdev']  # standard deviation of the y-positions of this transect in FRF coordinate (FRF units)
+        else:
+            # no i am not
+            b_dict = {}
+            try:
+                Time_O = (DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') - DT.timedelta(days=1)).strftime('%Y-%m-%dT%H%M%SZ')
+                # initialize the class
+                cshore_io_O = inputOutput.cshoreIO()
+                # get into the directory I need
+                path_prefix_O = path_prefix
+                params0, bc0, veg0, hydro0, sed0, morpho0, meta0 = cshore_io_O.load_CSHORE_results(path_prefix_O + Time_O)
+                prev_wg = meta0['BC_gage']
 
-                    meta_dict['BC_FRF_X'] = meta0["BC_FRF_X"]
-                    meta_dict['BC_FRF_Y'] = meta0["BC_FRF_Y"]
+                # which gage was it?
+                o_dict = prep.waveTree_CSHORE(wave_data8m, wave_data6m, BC_dict['timebc_wave'], start_time, prev_wg=prev_wg)
+                assert o_dict is not None, 'Simulation broken.  Missing wave data!'
 
-                    BC_dict['x'] = morpho0['x'][-1]
-                    BC_dict['zb'] = morpho0['zb'][-1]
-                    BC_dict['fw'] = np.flipud(fric_fac * np.ones(BC_dict['x'].size))
+                # bathy stuff here
+                # ____________ BATHY ______________________
+                print('\n____________________\nGetting Bathymetric Data\n')
+                bathy_data = {}
+                bathy_data['meta0'] = meta0
+                bathy_data['morpho0'] = morpho0
+                b_dict = prep.prep_CSHOREbathy(bathy_data, 'prior_model', profile_num, dx, o_dict, fric_fac)
 
-                    prev_wg = meta0['BC_gage']
-
-                    # which gage was it?
-                    frf_Data = getObs(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), THREDDS=server)
-
-                    wave_data8m = frf_Data.getWaveSpec(gaugenumber=12)
-                    wave_data6m = frf_Data.getWaveSpec(gaugenumber=4)
-
-                    if prev_wg == wave_data6m['name']:
-                        # go straight to 6m awac
-                        try:
-                            wave_data = wave_data6m
-                            meta_dict['BC_gage'] = wave_data['name']
-                            print "_________________\nGathering Wave Data from %s" % (wave_data['name'])
-
-                            # check to see if I am missing my first and last points - if so then I can't interpolate
-                            assert start_time in wave_data['time'] and end_time in wave_data['time'], 'Wave data are missing for simulation start time or end time!'
-                            # if I am missing more than 1/4 of the data I should have, abort the run
-                            assert len(wave_data['Hs']) > 0.75 * len(BC_dict['timebc_wave']), 'Missing more than 25% of wave data'
-
-                            # get missing wave data if there is any!
-                            date_list = np.array([start_time + DT.timedelta(hours=x) for x in range(0, timerun + 1)])
-                            dum_var = [x not in wave_data['time'] for x in date_list]
-                            if sum(dum_var) == 0:
-                                meta_dict['blank_wave_data'] = np.nan
-                            else:
-                                meta_dict['blank_wave_data'] = date_list[np.argwhere(dum_var).flatten()]  # this will list all the times that wave data should exist, but doesn't
-                            print "%d wave records with %d interpolated points" % ( np.shape(wave_data['dWED'])[0], timerun + 1 - len(wave_data['dWED']))
-
-                            helper = np.vectorize(lambda x: x.total_seconds())
-                            BC_dict['Hs'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]), wave_data['Hs'])  # WE ARE USING Hmo (Hs in wave_data dictionary) INSTEAD OF Hs!!!!! -> convert during infile write!!!
-                            BC_dict['Tp'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]), np.divide(1,wave_data['peakf']))  # we are inverting the peak frequency to get peak period
-                            BC_dict['angle'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]),geo2STWangle(wave_data['waveDp'], zeroAngle=71.8,fixanglesout=1))  # i am assuming that the angle is the peak of the directional spectra, not the MEAN ANGLE!!!  also I'm assuming 0-360 degrees!
-                        except:
-                            # If that doesn't work, you are done....
-                            assert 'Hs' in BC_dict.keys(), 'Simulation broken.  Previous simulation ran from 6m AWAC and wave data missing 6m AWAC.!'
-                    else:
-                        # go through my normal decision tree
-                        # Attempt to get 8m array first!!!
-                        try:
-                            wave_data = wave_data8m
-                            meta_dict['BC_gage'] = wave_data['name']
-                            print "_________________\nGathering Wave Data from %s" % (wave_data['name'])
-
-                            # check to see if I am missing my first and last points - if so then I can't interpolate
-                            assert start_time in wave_data['time'] and end_time in wave_data['time'], 'Wave data are missing for simulation start time or end time!'
-                            # if I am missing more than 1/4 of the data I should have, abort the run
-                            assert len(wave_data['Hs']) > 0.75 * len(BC_dict['timebc_wave']), 'Missing more than 25% of wave data'
-
-                            # get missing wave data if there is any!
-                            date_list = np.array([start_time + DT.timedelta(hours=x) for x in range(0, timerun + 1)])
-                            dum_var = [x not in wave_data['time'] for x in date_list]
-                            if sum(dum_var) == 0:
-                                meta_dict['blank_wave_data'] = np.nan
-                            else:
-                                meta_dict['blank_wave_data'] = date_list[np.argwhere(dum_var).flatten()]  # this will list all the times that wave data should exist, but doesn't
-                            print "%d wave records with %d interpolated points" % (
-                                np.shape(wave_data['dWED'])[0], timerun + 1 - len(wave_data['dWED']))
-
-                            helper = np.vectorize(lambda x: x.total_seconds())
-                            BC_dict['Hs'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]), wave_data['Hs'])  # WE ARE USING Hmo (Hs in wave_data dictionary) INSTEAD OF Hs!!!!! -> convert during infile write!!!
-                            BC_dict['Tp'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]), np.divide(1,wave_data['peakf']))  # we are inverting the peak frequency to get peak period
-                            BC_dict['angle'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]),geo2STWangle(wave_data['waveDp'], zeroAngle=71.8,fixanglesout=1))  # i am assuming that the angle is the peak of the directional spectra, not the MEAN ANGLE!!!  also I'm assuming 0-360 degrees!
-
-                        except:
-                            # If that craps out, try to get the 6m AWAC!!!
-                            try:
-                                wave_data = wave_data6m
-                                meta_dict['BC_gage'] = wave_data['name']
-                                print "_________________\nGathering Wave Data from %s" % (wave_data['name'])
-
-                                # check to see if I am missing my first and last points - if so then I can't interpolate
-                                assert start_time in wave_data['time'] and end_time in wave_data['time'], 'Wave data are missing for simulation start time or end time!'
-                                # if I am missing more than 1/4 of the data I should have, abort the run
-                                assert len(wave_data['Hs']) > 0.75 * len(BC_dict['timebc_wave']), 'Missing more than 25% of wave data'
-
-                                # get missing wave data if there is any!
-                                date_list = np.array([start_time + DT.timedelta(hours=x) for x in range(0, timerun + 1)])
-                                dum_var = [x not in wave_data['time'] for x in date_list]
-                                if sum(dum_var) == 0:
-                                    meta_dict['blank_wave_data'] = np.nan
-                                else:
-                                    meta_dict['blank_wave_data'] = date_list[np.argwhere(dum_var).flatten()]  # this will list all the times that wave data should exist, but doesn't
-                                print "%d wave records with %d interpolated points" % (np.shape(wave_data['dWED'])[0], timerun + 1 - len(wave_data['dWED']))
-
-                                helper = np.vectorize(lambda x: x.total_seconds())
-                                BC_dict['Hs'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]), wave_data['Hs'])  # WE ARE USING Hmo (Hs in wave_data dictionary) INSTEAD OF Hs!!!!! -> convert during infile write!!!
-                                BC_dict['Tp'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]), np.divide(1,wave_data['peakf']))  # we are inverting the peak frequency to get peak period
-                                BC_dict['angle'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]), geo2STWangle(wave_data['waveDp'], zeroAngle=71.8,fixanglesout=1))  # i am assuming that the angle is the peak of the directional spectra, not the MEAN ANGLE!!!  also I'm assuming 0-360 degrees!
-                            except:
-                                # If that doesn't work, you are done....
-                                assert 'Hs' in BC_dict.keys(), 'Simulation broken.  Wave data are missing for both 8m array and 6m AWAC.!'
-
-                    # check to see if we stepped down and I have to adjust my x, zb
-                    if prev_wg == wave_data8m['name'] and meta_dict['BC_gage'] == wave_data6m['name']:
-                        # re-assign this to my new WG
-                        bc_coords = FRFcoord(wave_data['lon'], wave_data['lat'])
-                        meta_dict['BC_FRF_X'] = int(round(bc_coords['xFRF']))  # this is because I force the gage to be at a grid node
-                        meta_dict['BC_FRF_Y'] = bc_coords['yFRF']
-
-                        # if I was at the 8m but now I'm at the 6, I need to shave off some of my domain!
-                        nBC_x = BC_dict['x']
-                        nBC_zb = BC_dict['zb']
-                        nBC_fw = BC_dict['fw']
-
-                        # change the bc stuff so that 0 is at the 6m awac now, then drop all points with less than zero!
-                        nBC_x = nBC_x - (max(nBC_x) - meta_dict['BC_FRF_X'])
-                        keep_ind = np.where(nBC_x >= 0)
-                        nBC_zb = nBC_zb[keep_ind]
-                        nBC_fw = nBC_fw[keep_ind]
-                        nBC_x = nBC_x[keep_ind]
-
-                        # delete the old ones and re-assign
-                        del BC_dict['x']
-                        del BC_dict['zb']
-                        del BC_dict['fw']
-                        BC_dict['x'] = nBC_x
-                        BC_dict['zb'] = nBC_zb
-                        BC_dict['fw'] = nBC_fw
-                except:
-                    raise EnvironmentError('No Bathymetry available')
-
-        elif bathy_loc == 'integrated_bathy':
-
-            # pull the bathymetry from the integrated product - see Spike's getdatatestbed function
-            cmtb_data = getDataTestBed(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), THREDDS=server)
-            frf_Data = getObs(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), THREDDS=server)
-
-            bathy_data = cmtb_data.getBathyIntegratedTransect()
-            wave_data8m = frf_Data.getWaveSpec(gaugenumber=12)
-            wave_data6m = frf_Data.getWaveSpec(gaugenumber=4)
-            check_time = bathy_data['time']
-
-            if DT.timedelta(hours=24) >= (start_time - check_time) + DT.timedelta(minutes=1):
-                # we are resetting today!
-                # go through waves decision tree
-                # Attempt to get 8m array first!!!
-                try:
-                    wave_data = wave_data8m
-                    meta_dict['BC_gage'] = wave_data['name']
-                    print "_________________\nGathering Wave Data from %s" % (wave_data['name'])
-
-                    # check to see if I am missing my first and last points - if so then I can't interpolate
-                    assert start_time in wave_data['time'] and end_time in wave_data['time'], 'Wave data are missing for simulation start time or end time!'
-                    # if I am missing more than 1/4 of the data I should have, abort the run
-                    assert len(wave_data['Hs']) > 0.75 * len(BC_dict['timebc_wave']), 'Missing more than 25% of wave data'
-
-                    # get missing wave data if there is any!
-                    date_list = np.array([start_time + DT.timedelta(hours=x) for x in range(0, timerun + 1)])
-                    dum_var = [x not in wave_data['time'] for x in date_list]
-                    if sum(dum_var) == 0:
-                        meta_dict['blank_wave_data'] = np.nan
-                    else:
-                        meta_dict['blank_wave_data'] = date_list[np.argwhere(dum_var).flatten()]  # this will list all the times that wave data should exist, but doesn't
-                    print "%d wave records with %d interpolated points" % (np.shape(wave_data['dWED'])[0], timerun + 1 - len(wave_data['dWED']))
-
-                    helper = np.vectorize(lambda x: x.total_seconds())
-                    BC_dict['Hs'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]), wave_data['Hs'])  # WE ARE USING Hmo (Hs in wave_data dictionary) INSTEAD OF Hs!!!!! -> convert during infile write!!!
-                    BC_dict['Tp'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]), np.divide(1,wave_data['peakf']))  # we are inverting the peak frequency to get peak period
-                    BC_dict['angle'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]),geo2STWangle(wave_data['waveDp'], zeroAngle=71.8,fixanglesout=1))  # i am assuming that the angle is the peak of the directional spectra, not the MEAN ANGLE!!!  also I'm assuming 0-360 degrees!
-
-                except:
-                    # If that craps out, try to get the 6m AWAC!!!
-                    try:
-                        wave_data = wave_data6m
-                        meta_dict['BC_gage'] = wave_data['name']
-                        print "_________________\nGathering Wave Data from %s" % (wave_data['name'])
-
-                        # check to see if I am missing my first and last points - if so then I can't interpolate
-                        assert start_time in wave_data['time'] and end_time in wave_data['time'], 'Wave data are missing for simulation start time or end time!'
-                        # if I am missing more than 1/4 of the data I should have, abort the run
-                        assert len(wave_data['Hs']) > 0.75 * len(BC_dict['timebc_wave']), 'Missing more than 25% of wave data'
-
-                        # get missing wave data if there is any!
-                        date_list = np.array([start_time + DT.timedelta(hours=x) for x in range(0, timerun + 1)])
-                        dum_var = [x not in wave_data['time'] for x in date_list]
-                        if sum(dum_var) == 0:
-                            meta_dict['blank_wave_data'] = np.nan
-                        else:
-                            meta_dict['blank_wave_data'] = date_list[np.argwhere(dum_var).flatten()]  # this will list all the times that wave data should exist, but doesn't
-                        print "%d wave records with %d interpolated points" % (np.shape(wave_data['dWED'])[0], timerun + 1 - len(wave_data['dWED']))
-
-                        helper = np.vectorize(lambda x: x.total_seconds())
-                        BC_dict['Hs'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]), wave_data['Hs'])  # WE ARE USING Hmo (Hs in wave_data dictionary) INSTEAD OF Hs!!!!! -> convert during infile write!!!
-                        BC_dict['Tp'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]), np.divide(1,wave_data['peakf']))  # we are inverting the peak frequency to get peak period
-                        BC_dict['angle'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]),geo2STWangle(wave_data['waveDp'], zeroAngle=71.8,fixanglesout=1))  # i am assuming that the angle is the peak of the directional spectra, not the MEAN ANGLE!!!  also I'm assuming 0-360 degrees!
-                    except:
-                        # If that doesn't work, you are done....
-                        assert 'Hs' in BC_dict.keys(), 'Simulation broken.  Wave data are missing for both 8m array and 6m AWAC.!'
-
-                # then we are going to use this bathy!
-                # get my master bathy x-array
-                master_bathy = {'xFRF': np.asarray(range(int(math.ceil(min(bathy_data['xFRF']))), int(max(bathy_data['xFRF']) + dx), dx))}  # xFRF coordinates of master bathy indices in m
-                elev_mat = bathy_data['elevation']
-                xFRF_mat = np.matlib.repmat(bathy_data['xFRF'], np.shape(elev_mat)[0], 1)
-                yFRF_mat = np.matlib.repmat(bathy_data['yFRF'].T, np.shape(elev_mat)[1], 1).T
-
-                # have to do 2D interpolation instead of 1D!!!!!!
-                points = np.array((xFRF_mat.flatten(), yFRF_mat.flatten())).T
-                values = elev_mat.flatten()
-                interp_pts = np.array((master_bathy['xFRF'], profile_num * np.ones(np.shape(master_bathy['xFRF'])))).T
-                master_bathy['elev'] = griddata(points, values, interp_pts)
-
-                # calculate some stuff about the along-shore variation of your transect!
-                meta_dict['bathy_surv_num'] = np.unique(bathy_data['surveyNumber'])  # tag the survey number!
-                meta_dict['bathy_surv_stime'] = bathy_data['time']  # same for integrated bathy
-                meta_dict['bathy_surv_etime'] = bathy_data['time']  # same for integrated bathy
-                meta_dict['bathy_prof_num'] = profile_num  # tag the profile number!
-                meta_dict['bathy_y_max_diff'] = 0  # always zero for intergrated bathy
-                meta_dict['bathy_y_sdev'] = 0  # always zero for intergrated bathy
-
-                # actually convert the bathy_data to the coordinates of the model!
-                bc_coords = FRFcoord(wave_data['lon'], wave_data['lat'])
-                meta_dict['BC_FRF_X'] = int(round(bc_coords['xFRF']))  # this is because I force the gage to be at a grid node
-                meta_dict['BC_FRF_Y'] = bc_coords['yFRF']
-                # check that the gage is inside my "master_bathy" x bounds
-                assert bc_coords['xFRF'] <= max(master_bathy['xFRF']) and bc_coords['xFRF'] >= min(master_bathy['xFRF']), 'The wave gage selected as the boundary condition is outside the known bathymetry.'
-
-                # make the shift from "master bathy" to model bathy convention (zero at forcing instrument and positive increasing towards shore)
-                BC_dict['x'] = np.flipud(int(round(bc_coords['xFRF'])) - master_bathy['xFRF'][np.argwhere(master_bathy['xFRF'] <= int(round(bc_coords['xFRF'])))].flatten())
-                BC_dict['zb'] = np.flipud(master_bathy['elev'][np.argwhere(master_bathy['xFRF'] <= int(round(bc_coords['xFRF'])))].flatten())
-                BC_dict['fw'] = np.flipud(fric_fac * np.ones(BC_dict['x'].size))  # cross-shore values of the bottom friction (just sets it to be fric_fac at every point in the array)
-
-            else:
-                # we are not resetting and have to pull the previously written file.
-                try:
-                    Time_O = (DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') - DT.timedelta(days=1)).strftime('%Y-%m-%dT%H%M%SZ')
-                    # initialize the class
-                    cshore_io_O = inputOutput.cshoreIO()
-                    # get into the directory I need
-                    start_dir_O = workingDir
-                    path_prefix_O = path_prefix
-                    params0, bc0, veg0, hydro0, sed0, morpho0, meta0 = cshore_io_O.load_CSHORE_results(path_prefix_O + Time_O)
-
-                    # calculate some stuff about the along-shore variation of your transect!
-                    meta_dict['bathy_surv_num'] = meta0['bathy_surv_num']
-                    meta_dict['bathy_surv_stime'] = meta0['bathy_surv_stime']
-                    meta_dict['bathy_surv_etime'] = meta0['bathy_surv_etime']
-                    meta_dict['bathy_prof_num'] = meta0['bathy_prof_num']  # tag the profile number!
-                    meta_dict['bathy_y_max_diff'] = meta0['bathy_y_max_diff']  # what is the difference between the largest y-position of this transect and the smallest y-position of this transect in FRF coordinates (FRF units)
-                    meta_dict['bathy_y_sdev'] = meta0['bathy_y_sdev']  # standard deviation of the y-positions of this transect in FRF coordinate (FRF units)
-
-                    meta_dict['BC_FRF_X'] = meta0["BC_FRF_X"]
-                    meta_dict['BC_FRF_Y'] = meta0["BC_FRF_Y"]
-
-                    BC_dict['x'] = morpho0['x'][-1]
-                    BC_dict['zb'] = morpho0['zb'][-1]
-                    BC_dict['fw'] = np.flipud(fric_fac * np.ones(BC_dict['x'].size))
-
-                    prev_wg = meta0['BC_gage']
-
-                    # which gage was it?
-                    frf_Data = getObs(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), THREDDS=server)
-                    wave_data8m = frf_Data.getWaveSpec(gaugenumber=12)
-                    if 'name' not in wave_data8m.keys():
-                        wave_data8m['name'] = 'FRF 8m Array'
-                    else:
-                        pass
-                    wave_data6m = frf_Data.getWaveSpec(gaugenumber=4)
-                    if 'name' not in wave_data6m.keys():
-                        wave_data6m['name'] = 'FRF 6m AWAC'
-                    else:
-                        pass
-
-                    if prev_wg == wave_data6m['name']:
-                        # go straight to 6m awac
-                        try:
-                            wave_data = wave_data6m
-                            meta_dict['BC_gage'] = wave_data['name']
-                            print "_________________\nGathering Wave Data from %s" % (wave_data['name'])
-
-                            # check to see if I am missing my first and last points - if so then I can't interpolate
-                            assert start_time in wave_data['time'] and end_time in wave_data['time'], 'Wave data are missing for simulation start time or end time!'
-                            # if I am missing more than 1/4 of the data I should have, abort the run
-                            assert len(wave_data['Hs']) > 0.75 * len(BC_dict['timebc_wave']), 'Missing more than 25% of wave data'
-
-                            # get missing wave data if there is any!
-                            date_list = np.array([start_time + DT.timedelta(hours=x) for x in range(0, timerun + 1)])
-                            dum_var = [x not in wave_data['time'] for x in date_list]
-                            if sum(dum_var) == 0:
-                                meta_dict['blank_wave_data'] = np.nan
-                            else:
-                                meta_dict['blank_wave_data'] = date_list[np.argwhere(dum_var).flatten()]  # this will list all the times that wave data should exist, but doesn't
-                            print "%d wave records with %d interpolated points" % (np.shape(wave_data['dWED'])[0], timerun + 1 - len(wave_data['dWED']))
-
-                            helper = np.vectorize(lambda x: x.total_seconds())
-                            BC_dict['Hs'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]), wave_data['Hs'])  # WE ARE USING Hmo (Hs in wave_data dictionary) INSTEAD OF Hs!!!!! -> convert during infile write!!!
-                            BC_dict['Tp'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]), np.divide(1,wave_data['peakf']))  # we are inverting the peak frequency to get peak period
-                            BC_dict['angle'] = np.interp(BC_dict['timebc_wave'],
-                                                         helper(wave_data['time'] - wave_data['time'][0]),
-                                                         geo2STWangle(wave_data['waveDp'], zeroAngle=71.8,fixanglesout=1))  # i am assuming that the angle is the peak of the directional spectra, not the MEAN ANGLE!!!  also I'm assuming 0-360 degrees!
-                            # TODO @David use a constant exposed parameter for pier angle (at the top - a global variable) this way if it needs to be changed it's changed everywhere
-                        except:
-                            # If that doesn't work, you are done....
-                            assert 'Hs' in BC_dict.keys(), 'Simulation broken.  Previous simulation ran from 6m AWAC and wave data missing 6m AWAC.!'
-
-                    else:
-                        # go through my normal decision tree
-                        # Attempt to get 8m array first!!!
-                        try:
-                            wave_data = wave_data8m
-                            meta_dict['BC_gage'] = wave_data['name']
-                            print "_________________\nGathering Wave Data from %s" % (wave_data['name'])
-
-                            # check to see if I am missing my first and last points - if so then I can't interpolate
-                            assert start_time in wave_data['time'] and end_time in wave_data['time'], 'Wave data are missing for simulation start time or end time!'
-                            # if I am missing more than 1/4 of the data I should have, abort the run
-                            assert len(wave_data['Hs']) > 0.75 * len(BC_dict['timebc_wave']), 'Missing more than 25% of wave data'
-
-                            # get missing wave data if there is any!
-                            date_list = np.array([start_time + DT.timedelta(hours=x) for x in range(0, timerun + 1)])
-                            dum_var = [x not in wave_data['time'] for x in date_list]
-                            if sum(dum_var) == 0:
-                                meta_dict['blank_wave_data'] = np.nan
-                            else:
-                                meta_dict['blank_wave_data'] = date_list[np.argwhere(dum_var).flatten()]  # this will list all the times that wave data should exist, but doesn't
-                            print "%d wave records with %d interpolated points" % (np.shape(wave_data['dWED'])[0], timerun + 1 - len(wave_data['dWED']))
-
-                            helper = np.vectorize(lambda x: x.total_seconds())
-                            BC_dict['Hs'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]), wave_data['Hs'])  # WE ARE USING Hmo (Hs in wave_data dictionary) INSTEAD OF Hs!!!!! -> convert during infile write!!!
-                            BC_dict['Tp'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]), np.divide(1,wave_data['peakf']))  # we are inverting the peak frequency to get peak period
-                            BC_dict['angle'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]),geo2STWangle(wave_data['waveDp'], zeroAngle=71.8,fixanglesout=1))  # i am assuming that the angle is the peak of the directional spectra, not the MEAN ANGLE!!!  also I'm assuming 0-360 degrees!
-
-                        except:
-                            # If that craps out, try to get the 6m AWAC!!!
-                            try:
-                                wave_data = wave_data6m
-                                meta_dict['BC_gage'] = wave_data['name']
-                                print "_________________\nGathering Wave Data from %s" % (wave_data['name'])
-
-                                # check to see if I am missing my first and last points - if so then I can't interpolate
-                                assert start_time in wave_data['time'] and end_time in wave_data['time'], 'Wave data are missing for simulation start time or end time!'
-                                # if I am missing more than 1/4 of the data I should have, abort the run
-                                assert len(wave_data['Hs']) > 0.75 * len(BC_dict['timebc_wave']), 'Missing more than 25% of wave data'
-
-                                # get missing wave data if there is any!
-                                date_list = np.array([start_time + DT.timedelta(hours=x) for x in range(0, timerun + 1)])
-                                dum_var = [x not in wave_data['time'] for x in date_list]
-                                if sum(dum_var) == 0:
-                                    meta_dict['blank_wave_data'] = np.nan
-                                else:
-                                    meta_dict['blank_wave_data'] = date_list[np.argwhere(dum_var).flatten()]  # this will list all the times that wave data should exist, but doesn't
-                                print "%d wave records with %d interpolated points" % (np.shape(wave_data['dWED'])[0], timerun + 1 - len(wave_data['dWED']))
-
-                                helper = np.vectorize(lambda x: x.total_seconds())
-                                BC_dict['Hs'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]),wave_data['Hs'])  # WE ARE USING Hmo (Hs in wave_data dictionary) INSTEAD OF Hs!!!!! -> convert during infile write!!!
-                                BC_dict['Tp'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]),np.divide(1, wave_data['peakf']))  # we are inverting the peak frequency to get peak period
-                                BC_dict['angle'] = np.interp(BC_dict['timebc_wave'],helper(wave_data['time'] - wave_data['time'][0]),geo2STWangle(wave_data['waveDp'], zeroAngle=71.8,fixanglesout=1))  # i am assuming that the angle is the peak of the directional spectra, not the MEAN ANGLE!!!  also I'm assuming 0-360 degrees!
-                            except:
-                                # If that doesn't work, you are done....
-                                assert 'Hs' in BC_dict.keys(), 'Simulation broken.  Wave data are missing for both 8m array and 6m AWAC.!'
+                # check to see if we stepped down and I have to adjust my x, zb
+                if prev_wg == wave_data8m['name'] and o_dict['BC_gage'] == wave_data6m['name']:
+                    b_dict = prep.prep_CSHOREbathy(b_dict, o_dict)
+            except:
+                assert 'zb' in list(b_dict.keys()), 'Please begin simulations the day after a newly collected bathymetry'
 
 
+    # now assign my boundary condition stuff
+    meta_dict['bathy_surv_num'] = b_dict['bathy_surv_num']
+    meta_dict['bathy_surv_stime'] = b_dict['bathy_surv_stime']
+    meta_dict['bathy_surv_etime'] = b_dict['bathy_surv_etime']
+    meta_dict['bathy_prof_num'] = b_dict['bathy_prof_num']
+    meta_dict['bathy_y_max_diff'] = b_dict['bathy_y_max_diff']
+    meta_dict['bathy_y_sdev'] = b_dict['bathy_y_sdev']
+    meta_dict['BC_FRF_X'] = b_dict['BC_FRF_X']
+    meta_dict['BC_FRF_Y'] = b_dict['BC_FRF_Y']
+    BC_dict['x'] = b_dict['x']
+    BC_dict['zb'] = b_dict['zb']
+    BC_dict['fw'] = b_dict['fw']
 
-                    # check to see if we stepped down and I have to adjust my x, zb
-                    if prev_wg == wave_data8m['name'] and meta_dict['BC_gage'] == wave_data6m['name']:
-                        # re-assign this to my new WG
-                        bc_coords = FRFcoord(wave_data['lon'], wave_data['lat'])
-                        meta_dict['BC_FRF_X'] = int(round(bc_coords['xFRF']))  # this is because I force the gage to be at a grid node
-                        meta_dict['BC_FRF_Y'] = bc_coords['yFRF']
-
-                        # if I was at the 8m but now I'm at the 6, I need to shave off some of my domain!
-                        nBC_x = BC_dict['x']
-                        nBC_zb = BC_dict['zb']
-                        nBC_fw = BC_dict['fw']
-
-                        # change the bc stuff so that 0 is at the 6m awac now, then drop all points with less than zero!
-                        nBC_x = nBC_x - (max(nBC_x) - meta_dict['BC_FRF_X'])
-                        keep_ind = np.where(nBC_x >= 0)
-                        nBC_zb = nBC_zb[keep_ind]
-                        nBC_fw = nBC_fw[keep_ind]
-                        nBC_x = nBC_x[keep_ind]
-
-                        # delete the old ones and re-assign
-                        del BC_dict['x']
-                        del BC_dict['zb']
-                        del BC_dict['fw']
-                        BC_dict['x'] = nBC_x
-                        BC_dict['zb'] = nBC_zb
-                        BC_dict['fw'] = nBC_fw
-                except:
-                    raise EnvironmentError('No Bathymetry available')
+    # now assign my wave stuff?
+    meta_dict['BC_gage'] = o_dict['BC_gage']
+    meta_dict['blank_wave_data'] = o_dict['blank_wave_data']
+    BC_dict['Hs'] = o_dict['Hs']
+    BC_dict['Tp'] = o_dict['Tp']
+    BC_dict['angle'] = o_dict['angle']
 
     # check to see if I actually have wave data after all this...
-    assert 'Hs' in BC_dict.keys(), 'Simulation broken.  Wave data are missing for both 8m array and 6m AWAC!'
+    assert 'Hs' in list(BC_dict.keys()), 'Simulation broken.  Wave data are missing for both 8m array and 6m AWAC!'
 
     ## ___________WATER LEVEL__________________
-    print '_________________\nGetting Water Level Data'
+    print('_________________\nGetting Water Level Data')
     try:
         # Pull water level data
-        dum_class = prepDataLib.PrepDataTools()
-        wl_data = dum_class.prep_WL(frf_Data.getWL(), date_list)
+        wl_data = prep.prep_WL(frf_DataW.getWL(), [start_time + DT.timedelta(days=0, seconds=tt) for tt in BC_dict['timebc_wave']])
         BC_dict['swlbc'] = wl_data['avgWL'] #gives me the avg water level at "date_list"
         BC_dict['Wsetup'] = np.zeros(len(BC_dict['timebc_wave']))  # we are HARD CODING the wave setup to always be zero!!!
-        meta_dict['blank_wl_data'] = wl_data['time'][np.argwhere(wl_data['flag']==1)]
-        print 'number of WL records %d, with %d interpolated points' % (np.size(wl_data['time']), sum(wl_data['flag']))
+        meta_dict['blank_wl_data'] = wl_data['flag']
+        print('number of WL records %d, with %d interpolated points' % (np.size(wl_data['time']), sum(wl_data['flag'])))
     except (RuntimeError, TypeError):
         wl_data = None
-
+    assert wl_data is not None, 'Error: water level data missing for simulation'
 
     # ___________TEMP AND SALINITY ______________________
-    ctd_data = frf_Data.getCTD()
+    ctd_data = frf_DataB.getCTD()
     if ctd_data == None:
         BC_dict['salin'] = 30  # salin in ppt
         BC_dict['temp'] = 15  # water temp in degrees C
     else:
+        # DLY note 11/06/2018: this may break if we ever get getCTD() to work and the time stamps are NOT
+        # the same as the cshore time steps!
         BC_dict['salin'] = ctd_data['salin']  # salin in ppt
         BC_dict['temp'] = ctd_data['temp']  # water temp in degrees C
 
-
     # Last thing to do ... write files
-    print 'WRITING simulation Files'
+    print('WRITING simulation Files')
     cshore_io = inputOutput.cshoreIO()
 
     # since we are changing ilab to be 1, I need to pare down my input stuff
@@ -1889,11 +1082,8 @@ def CSHOREsimSetup(startTime, inputDict):
     BC_dict['Tp'] = BC_dict['Tp'][0:-1]
     BC_dict['swlbc'] = BC_dict['swlbc'][0:-1]
 
-
-
     # write infile
     cshore_io.make_CSHORE_infile(path_prefix + date_str + '/infile', BC_dict, meta_dict)
-
     # write metadata file
     # cshore_io.write_flags(date_str, path_prefix, wavepacket, windpacket, WLpacket, curpacket, gridFlag)
 

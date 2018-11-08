@@ -94,13 +94,13 @@ def CMSsimSetup(startTime, inputDict):
     if not os.path.exists(path_prefix + date_str + "/figures/"):
         os.makedirs(path_prefix + date_str + "/figures/")
 
-    print "Model Time Start : %s  Model Time End:  %s" % (d1, d2)
-    print u"OPERATIONAL files will be place in {0} folder".format(path_prefix + date_str)
+    print("Model Time Start : %s  Model Time End:  %s" % (d1, d2))
+    print("OPERATIONAL files will be place in {0} folder".format(path_prefix + date_str))
     # ______________________________________________________________________________
     # begin model data gathering
     ## _____________WAVES____________________________
     go = getObs(d1, d2, THREDDS=server)  # initialize get observation
-    print '_________________\nGetting Wave Data'
+    print('_________________\nGetting Wave Data')
     rawspec = go.getWaveSpec(gaugenumber=0)
     assert rawspec is not None, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
 
@@ -108,31 +108,31 @@ def CMSsimSetup(startTime, inputDict):
     # rotate and lower resolution of directional wave spectra
     wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=date_str, plot=pFlag, full=full,
                                     outputPath=path_prefix, CMSinterp=50)  # 50 freq bands are max for model
-    print "number of wave records %d with %d interpolated points" % (
-    np.shape(wavepacket['spec2d'])[0], wavepacket['flag'].sum())
+    print("number of wave records %d with %d interpolated points" % (
+    np.shape(wavepacket['spec2d'])[0], wavepacket['flag'].sum()))
 
     ## _____________WINDS______________________
-    print '_________________\nGetting Wind Data'
+    print('_________________\nGetting Wind Data')
     try:
         rawwind = go.getWind(gaugenumber=0)
         # average and rotate winds
         windpacket = prepdata.prep_wind(rawwind, wavepacket['epochtime'])
         # wind height correction
-        print 'number of wind records %d with %d interpolated points' % (
-            np.size(windpacket['time']), sum(windpacket['flag']))
+        print('number of wind records %d with %d interpolated points' % (
+            np.size(windpacket['time']), sum(windpacket['flag'])))
     except (RuntimeError, TypeError):
         windpacket = None
-        print ' NO WIND ON RECORD'
+        print(' NO WIND ON RECORD')
 
     ## ___________WATER LEVEL__________________
-    print '_________________\nGetting Water Level Data'
+    print('_________________\nGetting Water Level Data')
     try:
         # get water level data
         rawWL = go.getWL()
         # average WL
         WLpacket = prepdata.prep_WL(rawWL, wavepacket['epochtime'])
-        print 'number of WL records %d, with %d interpolated points' % (
-            np.size(WLpacket['time']), sum(WLpacket['flag']))
+        print('number of WL records %d, with %d interpolated points' % (
+            np.size(WLpacket['time']), sum(WLpacket['flag'])))
     except (RuntimeError, TypeError):
         WLpacket = None
     ### ____________ Get bathy grid from thredds ________________
@@ -223,9 +223,9 @@ def CMSanalyze(startTime, inputDict):
         full = False
     # _____________________________________________________________________________
 
-    print '\nBeggining of Analyze Script\nLooking for file in ' + fpath
-    print '\nData Start: %s  Finish: %s' % (d1, d2)
-    print 'Analyzing simulation'
+    print('\nBeggining of Analyze Script\nLooking for file in ' + fpath)
+    print('\nData Start: %s  Finish: %s' % (d1, d2))
+    print('Analyzing simulation')
     go = getDataFRF.getObs(d1, d2, server)  # setting up get data instance
     prepdata = STPD.PrepDataTools()  # initializing instance for rotation scheme
     cio = cmsIO()  # =pathbase) looks for model output files in folder to analyze
@@ -235,7 +235,7 @@ def CMSanalyze(startTime, inputDict):
     ######################################################################################################################
     ######################################################################################################################
     t = DT.datetime.now()
-    print 'Loading files '
+    print('Loading files ')
     cio.ReadCMS_ALL(fpath)  # load all files
     stat_packet = cio.stat_packet  # unpack dictionaries from class instance
     obse_packet = cio.obse_Packet
@@ -243,7 +243,7 @@ def CMSanalyze(startTime, inputDict):
     dep_pack['bathy'] = np.expand_dims(dep_pack['bathy'], axis=0)
     # convert dep_pack to proper dep pack with keys
     wave_pack = cio.wave_Packet
-    print 'Loaded files in %s' % (DT.datetime.now() - t)
+    print('Loaded files in %s' % (DT.datetime.now() - t))
     # correct model outout angles from STWAVE(+CCW) to Geospatial (+CW)
     stat_packet['WaveDm'] = testbedutils.anglesLib.STWangle2geo(stat_packet['WaveDm'])
     # correct angles
@@ -338,7 +338,7 @@ def CMSanalyze(startTime, inputDict):
     plotParams = [('waveHs', '$m$'), ('bathymetry', 'NAVD88 $[m]$'), ('waveTp', '$s$'), ('waveDm', '$degTn$')]
     if pFlag == True:
         for param in plotParams:
-            print '    plotting %s...' % param[0]
+            print('    plotting %s...' % param[0])
             spatialPlotPack = {'title': 'Regional Grid: %s' % param[0],
                                'xlabel': 'Longshore distance [m]',
                                'ylabel': 'Cross-shore distance [m]',
@@ -411,7 +411,7 @@ def CMSanalyze(startTime, inputDict):
             stat_data['Latitude'] = w['lat']
             stat_data['Longitude'] = w['lon']
         # Name files and make sure server directory has place for files to go
-        print 'making netCDF for model output at %s ' % station
+        print('making netCDF for model output at %s ' % station)
         TdsFldrBase = os.path.join(Thredds_Base, fldrArch, station)
 
         NCpath = sb.makeNCdir(Thredds_Base, os.path.join(version_prefix, station), datestring, model='CMS')
@@ -427,7 +427,7 @@ def CMSanalyze(startTime, inputDict):
         makenc.makenc_Station(stat_data, globalyaml_fname=globalyaml_fname, flagfname=flagfname,
                               ofname=outFileName, stat_yaml_fname=stat_yaml_fname)
 
-        print "netCDF file's created for station: %s " % station
+        print("netCDF file's created for station: %s " % station)
         ###################################################################################################################
         ###############################   Plotting  Below   ###############################################################
         ###################################################################################################################
@@ -447,7 +447,7 @@ def CMSanalyze(startTime, inputDict):
 
             for param in modStats:  # loop through each bulk statistic
                 if len(time) > 1 and param in ['Hm0', 'Tm', 'sprdF', 'sprdD', 'Tp', 'Dm']:
-                    print '    plotting %s: %s' % (station, param)
+                    print('    plotting %s: %s' % (station, param))
                     if param in ['Tp', 'Tm10']:
                         units = 's'
                         title = '%s period' % param
