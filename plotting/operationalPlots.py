@@ -858,7 +858,7 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     model_date = p_dict['model_time'].strftime('%Y-%m-%d %H:%M')
     b, = ax1.plot(p_dict['x'], p_dict['obs'], 'r-', label='Observed (initial) \n' + obs_date)
     c, = ax1.plot(p_dict['x'], p_dict['model'], 'y-', label='Model \n' + model_date)
-    if p_dict['obs2_time'] != []:
+    if 'obs2_time' in p_dict.keys():
         obs2_date = p_dict['obs2_time'].strftime('%Y-%m-%d %H:%M')
         r, = ax1.plot(p_dict['x'], p_dict['obs2'], 'r--', label='Observed (final) \n' + obs2_date)
 
@@ -936,7 +936,7 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
         tick.label.set_fontsize(14)
     ax1.tick_params(labelsize=14)
     ax5.tick_params(labelsize=14)
-    if p_dict['obs2_time'] != []:
+    if 'obs2_time' in p_dict.keys():
         p = [a, d, b, e, r, c, f]
         ax1.legend(p, [p_.get_label() for p_ in p], bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=5,
                 borderaxespad=0., fontsize=12, handletextpad=0.05)
@@ -952,7 +952,7 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     if min_val < 0 and max_val > 0:
         ax2.plot(one_one, np.zeros(len(one_one)), 'k--')
         ax2.plot(np.zeros(len(one_one)), one_one, 'k--')
-    if p_dict['obs2_time'] != []:
+    if 'obs2_time' in p_dict.keys():
         ax2.plot(p_dict['obs2'], p_dict['model'], 'r*')
         ax2.set_xlabel('Observed %s (final) [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
     else:

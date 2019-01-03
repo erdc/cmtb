@@ -64,6 +64,10 @@ def CSHORE_analysis(startTime, inputDict):
     x_n = BC_FRFX - morpho['x'][0]
     model_time = times[-1]
 
+    # convert model time to epoch?
+    # timeunits = 'seconds since 1970-01-01 00:00:00'
+    # model_timeN = nc.date2num(model_time, timeunits)
+
     # make the plots like a boss, with greatness
     if pFlag:
 
@@ -651,7 +655,7 @@ def CSHORE_analysis(startTime, inputDict):
         globalYaml = os.path.join(yaml_dir, 'yaml_files/CSHORE/CSHORE_fixed_global.yml')
         varYaml = os.path.join(yaml_dir, 'yaml_files/CSHORE/CSHORE_fixed_var.yml')
     else:
-        raise  NotImplementedError('please check version prefix')
+        raise NotImplementedError('please check version prefix')
 
     assert globalYaml is not None, 'CSHORE_analysis Error: Version prefix not recognized'
 
