@@ -71,63 +71,65 @@ def CSHORE_analysis(startTime, inputDict):
     # make the plots like a boss, with greatness
     if pFlag:
 
-        # A - pull all the the observations that I need and store as dictionaries!!!!!!!
-        # Altimeter data!!!!!!!!
-        Alt05 = oP.alt_PlotData('Alt05', model_time, times)
-        Alt04 = oP.alt_PlotData('Alt04', model_time, times)
-        Alt03 = oP.alt_PlotData('Alt03', model_time, times)
+        if 'MOBILE' in version_prefix:
 
-        # go ahead and time match the altimeter data
-        if Alt05['TS_toggle']:
-            # ALT05
-            obs_zb = Alt05['zb']
-            obs_time = Alt05['time']
-            obs_loc = round(Alt05['xFRF'])
-            mod_zb = morpho['zb'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
-            comp_time = times[1:]
-            comp_time_n, obs_n, mod_n = timeMatch_altimeter(obs_time, obs_zb, comp_time, mod_zb)
-            plot_ind = np.where(abs(comp_time_n - model_time) == min(abs(comp_time_n - model_time)), 1, 0)
-            # delete and re-assign
-            del Alt05['zb']
-            del Alt05['time']
-            del Alt05['plot_ind']
-            Alt05['zb'] = obs_n
-            Alt05['time'] = comp_time_n
-            Alt05['plot_ind'] = plot_ind
+            # A - pull all the the observations that I need and store as dictionaries!!!!!!!
+            # Altimeter data!!!!!!!!
+            Alt05 = oP.alt_PlotData('Alt05', model_time, times)
+            Alt04 = oP.alt_PlotData('Alt04', model_time, times)
+            Alt03 = oP.alt_PlotData('Alt03', model_time, times)
 
-        if Alt04['TS_toggle']:
-            # ALT04
-            obs_zb = Alt04['zb']
-            obs_time = Alt04['time']
-            obs_loc = round(Alt04['xFRF'])
-            mod_zb = morpho['zb'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
-            comp_time = times[1:]
-            comp_time_n, obs_n, mod_n = timeMatch_altimeter(obs_time, obs_zb, comp_time, mod_zb)
-            plot_ind = np.where(abs(comp_time_n - model_time) == min(abs(comp_time_n - model_time)), 1, 0)
-            # delete and re-assign
-            del Alt04['zb']
-            del Alt04['time']
-            del Alt04['plot_ind']
-            Alt04['zb'] = obs_n
-            Alt04['time'] = comp_time_n
-            Alt04['plot_ind'] = plot_ind
+            # go ahead and time match the altimeter data
+            if Alt05['TS_toggle']:
+                # ALT05
+                obs_zb = Alt05['zb']
+                obs_time = Alt05['time']
+                obs_loc = round(Alt05['xFRF'])
+                mod_zb = morpho['zb'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
+                comp_time = times[1:]
+                comp_time_n, obs_n, mod_n = timeMatch_altimeter(obs_time, obs_zb, comp_time, mod_zb)
+                plot_ind = np.where(abs(comp_time_n - model_time) == min(abs(comp_time_n - model_time)), 1, 0)
+                # delete and re-assign
+                del Alt05['zb']
+                del Alt05['time']
+                del Alt05['plot_ind']
+                Alt05['zb'] = obs_n
+                Alt05['time'] = comp_time_n
+                Alt05['plot_ind'] = plot_ind
 
-        if Alt03['TS_toggle']:
-            # ALT03
-            obs_zb = Alt03['zb']
-            obs_time = Alt03['time']
-            obs_loc = round(Alt03['xFRF'])
-            mod_zb = morpho['zb'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
-            comp_time = times[1:]
-            comp_time_n, obs_n, mod_n = timeMatch_altimeter(obs_time, obs_zb, comp_time, mod_zb)
-            plot_ind = np.where(abs(comp_time_n - model_time) == min(abs(comp_time_n - model_time)), 1, 0)
-            # delete and re-assign
-            del Alt03['zb']
-            del Alt03['time']
-            del Alt03['plot_ind']
-            Alt03['zb'] = obs_n
-            Alt03['time'] = comp_time_n
-            Alt03['plot_ind'] = plot_ind
+            if Alt04['TS_toggle']:
+                # ALT04
+                obs_zb = Alt04['zb']
+                obs_time = Alt04['time']
+                obs_loc = round(Alt04['xFRF'])
+                mod_zb = morpho['zb'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
+                comp_time = times[1:]
+                comp_time_n, obs_n, mod_n = timeMatch_altimeter(obs_time, obs_zb, comp_time, mod_zb)
+                plot_ind = np.where(abs(comp_time_n - model_time) == min(abs(comp_time_n - model_time)), 1, 0)
+                # delete and re-assign
+                del Alt04['zb']
+                del Alt04['time']
+                del Alt04['plot_ind']
+                Alt04['zb'] = obs_n
+                Alt04['time'] = comp_time_n
+                Alt04['plot_ind'] = plot_ind
+
+            if Alt03['TS_toggle']:
+                # ALT03
+                obs_zb = Alt03['zb']
+                obs_time = Alt03['time']
+                obs_loc = round(Alt03['xFRF'])
+                mod_zb = morpho['zb'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
+                comp_time = times[1:]
+                comp_time_n, obs_n, mod_n = timeMatch_altimeter(obs_time, obs_zb, comp_time, mod_zb)
+                plot_ind = np.where(abs(comp_time_n - model_time) == min(abs(comp_time_n - model_time)), 1, 0)
+                # delete and re-assign
+                del Alt03['zb']
+                del Alt03['time']
+                del Alt03['plot_ind']
+                Alt03['zb'] = obs_n
+                Alt03['time'] = comp_time_n
+                Alt03['plot_ind'] = plot_ind
 
 
 
@@ -147,7 +149,7 @@ def CSHORE_analysis(startTime, inputDict):
             # if it is, round it down to nearest 1m - this will move it to the boundary if it IS the boundary gage
             AWAC8m['xFRF'] = float(int(AWAC8m['xFRF']))
 
-        # go ahead and time match the wave and current dat!
+        # go ahead and time match the wave and current data!
 
         if Adopp_35['TS_toggle']:
             # Adopp_35
@@ -295,17 +297,21 @@ def CSHORE_analysis(startTime, inputDict):
         # LiDAR stuff goes here...
         lidar = oP.lidar_PlotData(times)
 
-
-
-
-        obs_dict = {'Alt05': Alt05,
-                    'Alt04': Alt04,
-                    'Alt03': Alt03,
-                    'Adopp_35': Adopp_35,
-                    'AWAC6m': AWAC6m,
-                    'AWAC8m': AWAC8m,
-                    'lidar': lidar,
-                    }
+        if 'MOBILE' in version_prefix:
+            obs_dict = {'Alt05': Alt05,
+                        'Alt04': Alt04,
+                        'Alt03': Alt03,
+                        'Adopp_35': Adopp_35,
+                        'AWAC6m': AWAC6m,
+                        'AWAC8m': AWAC8m,
+                        'lidar': lidar,
+                        }
+        else:
+            obs_dict = {'Adopp_35': Adopp_35,
+                        'AWAC6m': AWAC6m,
+                        'AWAC8m': AWAC8m,
+                        'lidar': lidar,
+                        }
 
 
         # QA/QC plots...!!!!
@@ -1046,6 +1052,12 @@ def CSHOREsimSetup(startTime, inputDict):
     BC_dict['Hs'] = o_dict['Hs']
     BC_dict['Tp'] = o_dict['Tp']
     BC_dict['angle'] = o_dict['angle']
+
+    # troubleshooting wave direction stuff!
+    # BC_dict['Hs'] = 5 * np.ones(np.shape(BC_dict['Hs']))
+    # BC_dict['Tp'] = 18 * np.ones(np.shape(BC_dict['Tp']))
+    # BC_dict['angle'] = -60 * np.ones(np.shape(BC_dict['angle']))
+    # t = 1
 
     # check to see if I actually have wave data after all this...
     assert 'Hs' in list(BC_dict.keys()), 'Simulation broken.  Wave data are missing for both 8m array and 6m AWAC!'

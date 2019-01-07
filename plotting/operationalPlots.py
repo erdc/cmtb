@@ -830,9 +830,18 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     """
 
     # Altimeter data!!!!!!!!
-    Alt05 = obs_dict['Alt05']
-    Alt04 = obs_dict['Alt04']
-    Alt03 = obs_dict['Alt03']
+    if 'Alt05' in obs_dict.keys():
+        Alt05 = obs_dict['Alt05']
+    else:
+        Alt05 = None
+    if 'Alt04' in obs_dict.keys():
+        Alt04 = obs_dict['Alt04']
+    else:
+        Alt04 = None
+    if 'Alt03' in obs_dict.keys():
+        Alt03 = obs_dict['Alt03']
+    else:
+        Alt03 = None
 
     # wave data
     Adopp_35 = obs_dict['Adopp_35']
@@ -863,21 +872,28 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
         r, = ax1.plot(p_dict['x'], p_dict['obs2'], 'r--', label='Observed (final) \n' + obs2_date)
 
     # add altimeter data!!
-    temp05 = Alt05['zb'][Alt05['plot_ind'] == 1]
-    temp04 = Alt04['zb'][Alt04['plot_ind'] == 1]
-    temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
-    # Alt05
-    f, = ax1.plot(Alt05['xFRF'] * np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'k-',
-                  label='Gauge Data')
-    g, = ax1.plot(Alt05['xFRF'] * np.ones(1), temp05, 'k_', label='Gauge Data')
-    # Alt04
-    h, = ax1.plot(Alt04['xFRF'] * np.ones(2), [temp04 - np.std(Alt04['zb']), temp04 + np.std(Alt04['zb'])], 'k-',
-                  label='Gauge Data')
-    i, = ax1.plot(Alt04['xFRF'] * np.ones(1), temp04, 'k_', label='Gauge Data')
-    # Alt03
-    j, = ax1.plot(Alt03['xFRF'] * np.ones(2), [temp03 - np.std(Alt03['zb']), temp03 + np.std(Alt03['zb'])], 'k-',
-                  label='Gauge Data')
-    k, = ax1.plot(Alt03['xFRF'] * np.ones(1), temp03, 'k_', label='Gauge Data')
+    if Alt05 is not None:
+        temp05 = Alt05['zb'][Alt05['plot_ind'] == 1]
+    if Alt04 is not None:
+        temp04 = Alt04['zb'][Alt04['plot_ind'] == 1]
+    if Alt03 is not None:
+        temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
+
+    if Alt05 is not None:
+        # Alt05
+        f, = ax1.plot(Alt05['xFRF'] * np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'k-',
+                      label='Gauge Data')
+        g, = ax1.plot(Alt05['xFRF'] * np.ones(1), temp05, 'k_', label='Gauge Data')
+    if Alt04 is not None:
+        # Alt04
+        h, = ax1.plot(Alt04['xFRF'] * np.ones(2), [temp04 - np.std(Alt04['zb']), temp04 + np.std(Alt04['zb'])], 'k-',
+                      label='Gauge Data')
+        i, = ax1.plot(Alt04['xFRF'] * np.ones(1), temp04, 'k_', label='Gauge Data')
+    if Alt03 is not None:
+        # Alt03
+        j, = ax1.plot(Alt03['xFRF'] * np.ones(2), [temp03 - np.std(Alt03['zb']), temp03 + np.std(Alt03['zb'])], 'k-',
+                      label='Gauge Data')
+        k, = ax1.plot(Alt03['xFRF'] * np.ones(1), temp03, 'k_', label='Gauge Data')
 
     ax5 = ax1.twinx()
     d, = ax5.plot(p_dict['x'], p_dict['Hs'], 'g-', label='Model $H_{s}$')
@@ -937,11 +953,17 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     ax1.tick_params(labelsize=14)
     ax5.tick_params(labelsize=14)
     if 'obs2_time' in p_dict.keys():
-        p = [a, d, b, e, r, c, f]
+        if Alt05 is not None:
+            p = [a, d, b, e, r, c, f]
+        else:
+            p = [a, d, b, e, r, c]
         ax1.legend(p, [p_.get_label() for p_ in p], bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=5,
                 borderaxespad=0., fontsize=12, handletextpad=0.05)
     else:
-        p = [a, b, c, f, d, e]
+        if Alt05 is not None:
+            p = [a, b, c, f, d, e]
+        else:
+            p = [a, b, c, d, e]
         ax1.legend(p, [p_.get_label() for p_ in p], bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=len(p),
                 borderaxespad=0., fontsize=12, handletextpad=0.05)
 
@@ -1085,9 +1107,18 @@ def mod_results(ofname, p_dict, obs_dict, ylims=None):
     """
 
     # Altimeter data!!!!!!!!
-    Alt05 = obs_dict['Alt05']
-    Alt04 = obs_dict['Alt04']
-    Alt03 = obs_dict['Alt03']
+    if 'Alt05' in obs_dict.keys():
+        Alt05 = obs_dict['Alt05']
+    else:
+        Alt05 = None
+    if 'Alt04' in obs_dict.keys():
+        Alt04 = obs_dict['Alt04']
+    else:
+        Alt04 = None
+    if 'Alt03' in obs_dict.keys():
+        Alt03 = obs_dict['Alt03']
+    else:
+        Alt03 = None
 
     # wave data
     Adopp_35 = obs_dict['Adopp_35']
@@ -1218,18 +1249,25 @@ def mod_results(ofname, p_dict, obs_dict, ylims=None):
         col_num = 3
 
     # add altimeter data!!
-    temp05 = Alt05['zb'][Alt05['plot_ind'] == 1]
-    temp04 = Alt04['zb'][Alt04['plot_ind'] == 1]
-    temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
+    if Alt05 is not None:
+        temp05 = Alt05['zb'][Alt05['plot_ind'] == 1]
+    if Alt04 is not None:
+        temp04 = Alt04['zb'][Alt04['plot_ind'] == 1]
+    if Alt03 is not None:
+        temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
+
     # Alt05
-    ax3.plot(Alt05['xFRF']*np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'k-', label='Gauge Data')
-    ax3.plot(Alt05['xFRF'] * np.ones(1), [temp05], 'k_')
+    if Alt05 is not None:
+        ax3.plot(Alt05['xFRF']*np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'k-', label='Gauge Data')
+        ax3.plot(Alt05['xFRF'] * np.ones(1), [temp05], 'k_')
     # Alt04
-    ax3.plot(Alt04['xFRF']*np.ones(2), [temp04 - np.std(Alt04['zb']), temp04 + np.std(Alt04['zb'])], 'k-')
-    ax3.plot(Alt04['xFRF'] * np.ones(1), [temp04], 'k_')
+    if Alt04 is not None:
+        ax3.plot(Alt04['xFRF']*np.ones(2), [temp04 - np.std(Alt04['zb']), temp04 + np.std(Alt04['zb'])], 'k-')
+        ax3.plot(Alt04['xFRF'] * np.ones(1), [temp04], 'k_')
     # Alt03
-    ax3.plot(Alt03['xFRF']*np.ones(2), [temp03 - np.std(Alt03['zb']), temp03 + np.std(Alt03['zb'])], 'k-')
-    ax3.plot(Alt03['xFRF'] * np.ones(1), [temp03], 'k_')
+    if Alt03 is not None:
+        ax3.plot(Alt03['xFRF']*np.ones(2), [temp03 - np.std(Alt03['zb']), temp03 + np.std(Alt03['zb'])], 'k-')
+        ax3.plot(Alt03['xFRF'] * np.ones(1), [temp03], 'k_')
 
     ax3.set_ylabel('Elevation (NAVD88) [$m$]', fontsize=16)
     ax3.set_xlabel('Cross-shore Position [$m$]', fontsize=16)
@@ -1302,9 +1340,18 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
     """
 
     # Altimeter data!!!!!!!!
-    Alt05 = obs_dict['Alt05']
-    Alt04 = obs_dict['Alt04']
-    Alt03 = obs_dict['Alt03']
+    if 'Alt05' in obs_dict.keys():
+        Alt05 = obs_dict['Alt05']
+    else:
+        Alt05 = None
+    if 'Alt04' in obs_dict.keys():
+        Alt04 = obs_dict['Alt04']
+    else:
+        Alt04 = None
+    if 'Alt03' in obs_dict.keys():
+        Alt03 = obs_dict['Alt03']
+    else:
+        Alt03 = None
 
     # wave data
     Adopp_35 = obs_dict['Adopp_35']
@@ -1340,18 +1387,24 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
         col_num = 4
 
     # add altimeter data!!
-    temp05 = Alt05['zb'][Alt05['plot_ind'] == 1]
-    temp04 = Alt04['zb'][Alt04['plot_ind'] == 1]
-    temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
+    if Alt05 is not None:
+        temp05 = Alt05['zb'][Alt05['plot_ind'] == 1]
+    if Alt04 is not None:
+        temp04 = Alt04['zb'][Alt04['plot_ind'] == 1]
+    if Alt03 is not None:
+        temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
     # Alt05
-    c, = ax1.plot(Alt05['xFRF']*np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'y-', label='Altimeter')
-    d, = ax1.plot(Alt05['xFRF'] * np.ones(1), [temp05], 'y_')
+    if Alt05 is not None:
+        c, = ax1.plot(Alt05['xFRF']*np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'y-', label='Altimeter')
+        d, = ax1.plot(Alt05['xFRF'] * np.ones(1), [temp05], 'y_')
     # Alt04
-    e, = ax1.plot(Alt04['xFRF']*np.ones(2), [temp04 - np.std(Alt04['zb']), temp04 + np.std(Alt04['zb'])], 'y-')
-    f, = ax1.plot(Alt04['xFRF'] * np.ones(1), [temp04], 'y_')
+    if Alt04 is not None:
+        e, = ax1.plot(Alt04['xFRF']*np.ones(2), [temp04 - np.std(Alt04['zb']), temp04 + np.std(Alt04['zb'])], 'y-')
+        f, = ax1.plot(Alt04['xFRF'] * np.ones(1), [temp04], 'y_')
     # Alt03
-    g, = ax1.plot(Alt03['xFRF']*np.ones(2), [temp03 - np.std(Alt03['zb']), temp03 + np.std(Alt03['zb'])], 'y-')
-    h, = ax1.plot(Alt03['xFRF'] * np.ones(1), [temp03], 'y_')
+    if Alt03 is not None:
+        g, = ax1.plot(Alt03['xFRF']*np.ones(2), [temp03 - np.std(Alt03['zb']), temp03 + np.std(Alt03['zb'])], 'y-')
+        h, = ax1.plot(Alt03['xFRF'] * np.ones(1), [temp03], 'y_')
 
     ax1.set_ylabel('Elevation (NAVD88) [$m$]', fontsize=16)
     # ax1.set_xlabel('Cross-shore Position [$m$]', fontsize=16)
@@ -1428,9 +1481,15 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
     ax2.tick_params(labelsize=14)
 
     if col_num == 5:
-        p = [a, b, c, i, j]
+        if Alt05 is not None:
+            p = [a, b, c, i, j]
+        else:
+            p = [a, b, i, j]
     else:
-        p = [a, c, i, j]
+        if Alt05 is not None:
+            p = [a, c, i, j]
+        else:
+            p = [a, i, j]
 
     ax1.legend(p, [p_.get_label() for p_ in p], bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=col_num,
                borderaxespad=0., fontsize=14)
@@ -1455,18 +1514,24 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
 
 
     # add altimeter data!!
-    temp05 = Alt05['zb'][Alt05['plot_ind'] == 1]
-    temp04 = Alt04['zb'][Alt04['plot_ind'] == 1]
-    temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
+    if Alt05 is not None:
+        temp05 = Alt05['zb'][Alt05['plot_ind'] == 1]
+    if Alt04 is not None:
+        temp04 = Alt04['zb'][Alt04['plot_ind'] == 1]
+    if Alt03 is not None:
+        temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
     # Alt05
-    c, = ax3.plot(Alt05['xFRF']*np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'y-', label='Altimeter')
-    d, = ax3.plot(Alt05['xFRF'] * np.ones(1), [temp05], 'y_')
+    if Alt05 is not None:
+        c, = ax3.plot(Alt05['xFRF']*np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'y-', label='Altimeter')
+        d, = ax3.plot(Alt05['xFRF'] * np.ones(1), [temp05], 'y_')
     # Alt04
-    e, = ax3.plot(Alt04['xFRF']*np.ones(2), [temp04 - np.std(Alt04['zb']), temp04 + np.std(Alt04['zb'])], 'y-')
-    f, = ax1.plot(Alt04['xFRF'] * np.ones(1), [temp04], 'y_')
+    if Alt04 is not None:
+        e, = ax3.plot(Alt04['xFRF']*np.ones(2), [temp04 - np.std(Alt04['zb']), temp04 + np.std(Alt04['zb'])], 'y-')
+        f, = ax1.plot(Alt04['xFRF'] * np.ones(1), [temp04], 'y_')
     # Alt03
-    g, = ax3.plot(Alt03['xFRF']*np.ones(2), [temp03 - np.std(Alt03['zb']), temp03 + np.std(Alt03['zb'])], 'y-')
-    h, = ax3.plot(Alt03['xFRF'] * np.ones(1), [temp03], 'y_')
+    if Alt03 is not None:
+        g, = ax3.plot(Alt03['xFRF']*np.ones(2), [temp03 - np.std(Alt03['zb']), temp03 + np.std(Alt03['zb'])], 'y-')
+        h, = ax3.plot(Alt03['xFRF'] * np.ones(1), [temp03], 'y_')
 
 
     ax3.set_ylabel('Elevation (NAVD88) [$m$]', fontsize=16)
@@ -1544,9 +1609,15 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
     ax4.tick_params(labelsize=14)
 
     if col_num == 5:
-        p = [a, b, c, i, j]
+        if Alt05 is not None:
+            p = [a, b, c, i, j]
+        else:
+            p = [a, b, i, j]
     else:
-        p = [a, c, i, j]
+        if Alt05 is not None:
+            p = [a, c, i, j]
+        else:
+            p = [a, i, j]
 
     ax3.legend(p, [p_.get_label() for p_ in p], bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=col_num,
                borderaxespad=0., fontsize=14)
@@ -1663,7 +1734,12 @@ def wave_PlotData(name, mod_time, time, THREDDS='FRF'):
             dict['cur_time'] = cur_data['time']
             dict['plot_ind_V'] = np.where(abs(dict['cur_time'] - mod_time) == min(abs(dict['cur_time'] - mod_time)), 1, 0)
             # rotate my velocities!!!
-            test_fun = lambda x: vectorRotation(x, theta=360 - (71.8 + (90 - 71.8) + 71.8))
+
+            # test_fun = lambda x: vectorRotation(x, theta=360 - (71.8 + (90 - 71.8) + 71.8))
+
+            # troubleshooting the velocity stuff
+            test_fun = lambda x: vectorRotation(x, theta=90 + 71.8)
+
             newV = [test_fun(x) for x in zip(cur_data['aveU'], cur_data['aveV'])]
             dict['U'] = np.array(zip(*newV)[0])
             dict['V'] = np.array(zip(*newV)[1])
