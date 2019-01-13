@@ -40,7 +40,9 @@ The test bed is established at the USACE CHL Field REsearch Facility in Duck, No
     - netCDF4
     - pyproj
     - utm
-    These can be installed by
+    - wavespectra 
+    
+    These can be installed by either
     - pip install <package>
     - conda install <package>
   
