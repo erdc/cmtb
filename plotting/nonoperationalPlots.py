@@ -594,14 +594,14 @@ def plotTS(ofname, plotpacket1, plotpacket2, plotpacket3, **kwargs):
     plt.close()
 
 # these are all the ones that were formerly in gridTools!
-def plotBathyInterp(ofname, dataDict, title):
+def plotBathyInterp(ofname2, dataDict, title):
     """This is a quick plot of the bathy interp, Not sure if its used in any work flow or was part of a quality check
     This can probably be moved to a plotting library maybe be a more generic
     
     designed to QA newly inserted bathy into background
 
     Args:
-      ofname: file output name
+      ofname2: file output name
       dataDict: a dictionary with keys:
         'newXfrf'  new x coords (1d)
         'newYfrf'  new y coords (1d)
@@ -660,7 +660,7 @@ def plotBathyInterp(ofname, dataDict, title):
     cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
     cbar = fig.colorbar(ax1contOld, cax=cbar_ax)
     cbar.set_label('Elevation NAVD 88[m]')
-    plt.savefig(ofname)
+    plt.savefig(ofname2)
     plt.close(fig)
 
 def CreateGridPlotinFRF(outi, outj, spacings, fname):
@@ -699,3 +699,90 @@ def CreateGridPlotinFRF(outi, outj, spacings, fname):
     plt.savefig(fname)
     plt.close()
 
+def plot_scatterAndQQ(fname, time,  model, observations, **kwargs):
+    """
+    This will make a time-series, a binned scatter plot and a QQ plot for models and observations
+
+    Args:
+        fname (str): save filename
+        time (list): datetime objects matched to model and observations
+        model (list): plottable values from the model (plotted on the y axis)
+        observations (list): plottable values from the observations (plotted on the x axis)
+
+    Keyword Args:
+        ** title (str): the title for the plot
+        ** units (str): used as axis label (not implemented)
+
+    """
+    ### imports
+    from statsmodels.graphics import gofplots
+    from testbedutils import sblib as sb
+
+    if 'title' in kwargs:
+        title = kwargs['title']
+    else:
+        title = 'Observations and model comparisons'
+    if 'units' in kwargs:
+        units = kwargs['units']
+    else:
+        units=None
+    ###########
+    # calculate statistics
+    if np.ma.isMaskedArray(model) and model.mask.any():
+        raise NotImplementedError('These are not fixed, check binned_xshoreSkillStat_generic for ideas')
+    else:
+        model=np.array(model)
+    if np.ma.isMaskedArray(observations) and observations.mask.any():
+        raise NotImplementedError ('These are not fixed, check binned_xshoreSkillStat_generic for ideas')
+    else:
+        observations = np.array(observations)
+    stats_dict = sb.statsBryant(observations, model)
+
+
+
+    ## generrate string for plot
+    statString1 =  "Statistics\n\nModel to Observations:\n\nBias: {0:.2f}\nRMSE: {1:.2f}\n".format(stats_dict['bias'], stats_dict['RMSE'])
+    statString2 = "Scatter Index: {0:.2f}\nSymmetric Slope: {1:.2f}\n".format(stats_dict['scatterIndex'], stats_dict['symSlope'])
+    statString3 = "$R^2$: {0:.2f}\nsample Count: {1}".format(stats_dict['corr']**2, len(stats_dict['residuals']))
+    statString = statString1 + statString2 + statString3
+    #############################################
+    #  # # prep for plot
+    nbins = 100
+    H, xedges, yedges = np.histogram2d(observations, model, bins=nbins)
+    H = np.rot90(H)
+    H = np.flipud(H)
+    # Mask zeros
+    Hmasked = np.ma.masked_where(H==0,H)
+    # find data lims
+    ax1max = np.ceil(max(xedges.max(), yedges.max()))
+    ax1min = np.floor(min(xedges.min(), yedges.min()))
+
+    ########## make plot ########################
+    fig = plt.figure(figsize=(12,7))
+    fig.suptitle(title)
+
+    ax0 = plt.subplot2grid((2,3),(0,0), colspan=3)
+    ax0.plot(time, model, 'b.', label='model')
+    ax0.plot(time, observations, 'r.', ms=1, label='observation')
+    ax0.legend()
+
+    ax1 = plt.subplot2grid((2,3),(1,0))
+    ax1.plot([ax1min, ax1max], [ax1min, ax1max], 'k--', lw=1)
+    ax1.set_ylim([ax1min, ax1max])
+    ax1.set_xlim([ax1min, ax1max])
+    histo = ax1.pcolormesh(xedges, yedges, Hmasked)
+    cbar = plt.colorbar(histo)
+    cbar.ax.set_ylabel('Counts')
+    ax1.set_xlabel('observations')
+    ax1.set_ylabel('model')
+
+    ax2 = plt.subplot2grid((2,3),(1,1), sharey=ax1)
+    gofplots.qqplot_2samples(model, observations,  xlabel='observations', ylabel='model', line='45', ax=ax2)
+
+    ax3 = plt.subplot2grid((2,3), (1,2))
+    ax3.text(0, 0, statString, fontsize=12 )
+    ax3.set_axis_off()
+
+    plt.tight_layout(rect=[0, 0, 1, .95])
+    # fname = "/home/spike/repos/myresearch/STWAVE_Analysis/figures_Explore/Performance_{}_{}_{}_{}.png".format(gauge, returnParameter, binParameter, waveBins[bb])
+    plt.savefig(fname); plt.close()
