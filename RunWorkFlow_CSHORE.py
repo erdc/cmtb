@@ -11,6 +11,7 @@ from prepdata import inputOutput
 from getdatatestbed.getDataFRF import getDataTestBed
 import yaml
 import platform
+import netCDF4 as nc
 
 def master_CSHORE_run(inputDict):
     """will run CSHORE with any version prefix given start, end, and a simulation duration
@@ -35,8 +36,8 @@ def master_CSHORE_run(inputDict):
     """
 
     version_prefix = inputDict['version_prefix']
-    endTime = inputDict['endTime']
-    startTime = inputDict['startTime']
+    endTime = inputDict['end_time']
+    startTime = inputDict['start_time']
     simulationDuration = inputDict['simulationDuration']
     THREDDS = inputDict['THREDDS']
     workingDir = inputDict['workingDirectory']
@@ -81,6 +82,10 @@ def master_CSHORE_run(inputDict):
         cmtb_data = getDataTestBed(d1, d1+DT.timedelta(minutes=1), THREDDS)
         bathy_data = cmtb_data.getBathyIntegratedTransect()
         b_time = bathy_data['time']
+        all_times = [nc.num2date(tt, 'seconds since 1970-01-01') for tt in cmtb_data.allEpoch]
+        my_times = [tt for tt in all_times if tt >= d1 - DT.timedelta(hours=18)]
+        my_times = [tt for tt in my_times if tt <= d2]
+        t = 1
 
         try:         # try to pull the .nc file of the previous run.
             Time_O = (DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') - DT.timedelta(days=1)).strftime('%Y-%m-%dT%H%M%SZ')
@@ -121,15 +126,26 @@ def master_CSHORE_run(inputDict):
         a.append(a[-1] + dt_DT)
         dateStringList.append(a[-1].strftime("%Y-%m-%dT%H:%M:%SZ"))
 
-    errors, errorDates = [],[]
-    # change this to be the same as the data folder?
-    # os.chdir(workingDir)  # is this right?  NO it's not
+    # store the currrent working directory for the analysis code
     curdir = os.getcwd()
 
+    # figure out which days need to be reset days
+    dateTimeList = [DT.datetime.strptime(tt, '%Y-%m-%dT%H:%M:%SZ') for tt in dateStringList]
+    reset_list = np.zeros(np.shape(dateTimeList), dtype=bool)
+    if version_prefix != 'MOBILE':
+        for ss in range(0, len(dateTimeList)):
+            check_date = [DT.timedelta(hours=12).total_seconds() >= abs(((dateTimeList[ss] - check_time) + DT.timedelta(minutes=1)).total_seconds()) for check_time in my_times]
+            if any(check_date):
+                reset_list[ss] = True
 
+
+    cnt = 0
     for time in dateStringList:
+        # tag if this is a reset day or not
+        inputDict['reset'] = reset_list[cnt]
+        cnt = cnt + 1
         try:
-            print '----------------------Begin {} ---------------------------'.format(time)
+            print('----------------------Begin {} ---------------------------'.format(time))
             if generateFlag == True:
                 CSHOREsimSetup(startTime=time, inputDict=inputDict)
                 datadir = os.path.join(outDataBase, ''.join(time.split(':')))  # moving to the new simulation's folder
@@ -137,14 +153,14 @@ def master_CSHORE_run(inputDict):
             if runFlag == True:
                 os.chdir(datadir)# changing locations to where data should be downloaded to
                 shutil.copy2(sorceCodePATH, datadir)
-                print 'Bathy Interpolation done\n Beginning Simulation'
+                print('Bathy Interpolation done\n Beginning Simulation')
                 check_output(os.path.join('./', sorceCodePATH.split('/')[-1]), shell=True)
                 # as this is written the script has to be in the working directory, not in a sub-folder!
 
             # run analyze and archive script
             os.chdir(curdir)
             if analyzeFlag == True:
-                print '**\nBegin Analyze Script'
+                print('**\nBegin Analyze Script')
                 CSHORE_analysis(startTime=time, inputDict=inputDict)
 
             # not sure i want this so i commented it out for now
@@ -158,16 +174,16 @@ def master_CSHORE_run(inputDict):
                     print 'moved %s ' % file
             """
             print('----------------------SUCCESS--------------------')
-        except Exception, e:
+        except Exception as e:
             os.chdir(curdir)
-            print '   << ERROR >> HAPPENED IN THIS TIME STEP '
-            print e
+            print('   << ERROR >> HAPPENED IN THIS TIME STEP ')
+            print(e)
             logging.exception('\nERROR FOUND @ %s\n' %time, exc_info=True)
 
 if __name__ == "__main__":
     opts, args = getopt.getopt(sys.argv[1:], "h", ["help"])
-    print '___________________\n________________\n___________________\n________________\n___________________\n________________\n'
-    print 'USACE FRF Coastal Model Test Bed : CSHORE'
+    print('___________________\n________________\n___________________\n________________\n___________________\n________________\n')
+    print('USACE FRF Coastal Model Test Bed : CSHORE')
 
     # It will throw and error and tell the user where to go look for the example yaml
     try:
@@ -180,23 +196,23 @@ if __name__ == "__main__":
 
 
     # add in defaults for inputDict
-    if 'THREDDS' not in inputDict.keys():
+    if 'THREDDS' not in list(inputDict.keys()):
         inputDict['THREDDS'] = 'FRF'
-    if 'bathyLoc' not in inputDict.keys():
+    if 'bathyLoc' not in list(inputDict.keys()):
         inputDict['bathyLoc'] = 'integrated_bathy'
-    if 'profileNumber' not in inputDict.keys():
+    if 'profileNumber' not in list(inputDict.keys()):
         inputDict['profileNumber'] = 960
-    if 'duration' not in inputDict.keys():
+    if 'duration' not in list(inputDict.keys()):
         inputDict['duration'] = 24
-    if 'generateFlag' not in inputDict.keys():
+    if 'generateFlag' not in list(inputDict.keys()):
         inputDict['generateFlag'] = True
-    if 'pFlag' not in inputDict.keys():
+    if 'pFlag' not in list(inputDict.keys()):
         inputDict['pFlag'] = False
-    if 'runFlag' not in inputDict.keys():
+    if 'runFlag' not in list(inputDict.keys()):
         inputDict['runFlag'] = True
-    if 'analyzeFlag' not in inputDict.keys():
+    if 'analyzeFlag' not in list(inputDict.keys()):
         inputDict['analyzeFlag'] = True
-    if 'logfileLoc' not in inputDict.keys():
+    if 'logfileLoc' not in list(inputDict.keys()):
         inputDict['logfileLoc'] = inputDict['workingDirectory']
 
     master_CSHORE_run(inputDict=inputDict)

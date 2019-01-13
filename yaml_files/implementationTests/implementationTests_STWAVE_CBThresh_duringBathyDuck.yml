@@ -1,0 +1,32 @@
+#######################
+# Data control        #
+#######################
+THREDDS: FRF  # CHL or FRF                                                         REQUIRED
+bathyLoc: integrated_bathy                   # bathymetry source
+########################
+#simulations parameters#
+########################
+startTime: '2015-10-15T00:00:00Z'           # project start time
+endTime: '2015-10-16T00:00:00Z'             # project End time
+simulationDuration: 0.5  # duration in hours            how frequently to get new data, size of individual simulations
+version_prefix: CBThresh                           # controls switches within the code
+########################
+# path stuff           #
+########################
+gridDEP_nested: 'grids/STWAVE/Minigrid_5m.dep'
+gridDEP_parent: 'grids/STWAVE/Regional_50m.dep'     # base grid dep               REQUIRED
+modelExecutable: /home/spike/cmtb/bin/stwave_p      # path to the model            REQUIRED
+# this is the directory where simulation files and QA/QC plots are made and existing architecture takes over
+workingDirectory: /home/spike/cmtb/data/STWAVE/                                    # REQUIRED
+# this is the base directory where netCDF files are output to
+netCDFdir: /home/spike/thredds_data                                   #
+#########################
+# testbed run control   #
+#########################
+# these are flags to control how the simulations are started and run
+pFlag: True                            # turn plotting on
+generateFlag: True                    # generate simulation input files (go get data, process, and write files)
+runFlag: True                          # run the simulation
+analyzeFlag: True                      # post process simulations (read files, post process data, make netCDF files, plot if desired)
+#ForcedSurveyDate: '2018-01-16'         # OPTIONAL in YYYY-MM-DD for exact survey date
+
