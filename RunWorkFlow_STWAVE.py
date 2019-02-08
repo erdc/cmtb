@@ -15,25 +15,25 @@ def Master_STWAVE_run(inputDict):
     This is the generic work flow
 
     Args:
-      inputDict: key pFlag: plots or not (boolean)
-    :key analyzeFlag: analyze results or not (boolean)
-    :key generateFlag: generate input files or not (boolean)
-    :key runFlag: run the simulation or not (boolean)
-    :key start_date: date I am starting the simulation (format '2018-01-15T00:00:00Z')
-    :key end_date: date I am ending the simulation (format '2018-01-15T00:00:00Z')
-    :key workingDirectory: path to the working directory the user wants
-    :key netCDFdir: path to the netCDF save location specified by the user
-    :key THREDDS: which THREDDS server are we using, 'FRF' or 'CHL'
-    :key version_prefix: right now we have 'FIXED', 'MOBILE', or 'MOBILE_RESET'
-    :key duration: how long you want the simulations to run in hours (24 by default)
+      inputDict:
+        key pFlag: plots or not (boolean)
+        :key analyzeFlag: analyze results or not (boolean)
+        :key generateFlag: generate input files or not (boolean)
+        :key runFlag: run the simulation or not (boolean)
+        :key start_date: date I am starting the simulation (format '2018-01-15T00:00:00Z')
+        :key end_date: date I am ending the simulation (format '2018-01-15T00:00:00Z')
+        :key workingDirectory: path to the working directory the user wants
+        :key netCDFdir: path to the netCDF save location specified by the user
+        :key THREDDS: which THREDDS server are we using, 'FRF' or 'CHL'
+        :key version_prefix: right now we have 'FIXED', 'MOBILE', or 'MOBILE_RESET'
+        :key duration: how long you want the simulations to run in hours (24 by default)
 
     Returns:
       None
 
     """
     # globals:
-    model = 'STWAVE'
-    inputDict['model'] = model
+    inputDict['model'] = inputDict['modelName']  # short cut
     ###################################################################################################################
     #######################   Parse out input Dictionary     ##########################################################
     ###################################################################################################################
@@ -56,10 +56,10 @@ def Master_STWAVE_run(inputDict):
     ## handle Architecture here
     if 'ForcedSurveyDate' in list(inputDict.keys()):
         ForcedSurveyDate = inputDict['ForcedSurveyDate']
-        path_prefix = os.path.join(model, version_prefix, 'SingleBathy_{}'.format(ForcedSurveyDate))
+        path_prefix = os.path.join(inputDict['modelName'], version_prefix, 'SingleBathy_{}'.format(ForcedSurveyDate))
     else:
         ForcedSurveyDate = None
-        path_prefix = os.path.join(model, version_prefix)
+        path_prefix = os.path.join(inputDict['modelName'], version_prefix)
 
     ###################################################################################################################
     #######################   doing Data check and setting up input vars  #############################################
