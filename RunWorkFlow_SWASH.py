@@ -88,21 +88,21 @@ def Master_SWASH_run(inputDict):
 
             if generateFlag == True:
                 SWIO = SwashSimSetup(time, inputDict=inputDict)
-                datadir = outDataBase + ''.join(time.split(':'))  # moving to the new simulation's folder
+                datadir = os.path.join(outDataBase, ''.join(time.split(':')))  # moving to the new simulation's folder
 
-            if runFlag == True: # run model
-                os.chdir(datadir) # changing locations to where input files should be made
+            if runFlag == True:        # run model
+                os.chdir(datadir)      # changing locations to where input files should be made
                 print('Running Simulation')
                 dt = DT.datetime.now()
                 print(" use {} processors".format(SWIO.nprocess))
-                simOutput = check_output(codeDir + '%s %s.sim' %(inputDict['modelExecutable'], ''.join(time.split(':'))), shell=True)
-
-                print('Simulation took %s ' % (DT.datetime.now() - dt))
+                simOutput = check_output("mpirun -n {} {}{} INPUT".format(SWIO.nprocess, codeDir, inputDict['modelExecutable']), shell=True)
+                SWIO.simulationWallTime = DT.datetime.now() - dt
+                print('Simulation took {}'.format(SWIO.simulationWallTime))
                 os.chdir(curdir)
 
             if analyzeFlag == True:
                 print('**\nBegin Analyze Script %s ' % DT.datetime.now())
-                SwashAnalyze(time, inputDict=inputDict)
+                SwashAnalyze(time, inputDict, SWIO)
 
             if pFlag == True and DT.date.today() == projectEnd:
                 # move files
@@ -111,13 +111,13 @@ def Master_SWASH_run(inputDict):
                 for file in moveFnames:
                     shutil.move(file,  '/mnt/gaia/cmtb')
                     print('moved %s ' % file)
-            print('------------------SUCCESSS-----------------------------------------')
+            print('------------------Model Run: SUCCESSS-----------------------------------------')
 
         except Exception as e:
             print('<< ERROR >> HAPPENED IN THIS TIME STEP ')
             print(e)
             logging.exception('\nERROR FOUND @ %s\n' %time, exc_info=True)
-            os.chdir(curdir)
+            os.chdir(curdir)  # change back to main directory (no matter where the simulation failed)
 
 
 if __name__ == "__main__":
