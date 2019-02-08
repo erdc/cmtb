@@ -3,6 +3,7 @@
 #######################
 THREDDS: FRF  # CHL or FRF                                                         REQUIRED
 bathyLoc: integrated_bathy                   # bathymetry source
+modelName: STWAVE
 ########################
 #simulations parameters#
 ########################
