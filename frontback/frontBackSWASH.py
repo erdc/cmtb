@@ -107,16 +107,17 @@ def SwashSimSetup(startTime, inputDict):
         WLpacket = None
     ### ____________ Get bathy grid from thredds ________________
     # bathy = gdTB.getGridSwash(method='historical')
-    bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[944, 946])  # , ForcedSurveyDate=ForcedSurveyDate)
-    swsinfo, gridDict = prepdata.prep_SwashBathy(wavepacket['xFRF'], wavepacket['yFRF'], bathy, yBounds=[940, 950])
+    bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])  # , ForcedSurveyDate=ForcedSurveyDate)
+    swsinfo, gridDict = prepdata.prep_SwashBathy(wavepacket['xFRF'], wavepacket['yFRF'], bathy, dx=1, dy=1,
+                                                 yBounds=[944, 947])  # non-inclusive, makes 3
 
     ## begin output
-    print(' TODO: set all the swash instance variables on init!')
     # set some of the class instance variables before writing Sws file
     swio = SWASHio(WL=WLpacket['avgWL'], equilbTime=wavepacket['spinUp'],
                    Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'],
                    Dm=wavepacket['waveDm'], ofileNameBase=date_str,
-                   path_prefix=path_prefix, version_prefix=version_prefix)
+                   path_prefix=path_prefix, version_prefix=version_prefix,
+                   nprocess=gridDict['h'].shape[0])
 
     # write SWS file first
     swio.write_sws(swsinfo)
@@ -175,57 +176,17 @@ def SwashAnalyze(startTime, inputDict, swio):
     ######################################################################################################################
     ######################################################################################################################
     t = DT.datetime.now()
+    matfile = os.path.join(swio.path_prefix, swio.ofileNameBase+'.mat')
+    print(' TODO: write run wall time to file')
     print('Loading files ')
-    swio. ReadSwash_ALL(fpath)  # load all files
-    stat_packet = cio.stat_packet  # unpack dictionaries from class instance
-    obse_packet = cio.obse_Packet
-    dep_pack = cio.dep_Packet
-    dep_pack['bathy'] = np.expand_dims(dep_pack['bathy'], axis=0)
-    # convert dep_pack to proper dep pack with keys
-    wave_pack = cio.wave_Packet
+    data = swio.loadSwash_Mat(fname=matfile)  # load all files
     print('Loaded files in %s' % (DT.datetime.now() - t))
-    # correct model outout angles from STWAVE(+CCW) to Geospatial (+CW)
-    stat_packet['WaveDm'] = testbedutils.anglesLib.STWangle2geo(stat_packet['WaveDm'])
-    # correct angles
-    stat_packet['WaveDm'] = testbedutils.anglesLib.angle_correct(stat_packet['WaveDm'])
-
-    # Load Spatial Data sets for plotting
-    # wavefreqbin = np.array([0.04, 0.0475, 0.055, 0.0625, 0.07, 0.0775, 0.085, 0.0925, 0.1, 0.1075, 0.115, 0.1225, 0.13, 0.1375,
-    #               0.145, 0.1525, 0.16, 0.1675, 0.175, 0.1825, 0.19, 0.1975, 0.205, 0.2125, 0.22, 0.2275, 0.235, 0.2425, 0.25,
-    #               0.2575, 0.2645, 0.2725, 0.28, 0.2875, 0.2945, 0.3025, 0.31, 0.3175, 0.3245, 0.3325, 0.34, 0.3475, 0.3545,
-    #               0.3625, 0.37, 0.3775, 0.3845, 0.3925, 0.4, 0.4075, 0.4145, 0.4225, 0.43, 0.4375, 0.4445, 0.4525, 0.46, 0.4675,
-    #               0.475, 0.4825, 0.49, 0.4975])
-
-    obse_packet['ncSpec'] = np.ones(
-        (obse_packet['spec'].shape[0], obse_packet['spec'].shape[1], obse_packet['spec'].shape[2], 72)) * 1e-6
-    # interp = np.ones((obse_packet['spec'].shape[0], obse_packet['spec'].shape[1], wavefreqbin.shape[0],
-    #                   obse_packet['spec'].shape[3])) * 1e-6  ### TO DO marked for removal
-    for station in range(0, np.size(obse_packet['spec'], axis=1)):
-        # for tt in range(0, np.size(obse_packet['spec'], axis=0)):  # interp back to 62 frequencies
-        #         f = interpolate.interp2d(obse_packet['wavefreqbin'], obse_packet['directions'],
-        #                                  obse_packet['spec'][tt, station, :, :].T, kind='linear')
-        # interp back to frequency bands that FRF data are kept in
-        # interp[tt, station, :, :] = f(wavefreqbin, obse_packet['directions']).T
-
-        # rotate the spectra back to true north
-        obse_packet['ncSpec'][:, station, :, :], obse_packet['ncDirs'] = prepdata.grid2geo_spec_rotate(
-            obse_packet['directions'],
-            obse_packet['spec'][:, station, :, :])  # interp[:, station, :, :]) - this was with interp
-        # now converting m^2/Hz/radians back to m^2/Hz/degree
-        # note that units of degrees are on the denominator which requires a deg2rad conversion instead of rad2deg
-        obse_packet['ncSpec'][:, station, :, :] = np.deg2rad(obse_packet['ncSpec'][:, station, :, :])
-    obse_packet['modelfreqbin'] = obse_packet['wavefreqbin']
-    obse_packet['wavefreqbin'] = obse_packet[
-        'wavefreqbin']  # wavefreqbin  # making sure output frequency bins now match the freq that were interped to
-
     ######################################################################################################################
     ######################################################################################################################
     ##################################  Spatial Data HERE     ############################################################
     ######################################################################################################################
     ######################################################################################################################
-    gridPack = prepdata.makeSwashgridNodes(float(cio.sim_Packet[0]), float(cio.sim_Packet[1]),
-                                         float(cio.sim_Packet[2]), dep_pack['dx'], dep_pack['dy'],
-                                         dep_pack['bathy'])  # dims [t, x, y]
+
     # ################################
     #        Make NETCDF files       #
     # ################################

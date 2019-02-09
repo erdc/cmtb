@@ -77,7 +77,7 @@ def Master_SWASH_run(inputDict):
     print('\n-\n-\nMASTER WorkFLOW for {} SIMULATIONS\n-\n-\n'.format(model))
     print('Batch Process Start: %s     Finish: %s '% (projectStart, projectEnd))
     print('The batch simulation is Run in %s Version' % version_prefix)
-    print('Check for simulation errors here %s' % LOG_FILENAME)
+    print('Check for simulation errors here {}'.format(LOG_FILENAME))
     print('------------------------------------\n\n************************************\n\n------------------------------------\n\n')
 
     # ________________________________________________ RUN LOOP ________________________________________________
@@ -104,7 +104,7 @@ def Master_SWASH_run(inputDict):
                 print('**\nBegin Analyze Script %s ' % DT.datetime.now())
                 SwashAnalyze(time, inputDict, SWIO)
 
-            if pFlag == True and DT.date.today() == projectEnd:
+            if pFlag is True and DT.date.today() == projectEnd:
                 # move files
                 moveFnames = glob.glob(curdir + 'cmtb*.png')
                 moveFnames.extend(glob.glob(curdir + 'cmtb*.gif'))
