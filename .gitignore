@@ -50,6 +50,13 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
+#pycharm fileS
+.xml
+.iml
+
+
+
+
 # Python compile
 *.pyc
 .pyc
