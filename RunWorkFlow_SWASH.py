@@ -92,10 +92,9 @@ def Master_SWASH_run(inputDict):
 
             if runFlag == True:        # run model
                 os.chdir(datadir)      # changing locations to where input files should be made
-                print('Running Simulation')
                 dt = DT.datetime.now()
-                print(" use {} processors".format(SWIO.nprocess))
-                simOutput = check_output("mpirun -n {} {}{} INPUT".format(SWIO.nprocess, codeDir, inputDict['modelExecutable']), shell=True)
+                print('Running Simulation started at {} with {} processors'.format(dt, SWIO.nprocess))
+                _ = check_output("mpirun -n {} {}{} INPUT".format(SWIO.nprocess, codeDir, inputDict['modelExecutable']), shell=True)
                 SWIO.simulationWallTime = DT.datetime.now() - dt
                 print('Simulation took {}'.format(SWIO.simulationWallTime))
                 os.chdir(curdir)

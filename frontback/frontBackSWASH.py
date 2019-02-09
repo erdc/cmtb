@@ -107,9 +107,9 @@ def SwashSimSetup(startTime, inputDict):
         WLpacket = None
     ### ____________ Get bathy grid from thredds ________________
     # bathy = gdTB.getGridSwash(method='historical')
-    bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])  # , ForcedSurveyDate=ForcedSurveyDate)
+    bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])
     swsinfo, gridDict = prepdata.prep_SwashBathy(wavepacket['xFRF'], wavepacket['yFRF'], bathy, dx=1, dy=1,
-                                                 yBounds=[944, 947])  # non-inclusive, makes 3
+                                                 yBounds=[944, 947])  # non-inclusive index if you want 3 make 4 wide
 
     ## begin output
     # set some of the class instance variables before writing Sws file
@@ -176,10 +176,10 @@ def SwashAnalyze(startTime, inputDict, swio):
     ######################################################################################################################
     ######################################################################################################################
     t = DT.datetime.now()
-    matfile = os.path.join(swio.path_prefix, swio.ofileNameBase+'.mat')
+    matfile = os.path.join(swio.path_prefix, ''.join(swio.ofileNameBase.split('-'))+'.mat')
     print(' TODO: write run wall time to file')
     print('Loading files ')
-    data = swio.loadSwash_Mat(fname=matfile)  # load all files
+    data2 = swio.loadSwash_Mat(fname=matfile)  # load all files
     print('Loaded files in %s' % (DT.datetime.now() - t))
     ######################################################################################################################
     ######################################################################################################################
