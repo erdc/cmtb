@@ -190,9 +190,19 @@ def SwashAnalyze(startTime, inputDict, swio):
     # ################################
     #        Make NETCDF files       #
     # ################################
-    # STio = stwaveIO()
-    if np.median(gridPack['elevation']) < 0:
-        gridPack['elevation'] = -gridPack['elevation']
+
+    ## do some plotting
+
+    # plot 'spatial' plot of wave surface
+    ofname = 'testplot.png'
+    xFRF =0
+    time=0
+    #####
+    plt.figure(ofname, )
+    #
+    for time in data2['time']:
+        ofPlotName = os.path.join(path_prefix, time.strftime('%Y%m%dT%H%M%S'))
+        oP.generate_CrossShoreTimeseries(ofPlotName, data2['eta'], data2['elevation'], data2['xFRF'])
 
     fldrArch = os.path.join(model, version_prefix)
     spatial = {'time': nc.date2num(wave_pack['time'], units='seconds since 1970-01-01 00:00:00'),

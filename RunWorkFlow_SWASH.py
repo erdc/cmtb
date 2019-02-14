@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import matplotlib
 matplotlib.use('Agg')
-import os, getopt, sys, shutil, glob, logging, yaml
+import os, getopt, sys, shutil, glob, logging, yaml, time
 import datetime as DT
 from subprocess import check_output
 import numpy as np
@@ -44,7 +44,7 @@ def Master_SWASH_run(inputDict):
     outDataBase = os.path.join(workingDir, model, version_prefix)
     inputDict['path_prefix'] = outDataBase
     # ______________________ Logging  ____________________________
-    # auto generated Log file using start_end time
+    # auto generated Log file using start_end timeSegment
     LOG_FILENAME = os.path.join(outDataBase,'logs/{}_BatchRun_Log_{}_{}_{}.log'.format(model,version_prefix, startTime, endTime))
     # try:
     #     logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
@@ -81,27 +81,27 @@ def Master_SWASH_run(inputDict):
     print('------------------------------------\n\n************************************\n\n------------------------------------\n\n')
 
     # ________________________________________________ RUN LOOP ________________________________________________
-    for time in dateStringList:
+    for timeSegment in dateStringList:
         try:
             print('**\nBegin ')
             print('Beginning Simulation %s' %DT.datetime.now())
 
             if generateFlag == True:
-                SWIO = SwashSimSetup(time, inputDict=inputDict)
-                datadir = os.path.join(outDataBase, ''.join(time.split(':')))  # moving to the new simulation's folder
+                SWIO = SwashSimSetup(timeSegment, inputDict=inputDict)
+                datadir = os.path.join(outDataBase, ''.join(timeSegment.split(':')))  # moving to the new simulation's folder
 
             if runFlag == True:        # run model
                 os.chdir(datadir)      # changing locations to where input files should be made
-                dt = DT.datetime.now()
-                print('Running Simulation started at {} with {} processors'.format(dt, SWIO.nprocess))
+                dt = time.time()
+                print('Running Simulation started with {} processors'.format(SWIO.nprocess))
                 _ = check_output("mpirun -n {} {}{} INPUT".format(SWIO.nprocess, codeDir, inputDict['modelExecutable']), shell=True)
-                SWIO.simulationWallTime = DT.datetime.now() - dt
-                print('Simulation took {}'.format(SWIO.simulationWallTime))
+                SWIO.simulationWallTime = time.time() - dt
+                print('Simulation took {:.1} seconds'.format(SWIO.simulationWallTime))
                 os.chdir(curdir)
 
             if analyzeFlag == True:
                 print('**\nBegin Analyze Script %s ' % DT.datetime.now())
-                SwashAnalyze(time, inputDict, SWIO)
+                SwashAnalyze(timeSegment, inputDict, SWIO)
 
             if pFlag is True and DT.date.today() == projectEnd:
                 # move files
@@ -115,7 +115,7 @@ def Master_SWASH_run(inputDict):
         except Exception as e:
             print('<< ERROR >> HAPPENED IN THIS TIME STEP ')
             print(e)
-            logging.exception('\nERROR FOUND @ %s\n' %time, exc_info=True)
+            logging.exception('\nERROR FOUND @ %s\n' %timeSegment, exc_info=True)
             os.chdir(curdir)  # change back to main directory (no matter where the simulation failed)
 
 

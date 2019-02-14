@@ -2070,3 +2070,35 @@ def obs_V_mod_bathy_TN(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_lo
     fig.tight_layout(pad=1, h_pad=2.5, w_pad=1, rect=[0.0, 0.0, 1.0, 0.90])
     fig.savefig(ofname, dpi=300)
     plt.close()
+
+
+def generate_CrossShoreTimeseries(ofname, dataIn, bottomIn, xIn, **kwargs):
+    """generates a water elevation cross-section, r
+
+    Args:
+        ofname(str): fullpath (or relative) file name
+        dataIn: value to plot (eta)
+        bottomIn: elevations for the bottom (negative)
+        xIn: coordinates positions for corss-shore
+
+    Keyword Args:
+         None Right now
+
+    Returns:
+
+    """
+    beachColor = 'wheat'
+    skyColor = 'aquamarine'
+    waterColor = 'deepskyblue'
+
+    ###########################
+    plt.figure()
+    ax1 = plt.subplot(111)
+    ax1.plot(xIn, dataIn)  # plot water line
+    ax1.plot(xIn, bottomIn, color=beachColor)  # plot beach
+    ax1.fill_betweenx(bottomIn, xIn, color=beachColor)  # fill in beach
+    ax1.fill_between(xIn, bottomIn, dataIn, color=waterColor)  # fill in water
+    ax1.fill_between(xIn, dataIn, 3, color=skyColor)  # fill in above water
+    ax1.fill_between(xIn, bottomIn, 3, where=np.isnan(dataIn), color=skyColor)  # fill in the air behind dry beach
+    # also try setting background color with ax1.set_facecolor('aquamarine')
+    plt.savefig(ofname)
