@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import matplotlib
 matplotlib.use('Agg')
-import os, getopt, sys, shutil, glob, logging, yaml, time
+import os, getopt, sys, shutil, glob, logging, yaml, time, pickle
 import datetime as DT
 from subprocess import check_output
 import numpy as np
@@ -89,6 +89,10 @@ def Master_SWASH_run(inputDict):
             if generateFlag == True:
                 SWIO = SwashSimSetup(timeSegment, inputDict=inputDict)
                 datadir = os.path.join(outDataBase, ''.join(timeSegment.split(':')))  # moving to the new simulation's folder
+            else:   # assume there is a saved pickle of input/output that was generated before
+                pickleFname = glob.glob("*.pickle")  # loading it if I didn't go out and get new data/generate the class instance
+                with open(pickleFname, 'rb') as fid:
+                    SWIO = pickle.load(fid)
 
             if runFlag == True:        # run model
                 os.chdir(datadir)      # changing locations to where input files should be made

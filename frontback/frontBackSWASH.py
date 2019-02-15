@@ -8,8 +8,7 @@ from prepdata.prepDataLib import PrepDataTools as STPD
 from getdatatestbed.getDataFRF import getDataTestBed
 from getdatatestbed.getDataFRF import getObs
 import datetime as DT
-import os, glob, makenc
-from subprocess import check_output
+import os, glob, makenc, pickle
 import netCDF4 as nc
 import numpy as np
 from prepdata import prepDataLib as STPD
@@ -126,7 +125,9 @@ def SwashSimSetup(startTime, inputDict):
     # now write QA/
     print(' TODO: figure OUt how to write flags, and what flags to write!!')
     swio.flags = None
-
+    pickleName = os.path.join(path_prefix, date_str,'.pickle')
+    with open(pickleName, 'wb') as fid:
+        pickle.dump(swio, fid, protocol=pickle.HIGHEST_PROTOCOL)
     return swio
 
 def SwashAnalyze(startTime, inputDict, swio):
@@ -153,7 +154,6 @@ def SwashAnalyze(startTime, inputDict, swio):
     # the below should error if not included in input Dict
     path_prefix = inputDict['path_prefix']  # for organizing data
     simulationDuration = inputDict['simulationDuration']
-
     # _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
     # establishing the resolution of the input datetime
     d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
@@ -166,21 +166,19 @@ def SwashAnalyze(startTime, inputDict, swio):
 
     print('\nBeggining of Analyze Script\nLooking for file in ' + fpath)
     print('\nData Start: %s  Finish: %s' % (d1, d2))
-    print('Analyzing simulation')
     go = getDataFRF.getObs(d1, d2, server)  # setting up get data instance
     prepdata = STPD.PrepDataTools()  # initializing instance for rotation scheme
-    swio = swio                             # intializing read/write class as passed (has previous info from setup)
+    swio = swio                             # initializing read/write class as passed (has previous info from setup)
+
     ######################################################################################################################
     ######################################################################################################################
     ##################################   Load Data Here / Massage Data Here   ############################################
     ######################################################################################################################
     ######################################################################################################################
-    t = DT.datetime.now()
     matfile = os.path.join(swio.path_prefix, ''.join(swio.ofileNameBase.split('-'))+'.mat')
-    print(' TODO: write run wall time to file')
+    print(' TODO: write run wall time to output file')
     print('Loading files ')
     data2 = swio.loadSwash_Mat(fname=matfile)  # load all files
-    print('Loaded files in %s' % (DT.datetime.now() - t))
     ######################################################################################################################
     ######################################################################################################################
     ##################################  Spatial Data HERE     ############################################################
@@ -198,12 +196,22 @@ def SwashAnalyze(startTime, inputDict, swio):
     xFRF =0
     time=0
     #####
-    plt.figure(ofname, )
+    plt.figure()
     #
+    # plot timeseries of cross-shore evolution
     for time in data2['time']:
         ofPlotName = os.path.join(path_prefix, time.strftime('%Y%m%dT%H%M%S'))
         oP.generate_CrossShoreTimeseries(ofPlotName, data2['eta'], data2['elevation'], data2['xFRF'])
+    #
 
+
+
+
+
+    ## before netCDF.
+    # get significant wave height for cross shore
+    # slice the time serise so we're on ly isolating the non-repeating time series of data
+    #################################################3
     fldrArch = os.path.join(model, version_prefix)
     spatial = {'time': nc.date2num(wave_pack['time'], units='seconds since 1970-01-01 00:00:00'),
                'station_name': 'Regional Simulation Field Data',
