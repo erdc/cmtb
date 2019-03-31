@@ -72,8 +72,8 @@ def SwashSimSetup(startTime, inputDict):
     gdTB = getDataTestBed(d1, d2, THREDDS=server)        # for bathy data gathering
     # _____________WAVES____________________________
     print('_________________\nGetting Wave Data')
-    rawspec = go.getWaveSpec(gaugenumber='AWAC-11m')
-    assert rawspec is not None, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
+    rawspec = go.getWaveSpec(gaugenumber= '8m-array') #'AWAC-11m')  #
+    assert 'time' in rawspec, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
     # preprocess wave spectra
     if version_prefix.lower() == 'base':
         wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix)
@@ -178,7 +178,7 @@ def SwashAnalyze(startTime, inputDict, swio):
     matfile = os.path.join(swio.path_prefix, ''.join(swio.ofileNameBase.split('-'))+'.mat')
     print(' TODO: write run wall time to output file')
     print('Loading files ')
-    data2 = swio.loadSwash_Mat(fname=matfile)  # load all files
+    simData, simMeta = swio.loadSwash_Mat(fname=matfile)  # load all files
     ######################################################################################################################
     ######################################################################################################################
     ##################################  Spatial Data HERE     ############################################################
@@ -191,19 +191,18 @@ def SwashAnalyze(startTime, inputDict, swio):
 
     ## do some plotting
 
-    # plot 'spatial' plot of wave surface
-    ofname = 'testplot.png'
-    xFRF =0
-    time=0
-    #####
-    plt.figure()
-    #
-    # plot timeseries of cross-shore evolution
-    for time in data2['time']:
-        ofPlotName = os.path.join(path_prefix, time.strftime('%Y%m%dT%H%M%S'))
-        oP.generate_CrossShoreTimeseries(ofPlotName, data2['eta'], data2['elevation'], data2['xFRF'])
-    #
 
+    # now make some plots
+    from matplotlib import pyplot as plt
+    # plt.figure()
+    # plt.plot()
+    #
+    # plot time-series of cross-shore evolution movie
+    for tidx, timeStep in enumerate(simData['time']):
+        ofPlotName = os.path.join(path_prefix, timeStep.strftime('%Y%m%dT%H%M%S')+'_TS.png')
+        oP.generate_CrossShoreTimeseries(ofPlotName, simData['eta'][tidx].squeeze(), -simData['elevation'], simData['xFRF'])
+    ## now make gif of waves moving across shore
+    imgList = glob.glob(os.path.join(path_prefix, '*TS.png'))
 
 
 
@@ -359,13 +358,13 @@ def SwashAnalyze(startTime, inputDict, swio):
             modStats = sbwave.waveStat(obse_packet['ncSpec'][:, gg, :, :], obse_packet['wavefreqbin'],
                                        obse_packet['ncDirs'])  # compute model stats here
 
-            time, obsi, modi = sb.timeMatch(nc.date2num(w['time'], 'seconds since 1970-01-01'),
+            timeStep, obsi, modi = sb.timeMatch(nc.date2num(w['time'], 'seconds since 1970-01-01'),
                                             np.arange(w['time'].shape[0]),
                                             nc.date2num(stat_packet['time'][:], 'seconds since 1970-01-01'),
                                             np.arange(len(stat_packet['time'])))  # time match
 
             for param in modStats:  # loop through each bulk statistic
-                if len(time) > 1 and param in ['Hm0', 'Tm', 'sprdF', 'sprdD', 'Tp', 'Dm']:
+                if len(timeStep) > 1 and param in ['Hm0', 'Tm', 'sprdF', 'sprdD', 'Tp', 'Dm']:
                     print('    plotting %s: %s' % (station, param))
                     if param in ['Tp', 'Tm10']:
                         units = 's'
@@ -381,7 +380,7 @@ def SwashAnalyze(startTime, inputDict, swio):
                         title = 'Spread %s ' % param
 
                     # now run plots
-                    p_dict = {'time': nc.num2date(time, 'seconds since 1970-01-01'),
+                    p_dict = {'time': nc.num2date(timeStep, 'seconds since 1970-01-01'),
                               'obs': obsStats[param][obsi.astype(int)],
                               'model': modStats[param][modi.astype(int)],
                               'var_name': param,

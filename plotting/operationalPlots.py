@@ -2077,28 +2077,35 @@ def generate_CrossShoreTimeseries(ofname, dataIn, bottomIn, xIn, **kwargs):
 
     Args:
         ofname(str): fullpath (or relative) file name
-        dataIn: value to plot (eta)
-        bottomIn: elevations for the bottom (negative)
-        xIn: coordinates positions for corss-shore
+        dataIn (array):   value to plot (eta) -- size [xIn]
+        bottomIn: elevations for the bottom (negative) -- size [xIn]
+        xIn: coordinates positions for cross-shore
 
     Keyword Args:
-         None Right now
+         figsize (tuple): sets figure size (default = (8,4))
 
     Returns:
 
     """
+    figsize = kwargs.get('figsize', (8,4))
     beachColor = 'wheat'
     skyColor = 'aquamarine'
     waterColor = 'deepskyblue'
-
+    if np.median(bottomIn) > 0:
+        bottomIn = -bottomIn
     ###########################
-    plt.figure()
+    plt.figure(figsize=figsize)
     ax1 = plt.subplot(111)
+    ax1.set_facecolor(skyColor)
     ax1.plot(xIn, dataIn)  # plot water line
     ax1.plot(xIn, bottomIn, color=beachColor)  # plot beach
     ax1.fill_betweenx(bottomIn, xIn, color=beachColor)  # fill in beach
     ax1.fill_between(xIn, bottomIn, dataIn, color=waterColor)  # fill in water
-    ax1.fill_between(xIn, dataIn, 3, color=skyColor)  # fill in above water
-    ax1.fill_between(xIn, bottomIn, 3, where=np.isnan(dataIn), color=skyColor)  # fill in the air behind dry beach
-    # also try setting background color with ax1.set_facecolor('aquamarine')
+    ax1.set_xlim([np.min(xIn), np.max(xIn)])
+    ax1.set_ylim([np.min(bottomIn), np.max(bottomIn) + 0.5])
+    #
+    # ax1.fill_between(xIn, dataIn, 3, color=skyColor)  # fill in above water
+    # ax1.fill_between(xIn, bottomIn, 3, where=np.isnan(dataIn), color=skyColor)  # fill in the air behind dry beach
+
     plt.savefig(ofname)
+    plt.close()

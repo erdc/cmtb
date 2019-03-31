@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import os, getopt, sys, shutil, glob, logging, yaml, time, pickle
 import datetime as DT
 from subprocess import check_output
@@ -83,16 +83,12 @@ def Master_SWASH_run(inputDict):
     # ________________________________________________ RUN LOOP ________________________________________________
     for timeSegment in dateStringList:
         try:
-            print('**\nBegin ')
-            print('Beginning Simulation %s' %DT.datetime.now())
-
+            timeStamp = ''.join(timeSegment.split(':'))
+            datadir = os.path.join(outDataBase, timeStamp)  # moving to the new simulation's folder
+            pickleSaveFname = os.path.join(datadir, timeStamp + '_io.pickle')
             if generateFlag == True:
                 SWIO = SwashSimSetup(timeSegment, inputDict=inputDict)
-                datadir = os.path.join(outDataBase, ''.join(timeSegment.split(':')))  # moving to the new simulation's folder
-            else:   # assume there is a saved pickle of input/output that was generated before
-                pickleFname = glob.glob("*.pickle")  # loading it if I didn't go out and get new data/generate the class instance
-                with open(pickleFname, 'rb') as fid:
-                    SWIO = pickle.load(fid)
+
 
             if runFlag == True:        # run model
                 os.chdir(datadir)      # changing locations to where input files should be made
@@ -102,12 +98,19 @@ def Master_SWASH_run(inputDict):
                 SWIO.simulationWallTime = time.time() - dt
                 print('Simulation took {:.1} seconds'.format(SWIO.simulationWallTime))
                 os.chdir(curdir)
+                with open(pickleSaveFname, 'wb') as fid:
+                    pickle.dump(SWIO, fid, protocol=pickle.HIGHEST_PROTOCOL)
+
+            else:   # assume there is a saved pickle of input/output that was generated before
+                with open(pickleSaveFname, 'rb') as fid:
+                    SWIO = pickle.load(fid)
 
             if analyzeFlag == True:
                 print('**\nBegin Analyze Script %s ' % DT.datetime.now())
                 SwashAnalyze(timeSegment, inputDict, SWIO)
 
             if pFlag is True and DT.date.today() == projectEnd:
+                print('  TODO tar simulation files after generating netCDF')
                 # move files
                 moveFnames = glob.glob(curdir + 'cmtb*.png')
                 moveFnames.extend(glob.glob(curdir + 'cmtb*.gif'))
