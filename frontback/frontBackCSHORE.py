@@ -59,9 +59,7 @@ def CSHORE_analysis(startTime, inputDict):
     times = np.array([d_s + DT.timedelta(seconds=s) for s in test])
 
     # change my coordinate system back to FRF!!!!!!!
-    BC_FRFX = meta["BC_FRF_X"]
-    BC_FRFY = meta["BC_FRF_Y"]
-    x_n = BC_FRFX - morpho['x'][0]
+    x_n = meta["BC_FRF_X"] - morpho['x'][0]
     model_time = times[-1]
 
     # convert model time to epoch?
@@ -82,59 +80,24 @@ def CSHORE_analysis(startTime, inputDict):
             # go ahead and time match the altimeter data
             if Alt05['TS_toggle']:
                 # ALT05
-                obs_zb = Alt05['zb']
-                obs_time = Alt05['time']
                 obs_loc = round(Alt05['xFRF'])
                 mod_zb = morpho['zb'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
-                comp_time = times[1:]
-                comp_time_n, obs_n, mod_n = timeMatch_altimeter(obs_time, obs_zb, comp_time, mod_zb)
-                plot_ind = np.where(abs(comp_time_n - model_time) == min(abs(comp_time_n - model_time)), 1, 0)
-                # delete and re-assign
-                del Alt05['zb']
-                del Alt05['time']
-                del Alt05['plot_ind']
-                Alt05['zb'] = obs_n
-                Alt05['time'] = comp_time_n
-                Alt05['plot_ind'] = plot_ind
+                Alt05['time'], Alt05['zb'], mod_n = timeMatch_altimeter(Alt05['time'], Alt05['zb'], times[1:], mod_zb)
+                Alt05['plot_ind'] = np.where(abs(Alt05['time'] - model_time) == min(abs(Alt05['time'] - model_time)), 1, 0)
 
             if Alt04['TS_toggle']:
-                # ALT04
-                obs_zb = Alt04['zb']
-                obs_time = Alt04['time']
                 obs_loc = round(Alt04['xFRF'])
                 mod_zb = morpho['zb'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
-                comp_time = times[1:]
-                comp_time_n, obs_n, mod_n = timeMatch_altimeter(obs_time, obs_zb, comp_time, mod_zb)
-                plot_ind = np.where(abs(comp_time_n - model_time) == min(abs(comp_time_n - model_time)), 1, 0)
-                # delete and re-assign
-                del Alt04['zb']
-                del Alt04['time']
-                del Alt04['plot_ind']
-                Alt04['zb'] = obs_n
-                Alt04['time'] = comp_time_n
-                Alt04['plot_ind'] = plot_ind
+                Alt04['time'], Alt04['zb'], mod_n = timeMatch_altimeter(Alt04['time'], Alt04['zb'], times[1:], mod_zb)
+                Alt04['plot_ind'] = np.where(abs(Alt04['time'] - model_time) == min(abs(Alt04['time'] - model_time)), 1, 0)
 
             if Alt03['TS_toggle']:
-                # ALT03
-                obs_zb = Alt03['zb']
-                obs_time = Alt03['time']
                 obs_loc = round(Alt03['xFRF'])
                 mod_zb = morpho['zb'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
-                comp_time = times[1:]
-                comp_time_n, obs_n, mod_n = timeMatch_altimeter(obs_time, obs_zb, comp_time, mod_zb)
-                plot_ind = np.where(abs(comp_time_n - model_time) == min(abs(comp_time_n - model_time)), 1, 0)
-                # delete and re-assign
-                del Alt03['zb']
-                del Alt03['time']
-                del Alt03['plot_ind']
-                Alt03['zb'] = obs_n
-                Alt03['time'] = comp_time_n
-                Alt03['plot_ind'] = plot_ind
+                Alt03['time'], Alt03['zb'], mod_n = timeMatch_altimeter(Alt03['time'], Alt03['zb'], times[1:], mod_zb)
+                Alt03['plot_ind'] = np.where(abs(Alt03['time'] - model_time) == min(abs(Alt03['time'] - model_time)), 1, 0)
 
-
-
-
-        # wave data & current data!!!
+        # wave data & current data
         Adopp_35 = oP.wave_PlotData('adop-3.5m', model_time, times)
         AWAC6m = oP.wave_PlotData('awac-6m', model_time, times)
         # this is just to check to see if I rounded down when i set my bathymetry,
@@ -142,157 +105,42 @@ def CSHORE_analysis(startTime, inputDict):
         if AWAC6m['xFRF'] > max(x_n):
             # if it is, round it down to nearest 1m - this will move it to the boundary if it IS the boundary gage
             AWAC6m['xFRF'] = float(int(AWAC6m['xFRF']))
-        AWAC8m = oP.wave_PlotData('awac-8m', model_time, times)
         # this is just to check to see if I rounded down when i set my bathymetry,
-        # in which case the 8m AWAC would not be inside the plot limits.
-        if AWAC8m['xFRF'] > max(x_n):
-            # if it is, round it down to nearest 1m - this will move it to the boundary if it IS the boundary gage
-            AWAC8m['xFRF'] = float(int(AWAC8m['xFRF']))
 
         # go ahead and time match the wave and current data!
-
         if Adopp_35['TS_toggle']:
             # Adopp_35
-            # get time-matched data!!!!!! waves
-            obs_Hs = Adopp_35['Hs']
-            obs_time = Adopp_35['wave_time']
             obs_loc = round(Adopp_35['xFRF'])
             mod_Hs = hydro['Hs'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
-            comp_time = times[1:]
-            comp_time_n, obs_Hs_n, mod_Hs_n = timeMatch(obs_time, obs_Hs, comp_time, mod_Hs)
-            plot_ind = np.where(abs(comp_time_n - model_time) == min(abs(comp_time_n - model_time)), 1, 0)
-            # delete and re-assign
-            del Adopp_35['Hs']
-            del Adopp_35['wave_time']
-            del Adopp_35['plot_ind']
-            Adopp_35['Hs'] = obs_Hs_n
-            Adopp_35['wave_time'] = comp_time_n
-            Adopp_35['plot_ind'] = plot_ind
-
+            Adopp_35['wave_time'], Adopp_35['Hs'], mod_Hs_n = timeMatch(Adopp_35['wave_time'], Adopp_35['Hs'], times[1:], mod_Hs)
+            Adopp_35['plot_ind'] = np.where(abs(Adopp_35['wave_time'] - model_time) == min(abs(Adopp_35['wave_time'] - model_time)), 1, 0)
             # get time-matched data!!!!!! currents
             # V
-            obs_V = Adopp_35['V']
-            obs_time = Adopp_35['cur_time']
             obs_loc = round(Adopp_35['xFRF'])
             mod_V = hydro['vmean'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
-            comp_time = times[1:]
-            comp_time_n, obs_V_n, mod_V_n = timeMatch(obs_time, obs_V, comp_time, mod_V)
-            plot_ind_V = np.where(abs(comp_time_n - model_time) == min(abs(comp_time_n - model_time)), 1, 0)
-            # delete and re-assign
-            del Adopp_35['V']
-            temp_cur_time = Adopp_35['cur_time']
-            del Adopp_35['cur_time']
-            del Adopp_35['plot_ind_V']
-            Adopp_35['V'] = obs_V_n
-            Adopp_35['cur_time'] = comp_time_n
-            Adopp_35['plot_ind_V'] = plot_ind_V
+            Adopp_35['cur_time'], Adopp_35['V'], mod_V_n = timeMatch(Adopp_35['cur_time'], Adopp_35['V'], times[1:], mod_V)
+            Adopp_35['plot_ind_V'] = np.where(abs(Adopp_35['cur_time'] - model_time) == min(abs(Adopp_35['cur_time'] - model_time)), 1, 0)
 
             # U
-            obs_U = Adopp_35['U']
-            obs_time = temp_cur_time
             obs_loc = round(Adopp_35['xFRF'])
             mod_U = hydro['umean'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
-            comp_time = times[1:]
-            comp_time_n, obs_U_n, mod_U_n = timeMatch(obs_time, obs_U, comp_time, mod_U)
-            # delete and re-assign
-            del Adopp_35['U']
-            Adopp_35['U'] = obs_U_n
+            comp_time_n, Adopp_35['U'], mod_U_n = timeMatch(Adopp_35['cur_time'], Adopp_35['U'], times[1:], mod_U)
 
         if AWAC6m['TS_toggle']:
             # AWAC6m
-            # get time-matched data!!!!!! waves
-            obs_Hs = AWAC6m['Hs']
-            obs_time = AWAC6m['wave_time']
             obs_loc = round(AWAC6m['xFRF'])
             mod_Hs = hydro['Hs'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
-            comp_time = times[1:]
-            comp_time_n, obs_Hs_n, mod_Hs_n = timeMatch(obs_time, obs_Hs, comp_time, mod_Hs)
-            plot_ind = np.where(abs(comp_time_n - model_time) == min(abs(comp_time_n - model_time)), 1, 0)
-            # delete and re-assign
-            del AWAC6m['Hs']
-            del AWAC6m['wave_time']
-            del AWAC6m['plot_ind']
-            AWAC6m['Hs'] = obs_Hs_n
-            AWAC6m['wave_time'] = comp_time_n
-            AWAC6m['plot_ind'] = plot_ind
-
+            AWAC6m['wave_time'],  AWAC6m['Hs'], mod_Hs_n = timeMatch(AWAC6m['wave_time'], AWAC6m['Hs'], times[1:], mod_Hs)
+            AWAC6m['plot_ind'] = np.where(abs(comp_time_n - model_time) == min(abs(comp_time_n - model_time)), 1, 0)
             # get time-matched data!!!!!! currents
-            # V
-            obs_V = AWAC6m['V']
-            obs_time = AWAC6m['cur_time']
-            obs_loc = round(AWAC6m['xFRF'])
-            mod_V = hydro['vmean'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
-            comp_time = times[1:]
-            comp_time_n, obs_V_n, mod_V_n = timeMatch(obs_time, obs_V, comp_time, mod_V)
-            plot_ind_V = np.where(abs(comp_time_n - model_time) == min(abs(comp_time_n - model_time)), 1, 0)
-            # delete and re-assign
-            del AWAC6m['V']
-            temp_cur_time = AWAC6m['cur_time']
-            del AWAC6m['cur_time']
-            del AWAC6m['plot_ind_V']
-            AWAC6m['V'] = obs_V_n
-            AWAC6m['cur_time'] = comp_time_n
-            AWAC6m['plot_ind_V'] = plot_ind_V
 
-            # U
-            obs_U = AWAC6m['U']
-            obs_time = temp_cur_time
             obs_loc = round(AWAC6m['xFRF'])
             mod_U = hydro['umean'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
-            comp_time = times[1:]
-            comp_time_n, obs_U_n, mod_U_n = timeMatch(obs_time, obs_U, comp_time, mod_U)
-            # delete and re-assign
-            del AWAC6m['U']
-            AWAC6m['U'] = obs_U_n
+            AWAC6m['cur_time'], AWAC6m['U'], mod_V_n = timeMatch(AWAC6m['cur_time'], AWAC6m['u'], times[1:], mod_U)
 
-        if AWAC8m['TS_toggle']:
-            # AWAC8m
-            # get time-matched data!!!!!! waves
-            obs_Hs = AWAC8m['Hs']
-            obs_time = AWAC8m['wave_time']
-            obs_loc = round(AWAC8m['xFRF'])
-            mod_Hs = hydro['Hs'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
-            comp_time = times[1:]
-            comp_time_n, obs_Hs_n, mod_Hs_n = timeMatch(obs_time, obs_Hs, comp_time, mod_Hs)
-            plot_ind = np.where(abs(comp_time_n - model_time) == min(abs(comp_time_n - model_time)), 1, 0)
-            # delete and re-assign
-            del AWAC8m['Hs']
-            del AWAC8m['wave_time']
-            del AWAC8m['plot_ind']
-            AWAC8m['Hs'] = obs_Hs_n
-            AWAC8m['wave_time'] = comp_time_n
-            AWAC8m['plot_ind'] = plot_ind
-
-            # get time-matched data!!!!!! currents
-            # V
-            obs_V = AWAC8m['V']
-            obs_time = AWAC8m['cur_time']
-            obs_loc = round(AWAC8m['xFRF'])
             mod_V = hydro['vmean'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
-            comp_time = times[1:]
-            comp_time_n, obs_V_n, mod_V_n = timeMatch(obs_time, obs_V, comp_time, mod_V)
-            plot_ind_V = np.where(abs(comp_time_n - model_time) == min(abs(comp_time_n - model_time)), 1, 0)
-            # delete and re-assign
-            del AWAC8m['V']
-            temp_cur_time = AWAC8m['cur_time']
-            del AWAC8m['cur_time']
-            del AWAC8m['plot_ind_V']
-            AWAC8m['V'] = obs_V_n
-            AWAC8m['cur_time'] = comp_time_n
-            AWAC8m['plot_ind_V'] = plot_ind_V
-
-            # U
-            obs_U = AWAC8m['U']
-            obs_time = temp_cur_time
-            obs_loc = round(AWAC8m['xFRF'])
-            mod_U = hydro['umean'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
-            comp_time = times[1:]
-            comp_time_n, obs_U_n, mod_U_n = timeMatch(obs_time, obs_U, comp_time, mod_U)
-            # delete and re-assign
-            del AWAC8m['U']
-            AWAC8m['U'] = obs_U_n
-
-
+            AWAC6m['cur_time'], AWAC6m['V'], mod_V_n = timeMatch(AWAC6m['cur_time'], AWAC6m['V'], times[1:], mod_V)
+            AWAC6m['plot_ind_V'] = np.where(abs(comp_time_n - model_time) == min(abs(comp_time_n - model_time)), 1, 0)
 
         # LiDAR stuff goes here...
         lidar = oP.lidar_PlotData(times)
@@ -303,13 +151,11 @@ def CSHORE_analysis(startTime, inputDict):
                         'Alt03': Alt03,
                         'Adopp_35': Adopp_35,
                         'AWAC6m': AWAC6m,
-                        'AWAC8m': AWAC8m,
                         'lidar': lidar,
                         }
         else:
             obs_dict = {'Adopp_35': Adopp_35,
                         'AWAC6m': AWAC6m,
-                        'AWAC8m': AWAC8m,
                         'lidar': lidar,
                         }
 
@@ -398,9 +244,7 @@ def CSHORE_analysis(startTime, inputDict):
             comp_time = times[1:]
             comp_time_n, obs_Hs_n, mod_Hs_n = timeMatch(obs_time, obs_Hs, comp_time, mod_Hs)
 
-            if len(comp_time_n) <= 1:
-                pass
-            else:
+            if len(comp_time_n) > 1:
                 p_dict = {'time': comp_time_n,
                           'obs': obs_Hs_n,
                           'model': mod_Hs_n,
@@ -477,51 +321,6 @@ def CSHORE_analysis(startTime, inputDict):
 
                 oP.obs_V_mod_TS(path+'AWAC6m_V.png', p_dict)
 
-
-        # 5 c) AWAC8m Hs
-        if AWAC8m['TS_toggle']:
-
-            # 5 c) AWAC8m Hs
-            # get time-matched data!!!!!!
-            obs_Hs = AWAC8m['Hs']
-            obs_time = AWAC8m['wave_time']
-            obs_loc = round(AWAC8m['xFRF'])
-            mod_Hs = hydro['Hs'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
-            comp_time = times[1:]
-            comp_time_n, obs_Hs_n, mod_Hs_n = timeMatch(obs_time, obs_Hs, comp_time, mod_Hs)
-
-            if len(comp_time_n) <= 1:
-                pass
-            else:
-                p_dict = {'time': comp_time_n,
-                          'obs': obs_Hs_n,
-                          'model': mod_Hs_n,
-                          'var_name': '$H_{s}$',
-                          'units': 'm',
-                          'p_title': '%s CSHORE %s - %s' % (version_prefix, startTime, 'AWAC 8m')}
-
-                oP.obs_V_mod_TS(path + 'AWAC8m_Hs.png', p_dict)
-
-            # 6 c) AWAC8m V
-            #  get time-matched data!!!!!!
-            obs_V = AWAC8m['V']
-            obs_time = AWAC8m['cur_time']
-            obs_loc = round(AWAC8m['xFRF'])
-            mod_V = hydro['vmean'][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
-            comp_time = times[1:]
-            comp_time_n, obs_V_n, mod_V_n = timeMatch(obs_time, obs_V, comp_time, mod_V)
-
-            if len(comp_time_n) <= 1:
-                pass
-            else:
-                p_dict = {'time': comp_time_n,
-                          'obs': obs_V_n,
-                          'model': mod_V_n,
-                          'var_name': '$V$',
-                          'units': 'm/s',
-                          'p_title': '%s CSHORE %s - %s' % (version_prefix, startTime, 'AWAC 8m')}
-
-                oP.obs_V_mod_TS(path + 'AWAC8m_V.png', p_dict)
 
         if 'MOBILE' in version_prefix:
             # 7 bottom elevation at all gages!!!!
@@ -669,10 +468,7 @@ def CSHORE_analysis(startTime, inputDict):
 
     # make the name of this nc file your OWN SELF BUM!
     NCname = 'CMTB-morphModels_CSHORE_%s_%s.nc' %(version_prefix, date_str)
-
     makenc.makenc_CSHORErun(os.path.join(NCpath, NCname), nc_dict, globalYaml, varYaml)
-
-    t = 1
 
 def makeCSHORE_ncdict(startTime,inputDict):
     """
@@ -799,11 +595,11 @@ def makeCSHORE_ncdict(startTime,inputDict):
     return nc_dict
 
 def CSHOREsimSetup(startTime, inputDict):
-    """Author: David Young, Master of the Universe
+    """Author: David Young
     Association: USACE CHL Field Research Facility
     Project:  Coastal Model Test Bed
 
-    This Function is the master call for the  data preperation for the Coastal Model
+    This Function is the master call for the  data preparation for the Coastal Model
     Test Bed (CMTB).  It is designed to pull from GetData and utilize
     prep_datalib for development of the FRF CMTB
     NOTE: input to the function is the start time of the model run.  All Files are labeled by this convention
@@ -836,18 +632,17 @@ def CSHOREsimSetup(startTime, inputDict):
     # ____________________GENERAL ASSUMPTION VARIABLES__________
     model = 'CSHORE'
     path_prefix = os.path.join(workingDir, model,  '%s/' % version_prefix)
-    time_step = 1 # time step for model in hours
-    dx = 1  # cross-shore grid spacing (FRF coord units - m)
-    fric_fac = 0.015
+    time_step = 1        # time step for model in hours
+    dx = 1               # cross-shore grid spacing (FRF coord units - m)
+    fric_fac = 0.015     # default friction factor
 
     # ______________________________________________________________________________
-
     # _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
     # Time Stuff!
     if type(timerun) == str:
         timerun = int(timerun)
     start_time = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
-    # scream at them if the simulation does not start on a whole hour!
+
     assert start_time.minute == 0 and start_time.second == 0 and start_time.microsecond == 0, 'Your simulation must start on the hour!'
 
     end_time = start_time + DT.timedelta(days=0, hours=timerun) # removed for ilab=1 , minutes=1)
@@ -892,7 +687,6 @@ def CSHOREsimSetup(startTime, inputDict):
         # if it is fixed, first thing to do is get waves
 
         ## _____________WAVES____________________________
-        # which wave gage?
         o_dict = prep.waveTree_CSHORE(wave_data8m, wave_data6m, BC_dict['timebc_wave'], start_time)
         assert o_dict is not None, 'Simulation broken.  Missing wave data!'
 
@@ -1053,13 +847,7 @@ def CSHOREsimSetup(startTime, inputDict):
     BC_dict['Tp'] = o_dict['Tp']
     BC_dict['angle'] = o_dict['angle']
 
-    # troubleshooting wave direction stuff!
-    # BC_dict['Hs'] = 5 * np.ones(np.shape(BC_dict['Hs']))
-    # BC_dict['Tp'] = 18 * np.ones(np.shape(BC_dict['Tp']))
-    # BC_dict['angle'] = -60 * np.ones(np.shape(BC_dict['angle']))
-    # t = 1
-
-    # check to see if I actually have wave data after all this...
+    # make sure wave data are appropriate
     assert 'Hs' in list(BC_dict.keys()), 'Simulation broken.  Wave data are missing for both 8m array and 6m AWAC!'
 
     ## ___________WATER LEVEL__________________
