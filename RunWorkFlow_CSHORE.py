@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #!/home/number/anaconda2/bin/python
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import os, getopt, sys, shutil, logging
 import numpy as np
 from subprocess import check_output
