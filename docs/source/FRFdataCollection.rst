@@ -91,7 +91,7 @@ waverider-26m   26 m           waverider buoy       16,266 m           4,136 m
 waverider-17m   17 m           waverider buoy       3,716 m            1,417 m
 Awac-11m        11 m           AWAC                 1,272 m            910 m
 AWAC-8m         8 m            AWAC                  DEAD               DEAD
-8m-array        8 m            pressure array       1,917 m            938 m
+8m-array        8 m            pressure array       914 m              825 m
 AWAC-4.5m       4.5 m          AWAC                 500 m              935 m
 adop-3.5m       3.5 m          Aquadopp             360 m              940 m
 xp200m          ~?             paros pressure       200 m              940 m
