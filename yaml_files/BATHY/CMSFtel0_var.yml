@@ -1,0 +1,209 @@
+# stuff
+
+_variables: ['cellID', 'elevation', 'xFRF', 'yFRF', 'latitude', 'longitude', 'xPos', 'yPos', 'dx', 'dy', 'azimuth', 'origin_easting', 'origin_northing', 'numberCells', 'cellNeighbors', 'surveyNumber', 'surveyTime']
+_attributes: ['notes']
+_dimensions: ['cellID', 'one', 'eight']
+
+cellID:
+    name: 'cellID'
+    units: 'integer'
+    standard_name: ''
+    long_name: 'cell identification number'
+    data_type: 'f8'
+    dim: ['cellID']
+    fill_value: '-999'
+    short_name: 'cellID'
+    coordinates: 'N/A'
+    description: 'identification number for each cell in the .tel file'
+
+elevation:
+    name: 'elevation'
+    units: 'm'
+    standard_name: ''
+    long_name: 'bed elevation for the cells'
+    data_type: 'f8'
+    dim: ['cellID']
+    fill_value: '999'
+    short_name: 'bathy'
+    coordinates: 'xFRF yFRF'
+    description: 'Bottom elevation for the cells'
+
+xFRF:
+    name: 'xFRF'
+    units: 'm'
+    standard_name: ''
+    long_name: 'cross-shore position of each cell - m'
+    data_type: 'f8'
+    dim: ['cellID']
+    fill_value: '-9999.99'
+    short_name: 'xFRF'
+    coordinates: 'xFRF'
+    description: 'cross-shore position of each cell in m FRF coordinates'
+
+yFRF:
+    name: 'yFRF'
+    units: 'm'
+    standard_name: ''
+    long_name: 'along-shore position of each cell - m'
+    data_type: 'f8'
+    dim: ['cellID']
+    fill_value: '-9999.99'
+    short_name: 'yFRF'
+    coordinates: 'yFRF'
+    description: 'along-shore position of each cell in m FRF coordinates'
+
+latitude:
+    name: 'latitude'
+    units: 'decimal degrees'
+    standard_name: ''
+    long_name: 'latitude of each cell in decimal degrees'
+    data_type: 'f8'
+    dim: ['cellID']
+    fill_value: '-9999.99'
+    short_name: 'latitude'
+    coordinates: 'latitude'
+    description: 'latitude of each cell in decimal degrees'
+
+longitude:
+    name: 'longitude'
+    units: 'decimal degrees'
+    standard_name: ''
+    long_name: 'longitude of each cell in decimal degrees'
+    data_type: 'f8'
+    dim: ['cellID']
+    fill_value: '-9999.99'
+    short_name: 'longitude'
+    coordinates: 'longitude'
+    description: 'longitude of each cell in decimal degrees'
+
+xPos:
+    name: 'xPos'
+    units: 'm'
+    standard_name: ''
+    long_name: 'x-position'
+    data_type: 'f8'
+    dim: ['cellID']
+    fill_value: '-9999.99'
+    short_name: 'xPos'
+    coordinates: 'xPos'
+    description: 'this is the x-position of each cell in the local .tel file coordinate system'
+
+yPos:
+    name: 'yPos'
+    units: 'm'
+    standard_name: ''
+    long_name: 'y-position'
+    data_type: 'f8'
+    dim: ['cellID']
+    fill_value: '-9999.99'
+    short_name: 'yPos'
+    coordinates: 'yPos'
+    description: 'this is the y-position of each cell in the local .tel file coordinate system'
+
+dx:
+    name: 'dx'
+    units: 'm'
+    standard_name: ''
+    long_name: 'x-direction cell spacing'
+    data_type: 'f8'
+    dim: ['cellID']
+    fill_value: '-9999.99'
+    short_name: 'dx'
+    coordinates: 'xPos'
+    description: 'the cell spacing of each cell in the x-direction of the local .tel file coordinate system'
+
+dy:
+    name: 'dy'
+    units: 'm'
+    standard_name: ''
+    long_name: 'y-direction cell spacing'
+    data_type: 'f8'
+    dim: ['cellID']
+    fill_value: '-9999.99'
+    short_name: 'dy'
+    coordinates: 'yPos'
+    description: 'the cell spacing of each cell in the y-direction of the local .tel file coordinate system'
+
+azimuth:
+    name: 'azimuth'
+    units: 'decimal degrees'
+    standard_name: ''
+    long_name: '.tel grid azimuth'
+    data_type: 'f8'
+    dim: ['one']
+    fill_value: '-999'
+    short_name: 'azi'
+    coordinates: 'N/A'
+    description: 'the azimuth of the local .tel file grid system'
+
+origin_easting:
+    name: 'origin_easting'
+    units: 'm NCSP'
+    standard_name: ''
+    long_name: 'NCSP Easting of .tel file grid origin'
+    data_type: 'f8'
+    dim: ['one']
+    fill_value: '-9999.99'
+    short_name: 'origin_easting'
+    coordinates: 'm NCSP'
+    description: 'The NSCP Easting of the origin for the .tel file grid'
+
+origin_northing:
+    name: 'origin_northing'
+    units: 'm NCSP'
+    standard_name: ''
+    long_name: 'NCSP Northing of .tel file grid origin'
+    data_type: 'f8'
+    dim: ['one']
+    fill_value: '-9999.99'
+    short_name: 'origin_northing'
+    coordinates: 'm NCSP'
+    description: 'The NSCP Northing of the origin for the .tel file grid'
+
+numberCells:
+    name: 'numberCells'
+    units: 'integer'
+    standard_name: ''
+    long_name: 'number of cells'
+    data_type: 'f8'
+    dim: ['one']
+    fill_value: '-9999.99'
+    short_name: 'number of cells'
+    coordinates: 'N/A'
+    description: 'the total number of cells in the .tel file grid'
+
+cellNeighbors:
+    name: 'cellNeighbors'
+    units: 'integer'
+    standard_name: ''
+    long_name: 'cell IDs of neighboring cells'
+    data_type: 'f8'
+    dim: ['cellID', 'eight']
+    fill_value: '-9999.99'
+    short_name: 'neighboring cell IDs'
+    coordinates: 'N/A'
+    description: 'Cell IDs of all the cells that neighbor the current cell - counterclockwise from the top right'
+
+surveyNumber:
+    name: 'surveyNumber'
+    units: 'integer'
+    standard_name: ''
+    long_name: 'survey number'
+    data_type: 'f8'
+    dim: ['one']
+    fill_value: '-999'
+    short_name: 'surveyNumber'
+    coordinates: 'N/A'
+    description: 'the latest survey number of the integrated bathymetry product that went into this .tel file'
+
+surveyTime:
+    name: 'surveyTime'
+    units: 'integer'
+    standard_name: ''
+    long_name: 'survey time'
+    data_type: 'f8'
+    dim: ['one']
+    fill_value: '-999'
+    short_name: 'surveyTime'
+    coordinates: 'N/A'
+    description: 'the latest survey time of the integrated bathymetry product that went into this .tel file'

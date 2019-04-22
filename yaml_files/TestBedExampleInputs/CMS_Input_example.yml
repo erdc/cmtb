@@ -6,7 +6,7 @@ bathyLoc: integrated_bathy      # bathymetry source.  OPTIONAL: defaults to FRF
 ########################
 #simulations parameters#
 ########################
-start_date: '2015-10-12T00:00:00Z'           # project start time  REQUIRED
+start_date: '2015-10-11T00:00:00Z'           # project start time  REQUIRED
 end_date: '2015-10-13T00:00:00Z'             # project End time   REQUIRED
 duration: 24  # duration in hours            OPTIONAL: how frequently to get new data, size of individual simulations
  # ok, we have changed our plan a little bit, so that ALL the CMS stuff runs from one runWorkFlow.
