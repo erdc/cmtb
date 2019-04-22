@@ -1,0 +1,123 @@
+# stuff
+
+_variables: ['cellID', 'elevation', 'numberCells', 'aveE', 'aveN', 'time', 'waterLevel', 'durationRamp', 'surveyNumber', 'surveyTime']
+_attributes: ['notes']
+_dimensions: ['time', 'cellID', 'one']
+
+cellID:
+    name: 'cellID'
+    units: 'integer'
+    standard_name: ''
+    long_name: 'cell identification number'
+    data_type: 'f8'
+    dim: ['cellID']
+    fill_value: '-999'
+    short_name: 'cellID'
+    coordinates: 'N/A'
+    description: 'identification number for each cell in the .tel file'
+
+elevation:
+    name: 'elevation'
+    units: 'm'
+    standard_name: ''
+    long_name: 'bed elevation for the cells'
+    data_type: 'f8'
+    dim: ['time', 'cellID']
+    fill_value: '999'
+    short_name: 'bathy'
+    coordinates: 'xFRF yFRF'
+    description: 'Bottom elevation for the cells'
+
+numberCells:
+    name: 'numberCells'
+    units: 'integer'
+    standard_name: ''
+    long_name: 'number of cells'
+    data_type: 'f8'
+    dim: ['one']
+    fill_value: '-9999.99'
+    short_name: 'number of cells'
+    coordinates: 'N/A'
+    description: 'the total number of cells in the .tel file grid!'
+
+time:
+    name: 'time'
+    units: 'seconds since 1970-01-01 00:00:00'
+    standard_name: ''
+    long_name: 'UTC Model Time'
+    data_type: 'f8'
+    dim: ['time']
+    calendar: 'gregorian'
+    fill_value: '-999.99'
+
+aveE:
+    name: 'aveE'
+    units: 'm/s'
+    standard_name: ''
+    long_name: 'depth-averaged eastward current'
+    data_type: 'f8'
+    dim: ['time', 'cellID']
+    fill_value: '-9999.99'
+    short_name: 'average eastward velocity'
+    coordinates: 'xFRF yFRF'
+    description: 'Depth averaged eastward current at each cell from CMTB CMSF model run'
+
+aveN:
+    name: 'aveN'
+    units: 'm/s'
+    standard_name: ''
+    long_name: 'depth-averaged northward current'
+    data_type: 'f8'
+    dim: ['time', 'cellID']
+    fill_value: '-9999.99'
+    short_name: 'average northward velocity'
+    coordinates: 'xFRF yFRF'
+    description: 'Depth averaged northward current at each cell from CMTB CMSF model run'
+
+waterLevel:
+    name: 'waterLevel'
+    units: 'm'
+    standard_name: ''
+    long_name: 'mean water surface elevation'
+    data_type: 'f8'
+    dim: ['time', 'cellID']
+    fill_value: '-999'
+    short_name: 'mwl'
+    coordinates: 'xFRF yFRF'
+    description: 'Mean water surface elevation at each cell from CMTB CMSF model run'
+
+durationRamp:
+    name: 'durationRamp'
+    units: 'days'
+    standard_name: ''
+    long_name: 'duration of cold start ramp'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999.99'
+    short_name: 'durationRamp'
+    coordinates: 'N/A'
+    description: 'ramp duration for the cold-start CMTB CMSF model runs'
+
+surveyNumber:
+    name: 'surveyNumber'
+    units: 'integer'
+    standard_name: ''
+    long_name: 'survey number'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999'
+    short_name: 'surveyNumber'
+    coordinates: 'N/A'
+    description: 'the survey number of the latest integrated bathymetry that went into this file'
+
+surveyTime:
+    name: 'surveyTime'
+    units: 'integer'
+    standard_name: ''
+    long_name: 'survey time'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999'
+    short_name: 'surveyTime'
+    coordinates: 'N/A'
+    description: 'the survey time of the latest integrated bathymetry that went into this file'

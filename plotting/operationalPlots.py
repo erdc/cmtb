@@ -169,7 +169,7 @@ def plotSpatialFieldData(contourpacket, fieldpacket, namebase='/file', prefix=''
     elif (np.diff(xcoord) != np.median(xcoord)).all():
         dxdy = None
     else:
-        print "spatial plotting function cannot currently handle dx != dy"
+        print("spatial plotting function cannot currently handle dx != dy")
         raise NotImplementedError
     # applying colorbar labels
     cbar_max = np.ceil(fieldpacket['field'].max())
@@ -276,7 +276,7 @@ def plotSpatialFieldData(contourpacket, fieldpacket, namebase='/file', prefix=''
     #
     # __LOOPING THROUGH PLOTS___
     for tt in range(0, numrecs):
-        # print '\ntitle: %s plot \nsize: %s \ntime %s \ncbar_min %d cbar_max %d' %(title, fgsize, time[tt], cbar_min, cbar_max)
+        # print('\ntitle: %s plot \nsize: %s \ntime %s \ncbar_min %d cbar_max %d' %(title, fgsize, time[tt], cbar_min, cbar_max))
 
         plt.figure(figsize=fgsize, dpi=80, tight_layout=True)
         plt.title(title + '\n%s' % time[tt])
@@ -542,7 +542,7 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='../ArchiveFolder/CHL_logo.png'):
         ax4.imshow(CHL_logo)
         ax4.axis('off')
     except:
-        print 'Plot generated sans CHL Logo!'
+        print('Plot generated sans CHL Logo!')
 
     ax3.axis('off')
     ax3.text(0.01, 0.99, header_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=18,
@@ -892,7 +892,7 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
         ax4.imshow(CHL_logo)
         ax4.axis('off')
     except:
-        print 'Plot generated sans CHL logo!'
+        print('Plot generated sans CHL logo!')
     ax3.axis('off')
     ax3.text(0.01, 0.99, header_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=18,
              fontweight='bold')
@@ -1591,7 +1591,7 @@ def obs_V_mod_bathy_TN(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_lo
         ax4.imshow(CHL_logo)
         ax4.axis('off')
     except:
-        print 'Plot generated sans CHL logo!'
+        print('Plot generated sans CHL logo!')
     ax3.axis('off')
     ax3.text(0.01, 0.99, header_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=16, fontweight='bold')
     ax3.text(0.00, 0.90, plot_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=14)

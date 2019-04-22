@@ -68,36 +68,32 @@ def import_template_file(yaml_location):
     return vars_dict
 
 def init_nc_file(nc_filename, attributes):
-    """
-    Create the netCDF file and write the Global Attributes
+    """Create the netCDF file and write the Global Attributes
     written by ASA
+
+    will initalize netCDF file and set global attributes, write date created and issued to global meta data
+
+    Args:
+      nc_filename: output netCDF file name
+      attributes: attributes from global yaml load
+
+    Returns:
+        open netCDF file ready for writing data
+
     """
 
     ncfile = nc.Dataset(nc_filename, 'w', clobber=True)
 
     # Write some Global Attributes
-    for key, value in attributes.iteritems():
-        # Skip and empty fields or this will bomb
-        #print 'key %s; value %s' %( key, value)
+    for key, value in attributes.items():
+
         if value is not None:
             setattr(ncfile, key, value)
-        #if key == 'geospatial_lat_min':
-        #    lat = float(value)
-        #if key == 'geospatial_lon_min':
-        #    lon = float(value)
 
     dt_today = ttime.strftime("%Y-%m-%d")
     ncfile.date_created = dt_today
     ncfile.date_issued = dt_today
 
-    # ID is a unique identifier for the file
-    # cshore_ncfile.id = os.path.split(nc_filename)[1].split('.nc')[0]
-
-    # cshore_ncfile.qcstage = '3'
-    # cshore_ncfile.qcstage_possible_values = '0, 1, 2, 3'
-    # cshore_ncfile.qcstage_value_meanings = 'None, Processed_R/T, Post-Processed, Final'
-
-    #return cshore_ncfile, lat, lon
     return ncfile
 
 def write_data_to_nc(ncfile, template_vars, data_dict, write_vars='_variables'):
@@ -179,7 +175,7 @@ def write_data_to_nc(ncfile, template_vars, data_dict, write_vars='_variables'):
                 elif len(template_vars[var]["dim"]) == 0:
                     try:
                         new_var[:] = data_dict[var]
-                    except Exception, e:
+                    except Exception as e:
                         new_var = data_dict[var]
 
                 elif len(template_vars[var]["dim"]) == 1:
@@ -193,7 +189,7 @@ def write_data_to_nc(ncfile, template_vars, data_dict, write_vars='_variables'):
                         except IndexError:
                             try:
                                 new_var[:] = data_dict[var][0][0]
-                            except Exception, e:
+                            except Exception as e:
                                 raise e
 
                 elif len(template_vars[var]["dim"]) == 2:
@@ -209,7 +205,7 @@ def write_data_to_nc(ncfile, template_vars, data_dict, write_vars='_variables'):
                             # squeeze the 3d array in to 2d as dimension is not needed
                             x[i] = np.squeeze(data_dict[var][i])
                         new_var[:, :] = x
-                    except Exception, e:
+                    except Exception as e:
                         # if the tuple fails must be right...right?
                         new_var[:] = data_dict[var]
 
@@ -222,10 +218,10 @@ def write_data_to_nc(ncfile, template_vars, data_dict, write_vars='_variables'):
                         x[i] = data_dict[var][i]
                     new_var[:, :, :] = x[:, :, :]
 
-            except Exception, e:
+            except Exception as e:
                 num_errors += 1
                 error_str += 'ERROR WRITING VARIABLE: ' + var + ' - ' + str(e) + '\n'
-                print error_str
+                print(error_str)
 
     return num_errors, error_str
 
@@ -396,8 +392,8 @@ def makenc_Station(stat_data, globalyaml_fname, flagfname, ofname, stat_yaml_fna
     tdim = fid.createDimension('time', np.shape(stat_data['time'])[0])  # None = size of the dimension, what does this gain me if i know it
     inputtypes = fid.createDimension('input_types_length', np.shape(flags)[1]) # there are 4 input dtaa types for flags
     statnamelen = fid.createDimension('station_name_length', len(stat_data['station_name']))
-    northing = fid.createDimension('Northing', 1L)
-    easting = fid.createDimension('Easting', 1L )
+    northing = fid.createDimension('Northing', 1)
+    easting = fid.createDimension('Easting', 1)
     Lon = fid.createDimension('Longitude', np.size(stat_data['Longitude']))
     Lat = fid.createDimension('Latitude', np.size(stat_data['Latitude']))
     dirbin = fid.createDimension('waveDirectionBins', np.size(stat_data['waveDirectionBins']))
@@ -650,7 +646,7 @@ def makenc_CSHORErun(ofname, dataDict, globalYaml, varYaml):
         elif 'MOBILE' in ofname:
             dataDict_n['bottomElevation'] = np.full((new_t, new_s), fill_value=np.nan)
         else:
-            print 'You need to modify makenc_CSHORErun in makenc.py to accept your new version name!'
+            print('You need to modify makenc_CSHORErun in makenc.py to accept your new version name!')
 
         # find index of first point on dataDict grid
         min_x = min(dataDict['xFRF'])
@@ -685,7 +681,7 @@ def makenc_CSHORErun(ofname, dataDict, globalYaml, varYaml):
             for ii in range(0, int(new_t)):
                 dataDict_n['bottomElevation'][ii][ind_maxx:ind_minx + 1] = dataDict['bottomElevation'][ii]
         else:
-            print 'You need to modify makenc_CSHORErun in makenc.py to accept your new version name!'
+            print('You need to modify makenc_CSHORErun in makenc.py to accept your new version name!')
 
     # get rid of all masks
     test = np.ma.masked_array(dataDict_n['aveE'], np.isnan(dataDict_n['aveE']))

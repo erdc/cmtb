@@ -103,10 +103,6 @@ def Master_CMS_run(inputDict):
 
     # try to pull the .nc file of the previous run.
     # -> this code is requried ONLY if we want to hot start CMS Flow!
-    # as per discussion with SB on 12/0/3/2018 we are going to switch to always coldstart until the CMSF executable
-    # has beeen fixed to hotstart correctly, so that we can continue to make progress.
-    # try to pull the .nc file of the previous run.
-    """
     CSflag = False
     try:
         Time_O = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') - DT.timedelta(days=1)
@@ -142,8 +138,6 @@ def Master_CMS_run(inputDict):
     except (IOError, OSError):
         # this means that this is the first time this has been run, so you MUST coldstart
         CSflag = True
-    """
-
 
     # This is the portion that creates a list of simulation end times
     dt_DT = DT.timedelta(0, simulationDuration * 60 * 60)  # timestep in datetime
@@ -155,34 +149,28 @@ def Master_CMS_run(inputDict):
         dateStringList.append(dateStartList[-1].strftime("%Y-%m-%dT%H:%M:%SZ"))
 
     # toggle my cold start flags
-    # -> this code is requried ONLY if we want to hot start CMS Flow!
-    # as per discussion with SB on 12/0/3/2018 we are going to switch to always coldstart until the CMSF executable
-    # has beeen fixed to hotstart correctly, so that we can continue to make progress.
-    # try to pull the .nc file of the previous run.
-    """
     csFlag = np.zeros(np.shape(np.array(dateStringList)), dtype=int)
     if CSflag:
         csFlag[0] = 1
-    """
     csFlag = np.ones(np.shape(np.array(dateStringList)), dtype=int)
 
     errors, errorDates = [],[]
     curdir = os.getcwd()
     # ______________________________decide process and run _____________________________
     # run the process through each of the above dates
-    print '\n-\n-\nMASTER WorkFLOW for CMS SIMULATIONS\n-\n-\n'
-    print 'Batch Process Start: %s     Finish: %s '% (projectStart, projectEnd)
-    print 'The batch simulation is Run in %s Version' % version_prefix
-    print 'Check for simulation errors here %s' % LOG_FILENAME
-    print '------------------------------------\n\n************************************\n\n------------------------------------\n\n'
+    print('\n-\n-\nMASTER WorkFLOW for CMS SIMULATIONS\n-\n-\n')
+    print('Batch Process Start: %s     Finish: %s '% (projectStart, projectEnd))
+    print('The batch simulation is Run in %s Version' % version_prefix)
+    print('Check for simulation errors here %s' % LOG_FILENAME)
+    print('------------------------------------\n\n************************************\n\n------------------------------------\n\n')
 
 
     # ________________________________________________ RUNNING LOOP ________________________________________________
     cnt = 0
     for time in dateStringList:
         try:
-            print '**\nBegin '
-            print 'Beginning Simulation %s' %DT.datetime.now()
+            print('**\nBegin ')
+            print('Beginning Simulation %s' %DT.datetime.now())
 
             # toggle my coldStart flags
             inputDict['csFlag'] = csFlag[cnt]
@@ -194,7 +182,7 @@ def Master_CMS_run(inputDict):
 
             if runFlag == True: # run model
                 os.chdir(datadir) # changing locations to where input files should be made
-                print 'Running CMS Simulation'
+                print('Running CMS Simulation')
                 dt = DT.datetime.now()
                 if waveFlag:
                     simOutput = check_output(codeDir + '%s %s.sim' %(inputDict['waveExecutable'], ''.join(time.split(':'))), shell=True)
@@ -208,14 +196,16 @@ def Master_CMS_run(inputDict):
                     os.rename('CMS-Flow-FRF.bid', ''.join(time.split(':')) + '.bid')
 
                     # show time!
+                    t = 1
                     simOutput = check_output('./cms' + ' %s.cmcards' %(''.join(time.split(':'))), shell=True)
+                    t = 1
 
-                print 'Simulation took %s ' % (DT.datetime.now() - dt)
+                print('Simulation took %s ' % (DT.datetime.now() - dt))
                 os.chdir(curdir)
                 t = 1
 
             if analyzeFlag == True:
-                print '**\nBegin Analyze Script %s ' % DT.datetime.now()
+                print('**\nBegin Analyze Script %s ' % DT.datetime.now())
                 if waveFlag:
                     CMSanalyze(time, inputDict=inputDict)
                 if flowFlag:
@@ -228,19 +218,18 @@ def Master_CMS_run(inputDict):
                 moveFnames.extend(glob.glob(curdir + 'cmtb*.gif'))
                 for file in moveFnames:
                     shutil.move(file,  '/mnt/gaia/cmtb')
-                    print 'moved %s ' % file
-
-        except Exception, e:
-            print '<< ERROR >> HAPPENED IN THIS TIME STEP '
-            print e
+                    print('moved %s ' % file)
+        except Exception as e:
+            print('<< ERROR >> HAPPENED IN THIS TIME STEP ')
+            print(e)
             logging.exception('\nERROR FOUND @ %s\n' %time, exc_info=True)
             os.chdir(curdir)
 
 
 if __name__ == "__main__":
     opts, args = getopt.getopt(sys.argv[1:], "h", ["help"])
-    print '___________________\n________________\n___________________\n________________\n___________________\n________________\n'
-    print 'USACE FRF Coastal Model Test Bed : CMS Wave and Flow'
+    print('___________________\n________________\n___________________\n________________\n___________________\n________________\n')
+    print('USACE FRF Coastal Model Test Bed : CMS Wave and Flow')
 
     # we are no longer allowing a default yaml file.
     # It will throw and error and tell the user where to go look for the example yaml

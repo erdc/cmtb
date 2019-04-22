@@ -156,8 +156,8 @@ def CMSsimSetup(startTime, inputDict):
     if not os.path.exists(path_prefix + date_str + "/figures/"):
         os.makedirs(path_prefix + date_str + "/figures/")
 
-    print "Model Time Start : %s  Model Time End:  %s" % (d1, d2)
-    print u"OPERATIONAL files will be place in {0} folder".format(path_prefix + date_str)
+    print("Model Time Start : %s  Model Time End:  %s" % (d1, d2))
+    print(u"OPERATIONAL files will be place in {0} folder".format(path_prefix + date_str))
 
     ### ____________ Get bathy grid from thredds ________________
     gdTB = getDataTestBed(d1, d2)
@@ -186,29 +186,29 @@ def CMSsimSetup(startTime, inputDict):
 
         # rotate and lower resolution of directional wave spectra
         wavepacket = prepdata.prep_spec(rawspec, wave_version_prefix, datestr=date_str, plot=pFlag, full=full, outputPath=path_prefix, CMSinterp=50) # 50 freq bands are max for model
-        print "number of wave records %d with %d interpolated points" % (np.shape(wavepacket['spec2d'])[0], wavepacket['flag'].sum())
+        print("number of wave records %d with %d interpolated points" % (np.shape(wavepacket['spec2d'])[0], wavepacket['flag'].sum()))
 
     # need wind for both wave and flow
     ## _____________WINDS______________________
-    print '_________________\nGetting Wind Data'
+    print('_________________\nGetting Wind Data')
     try:
         rawwind = go.getWind(gaugenumber=0)
         # average and rotate winds
         windpacket = prepdata.prep_wind(rawwind, timeList)
         # wind height correction
-        print 'number of wind records %d with %d interpolated points' % (np.size(windpacket['time']), sum(windpacket['flag']))
+        print('number of wind records %d with %d interpolated points' % (np.size(windpacket['time']), sum(windpacket['flag'])))
     except (RuntimeError, TypeError):
         windpacket = None
-        print ' NO WIND ON RECORD'
+        print(' NO WIND ON RECORD')
 
     ## ___________WATER LEVEL__________________
-    print '_________________\nGetting Water Level Data'
+    print('_________________\nGetting Water Level Data')
     try:
         # get water level data
         rawWL = go.getWL()
         # average WL
         WLpacket = prepdata.prep_WL(rawWL, timeList)
-        print 'number of WL records %d, with %d interpolated points' % (np.size(WLpacket['time']), sum(WLpacket['flag']))
+        print('number of WL records %d, with %d interpolated points' % (np.size(WLpacket['time']), sum(WLpacket['flag'])))
     except (RuntimeError, TypeError):
         WLpacket = None
 
@@ -302,38 +302,17 @@ def CMSsimSetup(startTime, inputDict):
         windDirDict['simName'] = date_str
         windDirDict['BCtype'] = 'wind_dir'
         windDirDict['times'] = [(dt-windpacketF['time'][0]).days*24 + (dt-windpacketF['time'][0]).seconds/float(3600) for dt in windpacketF['time']]
-        """
-        if durationRamp == 0:
-            rtime = (d2-d1).seconds + 86400*(d2-d1).days
-            ts = (windpacketF['time'][1] - windpacketF['time'][0]).seconds + 86400*(windpacketF['time'][1] - windpacketF['time'][0]).days
-            sNum = int(rtime/float(ts))
-            tNum = len(windpacketF['avgdir'])/float(len(windpacketF['avgdir'][-sNum:]))
-            windDirDict['values'] = np.tile(windpacketF['avgdir'][-sNum:], int(tNum))
-        else:
-            windDirDict['values'] = windpacketF['avgdir']
-        """
-        windDirDict['values'] = windpacketF['avgdir']
+        windDirDict['values'] = windpacketF['avgdir_CMSF']
         cmsfio.write_CMSF_xys(path=path_prefix + date_str, xysDict=windDirDict)
 
         windVelDict = windDirDict
         windVelDict['BCtype'] = 'wind_vel'
-        """
-        if durationRamp == 0:
-            windVelDict['values'] = np.tile(windpacketF['avgspd'][-sNum:], int(tNum))
-        else:
-            windVelDict['values'] = windpacketF['avgspd']
-        """
+        windVelDict['values'] = windpacketF['avgspd']
         windVelDict['values'] = windpacketF['avgspd']
         cmsfio.write_CMSF_xys(path=path_prefix + date_str, xysDict=windVelDict)
 
         wlDict = windDirDict
         wlDict['BCtype'] = 'h'
-        """
-        if durationRamp == 0:
-            wlDict['values'] = np.tile(WLpacketF['avgWL'][-sNum:], int(tNum))
-        else:
-            wlDict['values'] = WLpacketF['avgWL']
-        """
         wlDict['values'] = WLpacketF['avgWL']
         wlDict['cellstringNum'] = 1
         cmsfio.write_CMSF_xys(path=path_prefix + date_str, xysDict=wlDict)
@@ -392,6 +371,8 @@ def CMSsimSetup(startTime, inputDict):
             shutil.rmtree(os.path.join(path_prefix + date_str, 'ASCII_HotStart'))
         if os.path.isdir(os.path.join(path_prefix + date_str, 'ASCII_Solutions')):
             shutil.rmtree(os.path.join(path_prefix + date_str, 'ASCII_Solutions'))
+
+        HSfname = 'ASCII_HotStart'
         if durationRamp == 0:
 
             # just copy over the hot start files from the previous day
@@ -399,154 +380,29 @@ def CMSsimSetup(startTime, inputDict):
             # what is the date_str of the previous day?
             dP = d1 - DT.timedelta(0, timerun * 3600, 0)
             date_strP = dP.strftime('%Y-%m-%dT%H%M%SZ')
-            HSpath = os.path.join(path_prefix + date_strP, 'ASCII_HotStart')
-            # SOLpath = os.path.join(path_prefix + date_strP, 'ASCII_Solutions')
+            HSpath = os.path.join(path_prefix + date_strP, HSfname)
             # copy them over to new folder
-            HSfname = 'ASCII_HotStart'
             writeFolder = os.path.join(path_prefix + date_str, HSfname)
             shutil.copytree(HSpath, writeFolder)
-            # fix the names in the .sup file and the .xy file in the hotstart
-            cmsfio.read_CMSF_xyDict(HSpath)
-            cmsfio.read_CMSF_supDict(HSpath)
+            # delete the ones that I need to replace!
+            os.remove(os.path.join(writeFolder, 'AutoHotStart.xy'))
+            os.remove(os.path.join(writeFolder, 'SingleHotStart.xy'))
+            os.remove(os.path.join(writeFolder, 'AutoHotStart_wet.dat'))
+            os.remove(os.path.join(writeFolder, 'AutoHotStart_vel.dat'))
+            os.remove(os.path.join(writeFolder, 'AutoHotStart_p.dat'))
+            os.remove(os.path.join(writeFolder, 'AutoHotStart_eta.dat'))
 
-            # xy
-            HSxy = cmsfio.xy_dict
-            del HSxy['modelName']
-            HSxy['modelName'] = date_str
-            HSxy['saveName'] = 'AutoHotStart'
-            # remove the old one
-            os.remove(os.path.join(writeFolder, HSxy['saveName'] + '.xy'))
-            # write the new one
-            cmsfio.write_CMSF_xy(writeFolder, HSxy)
-            # delete the SingleHotStart file too?
-            HSxy['saveName'] = 'SingleHotStart'
-            os.remove(os.path.join(writeFolder, HSxy['saveName'] + '.xy'))
-            # write the new one
-            cmsfio.write_CMSF_xy(writeFolder, HSxy)
-
-            # sup
-            HSsup = {}
-            HSsup['saveName'] = 'AutoHotStart'
-            HSsup['scat2d'] = os.path.join(HSfname, 'AutoHotStart.xy')
-            HSsup['data'] = [os.path.join(HSfname, 'AutoHotStart' + suf) for suf in ['_p.dat', '_eta.dat', '_vel.dat']]
-            # remove the old one
-            os.remove(os.path.join(writeFolder, HSsup['saveName'] + '.sup'))
-            # write the new one
-            cmsfio.write_CMSF_sup(writeFolder, HSsup)
-            # delete the SingleHotStart file too?
-            HSsup['saveName'] = 'SingleHotStart'
-            HSsup['scat2d'] = os.path.join(HSfname, 'SingleHotStart.xy')
-            del HSsup['data']
-            os.remove(os.path.join(writeFolder, HSsup['saveName'] + '.sup'))
-            # write the new one
-            cmsfio.write_CMSF_sup(writeFolder, HSsup)
-
-            """
-            # copy over the old solution files
-            SOLfname = 'ASCII_Solutions'
-            writeFolder = os.path.join(path_prefix + date_str, SOLfname)
-            shutil.copytree(SOLpath, writeFolder)
-            # rename the _eta.dat and _vel.dat files
-            os.rename(os.path.join(path_prefix + date_str, SOLfname, date_strP + '_eta.dat'), os.path.join(path_prefix + date_str, SOLfname, date_str + '_eta.dat'))
-            os.rename(os.path.join(path_prefix + date_str, SOLfname, date_strP + '_vel.dat'), os.path.join(path_prefix + date_str, SOLfname, date_str + '_vel.dat'))
-
-            # change the solution .xy file
-            cmsfio.xy_dict = {}
-            #load it up
-            cmsfio.read_CMSF_xyDict(SOLpath)
-            SOLxy = cmsfio.xy_dict
-            del SOLxy['modelName']
-            SOLxy['modelName'] = date_str
-            SOLxy['saveName'] = date_str
-            # remove the old one
-            os.remove(os.path.join(writeFolder, date_strP + '.xy'))
-            # write the new one
-            cmsfio.write_CMSF_xy(writeFolder, SOLxy)
-
-            # change the solution sup file
-            SOLsup = {}
-            SOLsup['saveName'] = date_str
-            SOLsup['scat2d'] = os.path.join(SOLfname, date_str + '.xy')
-            SOLsup['data'] = [os.path.join(SOLfname, date_str + suf) for suf in ['_eta.dat', '_vel.dat']]
-            # remove the old one
-            os.remove(os.path.join(writeFolder, date_strP + '_sol.sup'))
-            # write the new one
-            cmsfio.write_CMSF_sup(writeFolder, SOLsup)
-            """
-
-            """
-            # create new hot-start folders
-            HSfname = 'ASCII_HotStartN'
-            writeFolder = os.path.join(path_prefix + date_str, 'ASCII_HotStartN')
-            if os.path.isdir(writeFolder):
-                shutil.rmtree(writeFolder)
-            os.makedirs(writeFolder)
-
-            # load hot-start files
-            cmsfio.read_CMSF_etaDict(HSpath)
-            cmsfio.read_CMSF_velDict(HSpath)
-            cmsfio.read_CMSF_supDict(HSpath)
-            cmsfio.read_CMSF_pDict(HSpath)
-            cmsfio.read_CMSF_xyDict(HSpath)
-
-            # write my new hot start files!
-            # eta
-            HSeta = cmsfio.eta_dict
-            HSeta['wVar'] = HSeta['wl'][0, :].flatten()
-            del HSeta['wl']
-            HSeta['saveName'] = 'AutoHotStart'
-            del HSeta['time']
-            HSeta['time'] = 0
-            del HSeta['mSimFlag']
-            del HSeta['sim']
-            HSeta['sim'] = 0
-            cmsfio.write_CMSF_dat(writeFolder, HSeta)
-            # vel
-            HSvel = cmsfio.vel_dict
-            HSvel['wVar'] = np.zeros((HSvel['NC'], 2))
-            HSvel['wVar'][:, 0] = HSvel['vx'][0, :].flatten()
-            HSvel['wVar'][:, 1] = HSvel['vy'][0, :].flatten()
-            del HSvel['vx']
-            del HSvel['vy']
-            HSvel['saveName'] = 'AutoHotStart'
-            del HSvel['time']
-            HSvel['time'] = 0
-            del HSvel['mSimFlag']
-            del HSvel['sim']
-            HSvel['sim'] = 0
-            cmsfio.write_CMSF_dat(writeFolder, HSvel)
-            # pressure
-            HSp = cmsfio.p_dict
-            HSp['wVar'] = HSp['p'][0, :].flatten()
-            del HSp['p']
-            HSp['saveName'] = 'AutoHotStart'
-            del HSp['time']
-            HSp['time'] = 0
-            del HSp['mSimFlag']
-            del HSp['sim']
-            HSp['sim'] = 0
-            cmsfio.write_CMSF_dat(writeFolder, HSp)
-            # xy
-            HSxy = cmsfio.xy_dict
-            del HSxy['modelName']
-            HSxy['modelName'] = date_str
-            HSxy['saveName'] = 'AutoHotStart'
-            cmsfio.write_CMSF_xy(writeFolder, HSxy)
-            # sup
-            HSsup = {}
-            HSsup['saveName'] = 'AutoHotStart'
-            HSsup['scat2d'] = os.path.join(HSfname, 'AutoHotStart.xy')
-            HSsup['data'] = [os.path.join(HSfname, 'AutoHotStart' + suf) for suf in ['_p.dat', '_eta.dat', '_vel.dat']]
-            cmsfio.write_CMSF_sup(writeFolder, HSsup)
-            """
+            # copy over hot start files and change some stuff - DLY 03/18/2019 - this is the one that works
+            cmsfio.mod_CMSF_HotStart(os.path.join(HSpath, 'AutoHotStart.xy'), os.path.join(writeFolder, 'AutoHotStart.xy'), 'NAME', date_strP, date_str)
+            cmsfio.mod_CMSF_HotStart(os.path.join(HSpath, 'SingleHotStart.xy'), os.path.join(writeFolder, 'SingleHotStart.xy'), 'NAME', date_strP, date_str)
+            cmsfio.mod_CMSF_HotStart(os.path.join(HSpath, 'AutoHotStart_wet.dat'), os.path.join(writeFolder, 'AutoHotStart_wet.dat'), 'TS 0', '48.0000', '24.0000')
+            cmsfio.mod_CMSF_HotStart(os.path.join(HSpath, 'AutoHotStart_vel.dat'), os.path.join(writeFolder, 'AutoHotStart_vel.dat'), 'TS 0', '48.0000', '24.0000')
+            cmsfio.mod_CMSF_HotStart(os.path.join(HSpath, 'AutoHotStart_p.dat'), os.path.join(writeFolder, 'AutoHotStart_p.dat'), 'TS 0', '48.0000', '24.0000')
+            cmsfio.mod_CMSF_HotStart(os.path.join(HSpath, 'AutoHotStart_eta.dat'), os.path.join(writeFolder, 'AutoHotStart_eta.dat'), 'TS 0', '48.0000', '24.0000')
 
             # and tag the cmcards file appropriately
             cmCards['hotstartFile'] = os.path.join(path_prefix + date_str, HSfname, 'AutoHotStart.sup')
-            cmCards['hotstartWriteInterval'] = 1
-
-        # this is just for testing?
         cmCards['hotstartWriteInterval'] = 1
-
         cmCards['NUM_STEPS'] = len(WLpacketF['avgWL'])
         cmCards['WSE_NAME'] = date_str + '_%s_%s' %('h', str(int(1))) + '.xys'
         cmCards['BID_NAME'] = date_str + '.bid'
@@ -606,9 +462,9 @@ def CMSanalyze(startTime, inputDict):
 
     # _____________________________________________________________________________
 
-    print '\nBeggining of Analyze Script\nLooking for file in ' + fpath
-    print '\nData Start: %s  Finish: %s' % (d1, d2)
-    print 'Analyzing simulation'
+    print('\nBeggining of Analyze Script\nLooking for file in ' + fpath)
+    print('\nData Start: %s  Finish: %s' % (d1, d2))
+    print('Analyzing simulation')
     go = getDataFRF.getObs(d1, d2)  # setting up get data instance
     prepdata = STPD.PrepDataTools()  # initializing instance for rotation scheme
     cio = cmsIO()  # =pathbase) looks for model output files in folder to analyze
@@ -619,7 +475,7 @@ def CMSanalyze(startTime, inputDict):
     ######################################################################################################################
     ######################################################################################################################
     t=DT.datetime.now()
-    print 'Loading files '
+    print('Loading files ')
     cio.ReadCMS_ALL(fpath)  # load all files
     stat_packet = cio.stat_packet  # unpack dictionaries from class instance
     obse_packet = cio.obse_Packet
@@ -627,7 +483,7 @@ def CMSanalyze(startTime, inputDict):
     dep_pack['bathy'] = np.expand_dims(dep_pack['bathy'], axis=0)
     # convert dep_pack to proper dep pack with keys
     wave_pack = cio.wave_Packet
-    print 'Loaded files in %s' % (DT.datetime.now() - t)
+    print('Loaded files in %s' % (DT.datetime.now() - t))
     # correct model outout angles from STWAVE(+CCW) to Geospatial (+CW)
     stat_packet['WaveDm'] = testbedutils.anglesLib.STWangle2geo(stat_packet['WaveDm'])
     # correct angles
@@ -717,7 +573,7 @@ def CMSanalyze(startTime, inputDict):
     plotParams = [('waveHs', 'm'), ('bathymetry', 'NAVD88 $[m]$'), ('waveTp', 's'), ('waveDm', 'degTn')]
     if pFlag == True:
         for param in plotParams:
-            print '    plotting %s...' %param[0]
+            print('    plotting %s...' %param[0])
             spatialPlotPack = {'title': 'Regional Grid: %s' % param[0],
                                'xlabel': 'Longshore distance [m]',
                                'ylabel': 'Cross-shore distance [m]',
@@ -756,7 +612,7 @@ def CMSanalyze(startTime, inputDict):
 
         Idx_j = np.argwhere(gridPack['j'] == stat_packet['jStation'][gg]).squeeze()
         w = go.getWaveSpec(station)
-        # print '   Comparison location taken from thredds, check positioning '
+        # print('   Comparison location taken from thredds, check positioning ')
         stat_data = {'time': nc.date2num(stat_packet['time'][:], units='seconds since 1970-01-01 00:00:00'),
                      'waveHs': stat_packet['waveHs'][:, gg],
                      'waveTm': np.ones_like(stat_packet['waveHs'][:, gg]) * -999,
@@ -788,7 +644,7 @@ def CMSanalyze(startTime, inputDict):
             stat_data['Latitude'] = w['lat']
             stat_data['Longitude'] = w['lon']
         # Name files and make sure server directory has place for files to go
-        print 'making netCDF for model output at %s ' % station
+        print('making netCDF for model output at %s ' % station)
         TdsFldrBase = os.path.join(Thredds_Base, fldrArch, station)
         outFileName = TdsFldrBase + '/'+stationName + '_%s.nc' % datestring
         if not os.path.exists(TdsFldrBase):
@@ -800,7 +656,7 @@ def CMSanalyze(startTime, inputDict):
         makenc.makenc_Station(stat_data, globalyaml_fname=globalyaml_fname, flagfname=flagfname,
                               ofname=outFileName, stat_yaml_fname=stat_yaml_fname)
 
-        print "netCDF file's created for station: %s " % station
+        print("netCDF file's created for station: %s " % station)
         ###################################################################################################################
         ###############################   Plotting  Below   ###############################################################
         ###################################################################################################################
@@ -820,7 +676,7 @@ def CMSanalyze(startTime, inputDict):
                                             np.arange(len(stat_packet['time'])))  # time match
 
             for param in modStats:  # loop through each bulk statistic
-                print '    plotting %s: %s' %(station, param)
+                print('    plotting %s: %s' %(station, param))
                 if param in ['Tp', 'Tm10']:
                     units = 's'
                     title = '%s period' % param
@@ -867,8 +723,8 @@ def CMSanalyze(startTime, inputDict):
                             assert stats['RMSE'] < RMSE, 'RMSE test on spectral boundary energy failed'
                             assert np.abs(stats['bias']) < bias, 'bias test on spectral boundary energy failed'
                         except:
-                            print '!!!!!!!!!!FAILED BOUNDARY!!!!!!!!'
-                            print 'deleting data from thredds!'
+                            print('!!!!!!!!!!FAILED BOUNDARY!!!!!!!!')
+                            print('deleting data from thredds!')
                             os.remove(fieldOfname)
                             os.remove(outFileName)
                             raise RuntimeError('The Model Is not validating its offshore boundary condition')
@@ -915,9 +771,9 @@ def CMSFanalyze(startTime, inputDict):
     datestring = d1.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
     fpath = path_prefix + datestring + '/'
 
-    print '\nBeggining of Analyze Script\nLooking for file in ' + fpath
-    print '\nData Start: %s  Finish: %s' % (d1, d2)
-    print 'Analyzing simulation'
+    print('\nBeggining of Analyze Script\nLooking for file in ' + fpath)
+    print('\nData Start: %s  Finish: %s' % (d1, d2))
+    print('Analyzing simulation')
     go = getDataFRF.getObs(d1, d2)  # setting up get data instance
     prepdata = STPD.PrepDataTools()  # initializing instance for rotation scheme
     cio = cmsfIO()  # looks for model output files in folder to analyze
@@ -928,14 +784,15 @@ def CMSFanalyze(startTime, inputDict):
     ######################################################################################################################
     ######################################################################################################################
     t = DT.datetime.now()
-    print 'Loading files '
+    print('Loading files ')
 
     # load the files now
     cio.read_CMSF_all(path=fpath)
     # i think the only change i have to make is to convert the velocities into the same coord system as the gages?
 
+    """
     # rotate my velocity vectors CLOCKWISE by the grid azimuth!
-    print 'Rotating velocity vectors - this part is slow...'
+    print('Rotating velocity vectors - this part is slow...')
     test_fun = lambda x: testbedutils.anglesLib.vectorRotation(x, theta=cio.telnc_dict['azimuth'])
     [rows, cols] = np.shape(cio.vel_dict['vx'])
     newVx = np.zeros(np.shape(cio.vel_dict['vx']))
@@ -947,6 +804,10 @@ def CMSFanalyze(startTime, inputDict):
             newvel = test_fun(vel)
             newVx[ii, jj] = newvel[0]
             newVy[ii, jj] = newvel[1]
+    """
+    # debugging only!
+    newVx = cio.vel_dict['vx']
+    newVy = cio.vel_dict['vy']
 
     cmsfWrite = {}
 
@@ -977,6 +838,8 @@ def CMSFanalyze(startTime, inputDict):
         d1F = d1 - DT.timedelta(hours=int(24*cmsfWrite['durationRamp']))
     else:
         d1F = d1
+
+    # tstep = inputDict['flow_time_step']  NO NO NO NO!  OUTPUTS HOURLY REGARDLESS OF TIMESTEP!
     cmsfWrite['time'] = nc.date2num(np.array([d1F + DT.timedelta(0, x * 3600, 0) for x in cio.vel_dict['time']]), timeunits)
 
     # okay, I have a sneaking suspicion that sb will want to go the masked array route with the whole .tel file
@@ -987,7 +850,7 @@ def CMSFanalyze(startTime, inputDict):
     del cmsfWriteN
 
     # now hand this to makenc_CMSFrun?
-    print 'Writing simulation netCDF files.'
+    print('Writing simulation netCDF files.')
     ofname = datestring + '.nc'  # you may need to come back to this to check on it.
     TdsFldrBase = os.path.join(Thredds_Base, 'CMSF')
     if not os.path.exists(TdsFldrBase):
@@ -1032,11 +895,12 @@ def CMSFanalyze(startTime, inputDict):
     ###############################   Plotting  Below   ###############################################################
     ###################################################################################################################
     # .gif's
+    """
     # plotParams = [('WL', 'm', 'waterLevel'), ('depth', 'NAVD88 $[m]$', 'depth'), ('VelMag', 'm/s', 'vMag')]
     plotParams = [('WL', 'm', 'waterLevel'), ('VelMag', 'm/s', 'vMag')]
     if pFlag:
         for param in plotParams:
-            print '    plotting %s...' % param[0]
+            print('    plotting %s...' % param[0])
             for ss in range(0, len(cmsfWrite['time'])):
 
                 pDict = {'ptitle': 'Regional Grid: %s' % param[0],
@@ -1060,7 +924,7 @@ def CMSFanalyze(startTime, inputDict):
             fList = sorted(glob.glob(fpath + '/figures/*%s*.png' % param[0]))
             sb.makegif(fList, fpath + '/figures/CMTB_CMSF_%s_%s_%s.gif' % (flow_version_prefix, param[0], datestring))
             [os.remove(ff) for ff in fList]
-
+    """
     # stations
     if pFlag:
         stationList = ['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array', 'awac-6m', 'awac-4.5m', 'adop-3.5m',
@@ -1073,7 +937,7 @@ def CMSFanalyze(startTime, inputDict):
 
                 oDict = getPlotData.CMSF_velData(cmsfWrite, station)
                 if oDict is None:
-                    print 'Velocity data missing for %s' %station
+                    print('Velocity data missing for %s' %station)
                     pass
 
                 else:
@@ -1102,7 +966,7 @@ def CMSFanalyze(startTime, inputDict):
 
                 oDict = getPlotData.CMSF_wlData(cmsfWrite, station)
                 if oDict is None:
-                    print 'Water level data missing for %s' % station
+                    print('Water level data missing for %s' % station)
                     pass
 
                 else:
