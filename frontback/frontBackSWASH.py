@@ -8,7 +8,7 @@ from prepdata.prepDataLib import PrepDataTools as STPD
 from getdatatestbed.getDataFRF import getDataTestBed
 from getdatatestbed.getDataFRF import getObs
 import datetime as DT
-import os, glob, makenc, pickle
+import os, glob, makenc, pickle, tarfile
 import netCDF4 as nc
 import numpy as np
 from prepdata import prepDataLib as STPD
@@ -181,32 +181,53 @@ def SwashAnalyze(startTime, inputDict, swio):
     simData, simMeta = swio.loadSwash_Mat(fname=matfile)  # load all files
     ######################################################################################################################
     ######################################################################################################################
-    ##################################  Spatial Data HERE     ############################################################
+    ##################################  plotting #########################################################################
     ######################################################################################################################
     ######################################################################################################################
-
-    # ################################
-    #        Make NETCDF files       #
-    # ################################
 
     ## do some plotting
 
-
-    # now make some plots
+    if not os.path.exists(os.path.join(path_prefix,datestring, 'figures')):
+        os.makedirs(os.path.join(path_prefix,datestring, 'figures'))  # make the directory for the simulation plots
+    figureBaseFname = 'CMTB_waveModels_{}_{}_'.format(model, version_prefix)
     from matplotlib import pyplot as plt
     # plt.figure()
     # plt.plot()
     #
     # plot time-series of cross-shore evolution movie
+    print('this script makes double pictures, we can probably sub-sample')
+
     for tidx, timeStep in enumerate(simData['time']):
-        ofPlotName = os.path.join(path_prefix, timeStep.strftime('%Y%m%dT%H%M%S')+'_TS.png')
+        ofPlotName = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS_' + timeStep.strftime('%Y%m%dT%H%M%S%fZ') +'.png')
         oP.generate_CrossShoreTimeseries(ofPlotName, simData['eta'][tidx].squeeze(), -simData['elevation'], simData['xFRF'])
     ## now make gif of waves moving across shore
-    imgList = glob.glob(os.path.join(path_prefix, '*TS.png'))
+    imgList = sorted(glob.glob(os.path.join(path_prefix, datestring, 'figures', '*_TS_*.png')))
+    sb.makegif(imgList, os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS_{}.gif'.format(datestring)),dt=0.1)
+
+    tarOutFile  = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS.tar.gz')
+    sb.myTarMaker(tarOutFile, imgList)
+    [os.remove(ff) for ff in imgList]
+
+
+    ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TimeStack.png')
+    ## figure making
+    cmap = 'RdBu'
+    plt.figure()
+    mappable = plt.pcolor(simData['xFRF'], simData['time'], simData['eta'].squeeze(), cmap=cmap)
+    plt.colorbar(mappable)
+    plt.title('Time Stack for {} transect'.format(simData['yFRF']))
+    plt.ylabel('cross-shore position')
+    plt.xlabel('simulation time(s)')
+    plt.savefig(ofname)
+    plt.close()
+
+Warning
 
 
 
-
+    # ################################
+    #        Make NETCDF files       #
+    # ################################
     ## before netCDF.
     # get significant wave height for cross shore
     # slice the time serise so we're on ly isolating the non-repeating time series of data
