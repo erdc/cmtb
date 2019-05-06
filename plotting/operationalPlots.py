@@ -2104,9 +2104,6 @@ def generate_CrossShoreTimeseries(ofname, dataIn, bottomIn, xIn, **kwargs):
     ax1.fill_between(xIn, bottomIn, dataIn, color=waterColor)  # fill in water
     ax1.set_xlim([np.min(xIn), np.max(xIn)])
     ax1.set_ylim([np.min(bottomIn), np.max(bottomIn) + 0.5])
-    #
-    # ax1.fill_between(xIn, dataIn, 3, color=skyColor)  # fill in above water
-    # ax1.fill_between(xIn, bottomIn, 3, where=np.isnan(dataIn), color=skyColor)  # fill in the air behind dry beach
 
     plt.savefig(ofname)
     plt.close()
@@ -2122,8 +2119,8 @@ def plotCrossShoreSummaryTS(ofname, xFRF, bathy, totalStatisticDict, SeaSwellSta
         totalStatisticDict (dict): total statistics;  has key 'Hm0' shaped as length xFRF
         SeaSwellStats (dict): sea/swell only statistics; has key 'Hm0' shaped as length xFRF
         IGstats (dict): Infragravity only statistics; has key 'Hm0' shaped as length xFRF
-        setup:
-        WL:
+        setup: mean of the water level
+        WL: offshore tide level (relative to bathy datum)
 
     Keyword Args:
         'obs' (dict): a nested dictionary of numerous observations dictionaries
@@ -2133,10 +2130,12 @@ def plotCrossShoreSummaryTS(ofname, xFRF, bathy, totalStatisticDict, SeaSwellSta
 
     """
     obs = kwargs.get('obs', None)
-    setup = kwargs.get('setup', None)
     HsTS = kwargs.get('HsTs', None)
     fs = kwargs.get('fontSize', 12)
     var = kwargs.get('plotVar', 'Hm0')
+    beachColor = 'wheat'
+    waterColor = 'aquamarine'
+    setupColor = 'green'
     if obs is not None:
         raise NotImplementedError('Please add functionality to loop through obs stations')
 
@@ -2151,20 +2150,65 @@ def plotCrossShoreSummaryTS(ofname, xFRF, bathy, totalStatisticDict, SeaSwellSta
     ax1.plot(xFRF, SeaSwellStats[var], label='$Hs_{seaSwell}$')
     ax1.plot(xFRF, IGstats[var], label='$Hs_{IG}$')
     ax1.legend(loc='upper left', fontsize=fs)
-    ax1.ylabel('Wave Height $[m]$', fontsize=fs)
+    ax1.set_ylabel('Wave Height $[m]$', fontsize=fs)
 
     ax2 = plt.subplot(int(size + '2'))
     ax2.plot(xFRF, IGstats[var], label='$Hs_{IG}$')
-    ax2.ylabel('IG wave Height', fontsize=fs)
+    ax2.set_ylabel('IG wave Height', fontsize=fs)
 
     ax3 = plt.subplot(int(size + '3'))
     ax3.plot(xFRF, setup)
-    ax3.ylabel('$\eta$', fontsize=fs)
+    ax3.set_ylabel('$\eta$', fontsize=fs)
 
     ax4 = plt.subplot(int(size + '4'))
-    ax4.plot(xFRF, bathy)
-    ax4.plot(xFRF, WL, label='Water Level')
-    ax4.plot(xFRF, setup + WL, 'TWL')
+    ax4.plot(xFRF, -bathy,'-', lw=7, color=beachColor)
+    ax4.plot(xFRF, np.tile(WL, (xFRF.shape[0])), color=waterColor, label='Water Level')
+    ax4.plot(xFRF, setup, color=setupColor, label='TWL')
+    ax4.set_ylabel('Z NAVD88 - [m]')
+    ax4.set_xlabel('Cross-shore Location [m]')
 
     plt.savefig(ofname)
     plt.close()
+
+def crossShoreSurfaceTS2D(ofname, eta, xFRF, time):
+    """surface 2D timeseries
+
+    Args:
+        ofname: output file location
+        eta:  2D array of xFRF
+        xFRF:
+        time:
+
+    Returns:
+
+    """
+    eta= eta.squeeze()
+    plt.figure()
+    plt.pcolormesh(xFRF, time, eta, cmap='RdBu')
+    plt.savefig(ofname)
+    plt.close()
+
+def crossShoreSpectrograph(ofname, xFRF, freqs, fspec, **kwargs):
+    """ A cross shore evolution of spectra
+
+    Args:
+        ofname (str): output location/name of the file
+        xFRF: cross-shore position
+        freqs: frequency bands
+        fspec: 2d array of frequency
+    Keyword Args:
+        'ylims': limits for the frequency space in the nearshore spectrogram
+
+    Returns:
+        a plot
+
+    """
+    ylims = kwargs.get('ylims', (0, 0.4))
+    plt.figure();
+    plt.pcolormesh(xFRF, freqs, fspec.T)
+    plt.colorbar()
+    plt.ylabel('frequency', fontsize=12)
+    plt.xlabel('cross-shore location', fontsize=12)
+    plt.ylim(ylims)
+    plt.savefig(ofname);
+    plt.close();

@@ -1,4 +1,5 @@
 import matplotlib
+from testbedutils import waveLib as wl
 # matplotlib.use('Agg')
 import numpy as np
 import datetime as DT
@@ -12,7 +13,7 @@ from testbedutils import sblib as sb
 datestring = '2015-10-05T000000Z'
 nSubSample = 3
 plotting = False
-path_prefix = 'base'
+path_prefix = '/home/spike/cmtb/base'
 figureBaseFname = 'Stuff_'
 SeaSwellCutoff = 0.05
 WL = 1.4
@@ -36,8 +37,8 @@ if plotting == True:
         dataOut.append(ofPlotName)
     ######################################################################
     tstart = DT.datetime.now()
-    pool=multiprocessing.Pool(4) # open multiprocessing pool
-    dataBack = pool.map(parallel_generateCrossShoreTimeSeries,range(0, len(simData['time']), nSubSample) )
+    pool=multiprocessing.Pool(4)  # open multiprocessing pool
+    dataBack = pool.map(parallel_generateCrossShoreTimeSeries, range(0, len(simData['time']), nSubSample))
     pool.close()
     print('Took {} long to make all the plots in parallel {} processors'.format(DT.datetime.now() - tstart, 4))
 
@@ -49,56 +50,27 @@ if plotting == True:
     tarOutFile  = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS.tar.gz')
     sb.myTarMaker(tarOutFile, imgList)
     print('Took {} long to make all the plots, movie and tarball '.format(DT.datetime.now() - tstart))
-######### define post processing function #########3\
-# input args: simData, seaSwellCutoff
-#
-#
-#
-from testbedutils import waveLib as wl
+
+
 # make function for processing timeseries data
-fspec, freqs, setup = wl.timeSeriesAnalysis1D(simData['time'].squeeze(),simData['eta'].squeeze(), bandAvg=6, returnSetup=True)
+fspec, freqs = wl.timeSeriesAnalysis1D(simData['time'].squeeze(),simData['eta'].squeeze(), bandAvg=6)
 total = wl.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=None)
 SeaSwellStats = wl.stats1D(fspec=fspec, frqbins=freqs, lowFreq=SeaSwellCutoff, highFreq=None)
 IGstats = wl.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=SeaSwellCutoff)
 HsTS = 4 * np.std(simData['eta'].squeeze(), axis=0)
+
 #############################################################################################################
 ################################## Make Plot functions ######################################################
 #############################################################################################################
+setup = np.mean(simData['eta'], axis=0).squeeze()
 from plotting import operationalPlots as oP
-
-oP.plotCrossShoreSummaryTS('TempFname.png', simData['xFRF'], simData['elevation'], total,
-                           SeaSwellStats, IGstats, setup, WL)
-
-############# 1. make cross-shore Summary Plot #################
-#   input args: fname, xFRF
-#   kwargs: HsTS (time series calculation of Hs)
-#
-#
-#
-#
-#
-#
-#
-
-################## done function
-
-############# 2. make plot of surface timeseries #################
-#   input args: fname, xFRF
-#   kwargs: HsTS (time series calculation of Hs)
-#
-#
-#
-#
-#
-#
-#
-###############
-plt.figure();
-plt.pcolormesh(simData['xFRF'], HsTS, '.', label='Me')
-plt.plot(simData['xFRF'], -simData['elevation'], label='bottom')
-plt.legend()
-fname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + '_Hs.png')
-plt.savefig(fname)
+ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TempFname.png')
+oP.plotCrossShoreSummaryTS(ofname, simData['xFRF'], simData['elevation'], total,
+                           SeaSwellStats, IGstats, setup=setup, WL=WL)
+ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + '_spectrograph.png')
+oP.crossShoreSpectrograph(ofname, simData['xFRF'], freqs, fspec)
+ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + '_surfaceTimeseries.png')
+oP.crossShoreSurfaceTS2D(ofname, simData['eta'], simData['xFRF'], simData['time'])
 
 
 def myDataloadfunction(data):
