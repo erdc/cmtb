@@ -221,16 +221,12 @@ def SwashAnalyze(startTime, inputDict, swio):
     plt.savefig(ofname)
     plt.close()
 
-Warning
-
-
-
     # ################################
     #        Make NETCDF files       #
     # ################################
     ## before netCDF.
     # get significant wave height for cross shore
-    # slice the time serise so we're on ly isolating the non-repeating time series of data
+    # slice the time series so we're on ly isolating the non-repeating time series of data
     #################################################3
     fldrArch = os.path.join(model, version_prefix)
     spatial = {'time': nc.date2num(wave_pack['time'], units='seconds since 1970-01-01 00:00:00'),
