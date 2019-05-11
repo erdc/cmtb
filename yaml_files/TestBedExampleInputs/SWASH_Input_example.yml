@@ -7,9 +7,9 @@ modelName: SWASH
 ########################
 #simulations parameters#
 ########################
-startTime: '2015-10-03T01:00:00Z'           # project start time
-endTime:   '2015-10-04T00:00:00Z'           # project End time
-simulationDuration: 1                       # duration in hours   how frequently to get new data, size of individual simulations
+startTime: '2015-10-05T00:00:00Z'           # project start time
+endTime:   '2015-10-05T04:00:00Z'           # project End time
+simulationDuration: 1                       # duration in hours how frequently to get new data, size of individual simulations
 version_prefix: Base                        # controls switched with int the code
 ########################
 # path stuff           #
@@ -25,6 +25,6 @@ netCDFdir: /home/spike/thredds_data/waveModels                             #opti
 #########################
 # these are flags to control how the simulations are started and run
 pFlag: True                            # turn plotting on
-generateFlag: True                     # generate simulation input files (go get data, process, and write files)
-runFlag: True                          # run the simulation
+generateFlag: False                    # generate simulation input files (go get data, process, and write files)
+runFlag: False                          # run the simulation
 analyzeFlag: True                      # post process simulations (read files, post process data, make netCDF files, plot if desired)
