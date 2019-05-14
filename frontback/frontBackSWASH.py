@@ -12,7 +12,7 @@ import os, glob, makenc, pickle, tarfile
 import netCDF4 as nc
 import numpy as np
 from prepdata import prepDataLib as STPD
-from prepdata.inputOutput import SWASHio
+from prepdata.inputOutput import swashIO
 from getdatatestbed import getDataFRF
 import plotting.operationalPlots as oP
 from testbedutils import sblib as sb
@@ -112,7 +112,7 @@ def SwashSimSetup(startTime, inputDict):
 
     ## begin output
     # set some of the class instance variables before writing Sws file
-    swio = SWASHio(WL=WLpacket['avgWL'], equilbTime=wavepacket['spinUp'],
+    swio = swashIO(WL=WLpacket['avgWL'], equilbTime=wavepacket['spinUp'],
                    Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'],
                    Dm=wavepacket['waveDm'], ofileNameBase=date_str,
                    path_prefix=path_prefix, version_prefix=version_prefix,
