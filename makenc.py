@@ -338,7 +338,7 @@ def makenc_phaseresolved(data_lib, globalyaml_fname, flagfname, ofname, var_yaml
     tdim = fid.createDimension('time', np.shape(data_lib['waveHs'])[0])
     tsdim = fid.createDimension('tsTime', len(data_lib['tsTime']))
     xdim = fid.createDimension('xFRF', data_lib['NI'])
-    ydim = fid.createDimension('Y_shore', data_lib['NJ'])
+    ydim = fid.createDimension('yFRF', data_lib['NJ'])
     #inputtypes = fid.createDimension('in_type', np.shape(flags)[1]) # there are 4 input data types for flags
     statnamelen = fid.createDimension('station_name_length', len(data_lib['station_name']))
 
