@@ -41,7 +41,7 @@ def Master_SWASH_run(inputDict):
         import re
         inputDict['modelExecutable'] = re.sub(codeDir, '', inputDict['modelExecutable'])
 
-    outDataBase = os.path.join(workingDir, model, version_prefix)
+    outDataBase = os.path.join(workingDir, version_prefix) #(workingDir, model, version_prefix)
     inputDict['path_prefix'] = outDataBase
     # ______________________ Logging  ____________________________
     # auto generated Log file using start_end timeSegment
@@ -107,6 +107,7 @@ def Master_SWASH_run(inputDict):
 
             if analyzeFlag == True:
                 print('**\nBegin Analyze Script %s ' % DT.datetime.now())
+                SWIO.path_prefix = '/Users/l6kim/cmtb/data/SWASH/base/2015-11-05T000000Z' #must remove after testing
                 SwashAnalyze(timeSegment, inputDict, SWIO)
 
             if pFlag is True and DT.date.today() == projectEnd:

@@ -1,6 +1,6 @@
 ## hopefully this is used for all phase resolving wave modeling done in test bed
 
-_variables: ['time','station_name', 'tsTime',  'xFRF', 'yFRF', 'totalWaterLevel', 'totalWaterLevelTS','eta','velocityU','velocityV']
+_variables: ['time','station_name', 'tsTime',  'xFRF', 'yFRF', 'totalWaterLevel', 'waveHs', 'waveHsIG', 'totalWaterLevelTS','eta','velocityU','velocityV']
 _attributes: []
 _dimensions: ['station_name_length', 'time', 'tsTime', 'xFRF', 'yFRF']
 
@@ -23,6 +23,26 @@ tsTime:
     dim: ['tsTime']
     calendar: 'gregorian'
     fill_value: '-999.99'
+
+waveHs:
+    name: 'waveHs'
+    units: 'm'
+    long_name: 'significant wave height'
+    short_name: 'Hs'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999'
+    notes: 'calculated from frequency spectra above 20 seconds'
+
+waveHsIG:
+    name: 'waveHsIG'
+    units: 'm'
+    long_name: 'significant Infragravity wave Height'
+    short_name: 'Hs-IG'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999'
+    notes: 'calculated from frequency spectra below 20 seconds'
 
 xFRF:
     name: 'xFRF'
@@ -75,7 +95,7 @@ totalWaterLevelTS:
     long_name: 'water surface elevation'
     data_type: 'f8'
     coordinates: 'time'
-    dim: [  'time', 'tsTime']
+    dim: ['time', 'tsTime']
     fill_value: '-999.99'
     short_name: 'Water Temperature'
     comment: >
