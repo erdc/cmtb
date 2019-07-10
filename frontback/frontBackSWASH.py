@@ -114,7 +114,7 @@ def SwashSimSetup(startTime, inputDict):
     # set some of the class instance variables before writing Sws file
     swio = swashIO(WL=WLpacket['avgWL'], equilbTime=wavepacket['spinUp'],
                    Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'],
-                   Dm=wavepacket['waveDm'], ofileNameBase=date_str,
+                   Dm=wavepacket['waveDm'], fileNameBase=date_str,
                    path_prefix=path_prefix, version_prefix=version_prefix,
                    nprocess=gridDict['h'].shape[0])
 
