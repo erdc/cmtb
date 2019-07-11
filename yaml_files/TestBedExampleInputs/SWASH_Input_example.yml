@@ -7,9 +7,9 @@ modelName: SWASH
 ########################
 #simulations parameters#
 ########################
-startTime: '2016-10-03T00:00:00Z'           # project start time
-endTime:   '2016-10-04T00:00:00Z'           # project End time
-simulationDuration: 1                       # duration in hours   how frequently to get new data, size of individual simulations
+startTime: '2015-10-05T00:00:00Z'           # project start time
+endTime:   '2015-10-05T04:00:00Z'           # project End time
+simulationDuration: 1                       # duration in hours how frequently to get new data, size of individual simulations
 version_prefix: Base                        # controls switched with int the code
 ########################
 # path stuff           #
