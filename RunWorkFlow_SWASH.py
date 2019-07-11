@@ -94,7 +94,7 @@ def Master_SWASH_run(inputDict):
                 os.chdir(datadir)      # changing locations to where input files should be made
                 dt = time.time()
                 print('Running Simulation started with {} processors'.format(SWIO.nprocess))
-                _ = check_output("mpirun -n {} {}{} INPUT".format(SWIO.nprocess, codeDir, inputDict['modelExecutable']), shell=True)
+                _ = check_output("mpirun -n {} {} INPUT".format(SWIO.nprocess, os.path.join(codeDir, inputDict['modelExecutable'])), shell=True)
                 SWIO.simulationWallTime = time.time() - dt
                 print('Simulation took {:.1} seconds'.format(SWIO.simulationWallTime))
                 os.chdir(curdir)
@@ -107,7 +107,7 @@ def Master_SWASH_run(inputDict):
 
             if analyzeFlag == True:
                 print('**\nBegin Analyze Script %s ' % DT.datetime.now())
-                SWIO.path_prefix = '/Users/l6kim/cmtb/data/SWASH/base/2015-11-05T000000Z' #must remove after testing
+                SWIO.path_prefix = os.path.join(workingDir, version_prefix, timeStamp)
                 SwashAnalyze(timeSegment, inputDict, SWIO)
 
             if pFlag is True and DT.date.today() == projectEnd:

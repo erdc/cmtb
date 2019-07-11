@@ -82,7 +82,6 @@ def SwashSimSetup(startTime, inputDict):
         wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix)
     else:
         raise NotImplementedError('pre-process TS data ')
-
     # _____________WINDS______________________
     print('_________________\nSkipping Wind')
     # try:
