@@ -1,6 +1,6 @@
 import matplotlib
-from testbedutils import waveLib as wl
 matplotlib.use('Agg')
+from testbedutils import waveLib as wl
 import numpy as np
 import datetime as DT
 from matplotlib import pyplot as plt
@@ -10,16 +10,16 @@ import os, glob, multiprocessing
 from testbedutils import sblib as sb
 ## # my two comparison files
 # set global variables
-datestring = '2015-10-05T000000Z'
+datestring = '2015-11-05T000000Z'
 nSubSample = 3
-plotting = False
-path_prefix = '/home/spike/cmtb/base'
+plotting = True
+path_prefix = '/Users/l6kim/cmtb/data/SWASH/play'
 figureBaseFname = 'Stuff_'
 SeaSwellCutoff = 0.05
-WL = 1.4
+WL = .355
 ########### initalize class from where i'm loading data from
 swio = inputOutput.swashIO(datestring, WL = WL)
-myMat = '/home/spike/cmtb/data/SWASH/play/20151005T000000Z.mat'
+myMat = '/Users/l6kim/cmtb/data/SWASH/play/20151105T000000Z.mat'
 simData, meta = swio.loadSwash_Mat(myMat)
 
 if plotting == True:
