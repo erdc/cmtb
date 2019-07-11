@@ -24,7 +24,6 @@ def pltFRFgrid(xyzDict, save=False):
     #              cmap='coolwarm', levels=levels, norm=norm)
     plt.pcolor(x, y, z, vmin=z.min(), vmax=z.max())
 
-
 def halfPlanePolarPlot(spectra, frequencies, directions, lims=[-18, 162], **kwargs):
     """ creates single polar plot for spectra.  generally Half-planed
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import matplotlib
-matplotlib.use('Agg')
-import os, getopt, sys, shutil, glob, logging, yaml
+# matplotlib.use('Agg')
+import os, getopt, sys, shutil, glob, logging, yaml, time, pickle
 import datetime as DT
 from subprocess import check_output
 import numpy as np
@@ -41,10 +41,10 @@ def Master_SWASH_run(inputDict):
         import re
         inputDict['modelExecutable'] = re.sub(codeDir, '', inputDict['modelExecutable'])
 
-    outDataBase = os.path.join(workingDir, model, version_prefix)
+    outDataBase = os.path.join(workingDir, version_prefix) #(workingDir, model, version_prefix)
     inputDict['path_prefix'] = outDataBase
     # ______________________ Logging  ____________________________
-    # auto generated Log file using start_end time
+    # auto generated Log file using start_end timeSegment
     LOG_FILENAME = os.path.join(outDataBase,'logs/{}_BatchRun_Log_{}_{}_{}.log'.format(model,version_prefix, startTime, endTime))
     # try:
     #     logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
@@ -77,47 +77,54 @@ def Master_SWASH_run(inputDict):
     print('\n-\n-\nMASTER WorkFLOW for {} SIMULATIONS\n-\n-\n'.format(model))
     print('Batch Process Start: %s     Finish: %s '% (projectStart, projectEnd))
     print('The batch simulation is Run in %s Version' % version_prefix)
-    print('Check for simulation errors here %s' % LOG_FILENAME)
+    print('Check for simulation errors here {}'.format(LOG_FILENAME))
     print('------------------------------------\n\n************************************\n\n------------------------------------\n\n')
 
     # ________________________________________________ RUN LOOP ________________________________________________
-    for time in dateStringList:
+    for timeSegment in dateStringList:
         try:
-            print('**\nBegin ')
-            print('Beginning Simulation %s' %DT.datetime.now())
-
+            timeStamp = ''.join(timeSegment.split(':'))
+            datadir = os.path.join(outDataBase, timeStamp)  # moving to the new simulation's folder
+            pickleSaveFname = os.path.join(datadir, timeStamp + '_io.pickle')
             if generateFlag == True:
-                SWIO = SwashSimSetup(time, inputDict=inputDict)
-                datadir = outDataBase + ''.join(time.split(':'))  # moving to the new simulation's folder
+                SWIO = SwashSimSetup(timeSegment, inputDict=inputDict)
 
-            if runFlag == True: # run model
-                os.chdir(datadir) # changing locations to where input files should be made
-                print('Running Simulation')
-                dt = DT.datetime.now()
-                print(" use {} processors".format(SWIO.nprocess))
-                simOutput = check_output(codeDir + '%s %s.sim' %(inputDict['modelExecutable'], ''.join(time.split(':'))), shell=True)
 
-                print('Simulation took %s ' % (DT.datetime.now() - dt))
+            if runFlag == True:        # run model
+                os.chdir(datadir)      # changing locations to where input files should be made
+                dt = time.time()
+                print('Running Simulation started with {} processors'.format(SWIO.nprocess))
+                _ = check_output("mpirun -n {} {} INPUT".format(SWIO.nprocess, os.path.join(codeDir, inputDict['modelExecutable'])), shell=True)
+                SWIO.simulationWallTime = time.time() - dt
+                print('Simulation took {:.1} seconds'.format(SWIO.simulationWallTime))
                 os.chdir(curdir)
+                with open(pickleSaveFname, 'wb') as fid:
+                    pickle.dump(SWIO, fid, protocol=pickle.HIGHEST_PROTOCOL)
+
+            else:   # assume there is a saved pickle of input/output that was generated before
+                with open(pickleSaveFname, 'rb') as fid:
+                    SWIO = pickle.load(fid)
 
             if analyzeFlag == True:
                 print('**\nBegin Analyze Script %s ' % DT.datetime.now())
-                SwashAnalyze(time, inputDict=inputDict)
+                SWIO.path_prefix = os.path.join(workingDir, version_prefix, timeStamp)
+                SwashAnalyze(timeSegment, inputDict, SWIO)
 
-            if pFlag == True and DT.date.today() == projectEnd:
+            if pFlag is True and DT.date.today() == projectEnd:
+                print('  TODO tar simulation files after generating netCDF')
                 # move files
                 moveFnames = glob.glob(curdir + 'cmtb*.png')
                 moveFnames.extend(glob.glob(curdir + 'cmtb*.gif'))
                 for file in moveFnames:
                     shutil.move(file,  '/mnt/gaia/cmtb')
                     print('moved %s ' % file)
-            print('------------------SUCCESSS-----------------------------------------')
+            print('------------------Model Run: SUCCESSS-----------------------------------------')
 
         except Exception as e:
             print('<< ERROR >> HAPPENED IN THIS TIME STEP ')
             print(e)
-            logging.exception('\nERROR FOUND @ %s\n' %time, exc_info=True)
-            os.chdir(curdir)
+            logging.exception('\nERROR FOUND @ %s\n' %timeSegment, exc_info=True)
+            os.chdir(curdir)  # change back to main directory (no matter where the simulation failed)
 
 
 if __name__ == "__main__":
