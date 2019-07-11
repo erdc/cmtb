@@ -38,10 +38,7 @@ def CMSsimSetup(startTime, inputDict):
 
     """
     # begin by setting up input parameters
-    if 'simulationDuration' in inputDict:
-        timerun = inputDict['simulationDuration']
-    else:
-        timerun = 24
+    timerun = inputDict.get('simulationDuration', 24)
     if 'pFlag' in inputDict:
         pFlag = inputDict['pFlag']
     else:
@@ -67,23 +64,15 @@ def CMSsimSetup(startTime, inputDict):
         full = False
     elif version_prefix == 'UNTUNED':
         full = False
-    else:
-        pass
+
 
     # _______________________________________________________________________________
     # set times
-    try:
-        d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(TOD / 24., 0, 0)
-        d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
-        date_str = d1.strftime('%Y-%m-%dT%H%M%SZ')  # used to be endtime
+    d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(TOD / 24., 0, 0)
+    d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
+    date_str = d1.strftime('%Y-%m-%dT%H%M%SZ')  # used to be endtime
 
-    except ValueError:
-        assert len(startTime) == 10, 'Your Time does not fit convention, check T/Z and input format'
-        d1 = DT.datetime.strptime(startTime, '%Y-%m-%d') + DT.timedelta(TOD / 24., 0, 0)
-        d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
-        date_str = d1.strftime('%Y-%m-%d')  # used to be endtime
-        assert int(timerun) >= 24, 'Running Simulations with less than 24 Hours of simulation time require end ' \
-                                   'Time format in type: %Y-%m-%dT%H:%M:%SZ'
+
     if type(timerun) == str:
         timerun = int(timerun)
 
@@ -105,7 +94,7 @@ def CMSsimSetup(startTime, inputDict):
     assert rawspec is not None, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
 
     prepdata = STPD.PrepDataTools()
-    # rotate and lower resolution of directional wave spectra
+    # rotate and lower resolution of directionalWaveGaugeList wave spectra
     wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=date_str, plot=pFlag, full=full,
                                     outputPath=path_prefix, CMSinterp=50)  # 50 freq bands are max for model
     print("number of wave records %d with %d interpolated points" % (
@@ -143,7 +132,7 @@ def CMSsimSetup(startTime, inputDict):
     ### ___________ Create observation locations ________________ # these are cell i/j locations
     gaugelocs = []
     #get gauge nodes x/y
-    for gauge in go.gaugelist:
+    for gauge in go.waveGaugeList:
         pos = go.getWaveGaugeLoc(gauge)
         coord = gp.FRFcoord(pos['lon'], pos['lat'], coordType='LL')
         i = np.abs(coord['xFRF'] - bathy['xFRF'][::-1]).argmin()
@@ -163,7 +152,6 @@ def CMSsimSetup(startTime, inputDict):
     cmsio.writeCMS_sim(simFnameOut, date_str, gridOrigin)
     cmsio.writeCMS_spec(specFname, wavePacket=wavepacket, wlPacket=WLpacket, windPacket=windpacket)
     cmsio.writeCMS_dep(bathyFname, depPacket=bathy)
-    stio = inputOutput.stwaveIO('')
     inputOutput.write_flags(date_str, path_prefix, wavepacket, windpacket, WLpacket, curpacket=None)
 
     # remove old output files so they're not appended, cms defaults to appending output files

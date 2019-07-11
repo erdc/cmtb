@@ -140,7 +140,7 @@ def gradient_fill(x, y, fill_color=None, ax=None, zfunc=False, **kwargs):
 
     h, w = 100, 1
     # do shading here
-    if np.mean(np.diff(y)) >= 5:  # this should be directional plot
+    if np.mean(np.diff(y)) >= 5:  # this should be directionalWaveGaugeList plot
         z = np.empty((w, h, 4), dtype=float)
         rgb = mcolors.colorConverter.to_rgb(fill_color)
         z[:, :, :3] = rgb

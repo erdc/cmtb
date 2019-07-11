@@ -855,3 +855,70 @@ def plot_scatterAndQQ(fname, time,  model, observations, **kwargs):
     plt.tight_layout(rect=[0, 0, 1, .95])
     # fname = "/home/spike/repos/myresearch/STWAVE_Analysis/figures_Explore/Performance_{}_{}_{}_{}.png".format(gauge, returnParameter, binParameter, waveBins[bb])
     plt.savefig(fname); plt.close()
+
+def halfPlanePolarPlot(spectra, frequencies, directions, lims=[-18, 162], **kwargs):
+    """ creates single polar plot for spectra, taken in part from CDIP
+
+    Args:
+        spectra (array): 2D array only
+        frequencies (array): 1 d array of corresponding frequencies to spectra
+        directions(array): directions associated with spectra
+        lims (list): default is half plane for Duck (incident energy only), will NOT truncate spectra
+            set to None if looking to plot whole 360 polar plot
+
+    Keyword Args:
+        'contour_levels'(list): a list of contour levels to color
+        'figsize' (tup): a tuple of figure size eg. (12, 10)
+        'fname' (str): file path save name
+    Returns:
+        Axis object
+
+    """
+    # begin by checking inputs
+    assert np.array(spectra).ndim == 2, 'spectra needs to be 2 dimensional'
+    assert np.array(spectra).shape[0] == np.array(frequencies).shape[
+        0], 'spectra should be shaped by freq then direction'
+    assert np.array(spectra).shape[1] == np.array(directions).shape[
+        0], 'spectra should be shaped by freq then direction'
+    # pre-processing spectra
+    Edarray = np.asarray(spectra, dtype=object)  # make spectra an array (if not already )
+    Ednew = np.append(spectra, spectra[:, 0:1], axis=1)  # add extra directionalWaveGaugeList band to get it to wrap
+    Dmean_rad = np.deg2rad(np.append(directions, directions[0]))  # convert input directions to radian
+    ## set Color-scale
+    if 'contour_levels' in kwargs:  # manually set contours
+        contour_levels = kwargs['contour_levels']
+    else:  # automatically set contours
+        Edmax = float(np.max(spectra))  # take max for colorbars
+        contourNumber = 50  # set default number of contour levels
+        minlevel = Edmax / contourNumber  # calculate min level
+        maxlevel = Edmax  # calculate max level
+        step = (maxlevel - minlevel) / contourNumber  # associated step
+        contour_levels = np.arange(minlevel, maxlevel, step)  # create list/array of contour levels for plot
+    if 'figsize' in kwargs:
+        figSize = kwargs['figsize']
+    else:
+        figSize = (11, 11)
+    ########################################################################
+    fig = plt.figure(figsize=figSize)  # create figure
+    thetas = Dmean_rad[:]  # in radian NOT DEGREES
+
+    ax = plt.subplot(111, polar=True)  # create polar axis object
+    ax.set_theta_direction(-1)  # set to counter clock-wise plot
+    ax.set_theta_zero_location("N")  # set zero as up
+    colorax = ax.contourf(thetas, frequencies, Ednew, contour_levels)  # make plot
+
+    ## Set titles and colorbar
+    plt.suptitle('Polar Spectrum ', fontsize=22, y=0.95, x=0.45)
+    cbar = fig.colorbar(colorax)
+    cbar.set_label('Energy Density ($m^2/Hz/deg$)', rotation=270, fontsize=16)
+    cbar.ax.get_yaxis().labelpad = 30
+
+    #     degrange = range(0,360,30)
+    #     lines, labels = plt.thetagrids(degrange, labels=None, frac = 1.07)
+    if lims is not None:
+        ax.set_thetalim(np.deg2rad(lims))
+    if 'fname' in kwargs:
+        plt.savefig(kwargs['fname']);
+        plt.close()
+
+    return ax

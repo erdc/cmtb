@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import matplotlib.dates as mdates
 import matplotlib.image as image
-import os, math
+import os, math, warnings
 from scipy.interpolate import interpn, RectBivariateSpline
 from getdatatestbed.getDataFRF import getObs
 from testbedutils import sblib as sb
@@ -179,7 +179,7 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
                 labels on the plot (Default value = 1)
     Keyword Args:
           directions: this is a spatial direction data of same dimensions of spatail wave height data (or other scalar)
-            if directional data should be wrt shore normal
+            if directionalWaveGaugeList data should be wrt shore normal
 
     Returns:
       a plot to file
@@ -830,41 +830,33 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     """
 
     # Altimeter data!!!!!!!!
-    if 'Alt05' in obs_dict.keys():
-        Alt05 = obs_dict['Alt05']
-    else:
-        Alt05 = None
-    if 'Alt04' in obs_dict.keys():
-        Alt04 = obs_dict['Alt04']
-    else:
-        Alt04 = None
-    if 'Alt03' in obs_dict.keys():
-        Alt03 = obs_dict['Alt03']
-    else:
-        Alt03 = None
-
+    Alt05 = obs_dict.get('Alt05', None)
+    Alt04 = obs_dict.get('Alt04', None)
+    Alt03 = obs_dict.get('Alt03', None)
     # wave data
-    Adopp_35 = obs_dict['Adopp_35']
-    AWAC6m = obs_dict['AWAC6m']
-    AWAC8m = obs_dict['AWAC8m']
+    Adopp_35 = obs_dict.get('adop-3.5m', None)
+    AWAC6m = obs_dict.get('AWAC6m', None)
+    AWAC8m = obs_dict.get('AWAC8m', None)
 
     assert len(p_dict['sigma_Hs']) == len(p_dict['Hs']) == len(p_dict['x']) == len(p_dict['obs']) == len(
         p_dict['model']), "Your x, Hs, model, and observation arrays are not the same length!"
 
+    min_val = np.min([np.min(p_dict['obs']), np.min(p_dict['model'])])
+    max_val = np.max([np.max(p_dict['obs']), np.max(p_dict['model'])])
+    min_x = np.min(p_dict['x'])
+    max_x = np.max(p_dict['x'])
+    crossShoreX = np.linspace(min_x - 0.05 * (max_x - min_x), max_x + 0.05 * (max_x - min_x), 100)
+    one_one = np.linspace(min_val - 0.05 * (max_val - min_val), max_val + 0.05 * (max_val - min_val), 100)
+    obs_date = p_dict['obs_time'].strftime('%Y-%m-%d %H:%M')
+    model_date = p_dict['model_time'].strftime('%Y-%m-%d %H:%M')
+    ################################3
     fig = plt.figure(figsize=(12, 12))
     fig.suptitle(p_dict['p_title'], fontsize=18, fontweight='bold', verticalalignment='top')
 
     # transects
     ax1 = plt.subplot2grid((2, 2), (0, 0), colspan=2)
-    min_val = np.min([np.min(p_dict['obs']), np.min(p_dict['model'])])
-    max_val = np.max([np.max(p_dict['obs']), np.max(p_dict['model'])])
-    min_x = np.min(p_dict['x'])
-    max_x = np.max(p_dict['x'])
-    dum_x = np.linspace(min_x - 0.05 * (max_x - min_x), max_x + 0.05 * (max_x - min_x), 100)
-    a, = ax1.plot(dum_x, np.mean(p_dict['WL']) * np.ones(len(dum_x)), 'b-', label='Mean WL')
+    a, = ax1.plot(crossShoreX, np.mean(p_dict['WL']) * np.ones(len(crossShoreX)), 'b-', label='Mean WL')
     # get the time strings!!
-    obs_date = p_dict['obs_time'].strftime('%Y-%m-%d %H:%M')
-    model_date = p_dict['model_time'].strftime('%Y-%m-%d %H:%M')
     b, = ax1.plot(p_dict['x'], p_dict['obs'], 'r-', label='Observed (initial) \n' + obs_date)
     c, = ax1.plot(p_dict['x'], p_dict['model'], 'y-', label='Model \n' + model_date)
     if 'obs2_time' in p_dict.keys():
@@ -873,23 +865,19 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
 
     # add altimeter data!!
     if Alt05 is not None:
-        temp05 = Alt05['zb'][Alt05['plot_ind'] == 1]
-    if Alt04 is not None:
-        temp04 = Alt04['zb'][Alt04['plot_ind'] == 1]
-    if Alt03 is not None:
-        temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
-
-    if Alt05 is not None:
         # Alt05
+        temp05 = Alt05['zb'][Alt05['plot_ind'] == 1]
         f, = ax1.plot(Alt05['xFRF'] * np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'k-',
                       label='Gauge Data')
         g, = ax1.plot(Alt05['xFRF'] * np.ones(1), temp05, 'k_', label='Gauge Data')
     if Alt04 is not None:
+        temp04 = Alt04['zb'][Alt04['plot_ind'] == 1]
         # Alt04
         h, = ax1.plot(Alt04['xFRF'] * np.ones(2), [temp04 - np.std(Alt04['zb']), temp04 + np.std(Alt04['zb'])], 'k-',
                       label='Gauge Data')
         i, = ax1.plot(Alt04['xFRF'] * np.ones(1), temp04, 'k_', label='Gauge Data')
     if Alt03 is not None:
+        temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
         # Alt03
         j, = ax1.plot(Alt03['xFRF'] * np.ones(2), [temp03 - np.std(Alt03['zb']), temp03 + np.std(Alt03['zb'])], 'k-',
                       label='Gauge Data')
@@ -901,21 +889,24 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     ax5.plot(p_dict['x'], p_dict['Hs'] - p_dict['sigma_Hs'], 'g--')
 
     # add wave data!!
-    temp35 = Adopp_35['Hs'][Adopp_35['plot_ind'] == 1]
-    temp6m = AWAC6m['Hs'][AWAC6m['plot_ind'] == 1]
-    temp8m = AWAC8m['Hs'][AWAC8m['plot_ind'] == 1]
-    # Adopp_35
-    l, = ax5.plot(Adopp_35['xFRF'] * np.ones(2), [temp35 - np.std(Adopp_35['Hs']), temp35 + np.std(Adopp_35['Hs'])],
-                  'k-', label='Gauge Data')
-    m, = ax5.plot(Adopp_35['xFRF'] * np.ones(1), temp35, 'k_', label='Gauge Data')
-    # AWAC6m
-    n, = ax5.plot(AWAC6m['xFRF'] * np.ones(2), [temp6m - np.std(AWAC6m['Hs']), temp6m + np.std(AWAC6m['Hs'])], 'k-',
-                  label='Gauge Data')
-    o, = ax5.plot(AWAC6m['xFRF'] * np.ones(1), temp6m, 'k_', label='Gauge Data')
-    # AWAC8m
-    p, = ax5.plot(AWAC8m['xFRF'] * np.ones(2), [temp8m - np.std(AWAC8m['Hs']), temp8m + np.std(AWAC8m['Hs'])], 'k-',
-                  label='Gauge Data')
-    q, = ax5.plot(AWAC8m['xFRF'] * np.ones(1), temp8m, 'k_', label='Gauge Data')
+    if Adopp_35 is not None:
+        temp35 = Adopp_35['Hs'][Adopp_35['plot_ind'] == 1]
+        # Adopp_35
+        l, = ax5.plot(Adopp_35['xFRF'] * np.ones(2), [temp35 - np.std(Adopp_35['Hs']), temp35 + np.std(Adopp_35['Hs'])],
+                      'k-', label='Gauge Data')
+        m, = ax5.plot(Adopp_35['xFRF'] * np.ones(1), temp35, 'k_', label='Gauge Data')
+    if AWAC6m is not None:
+        temp6m = AWAC6m['Hs'][AWAC6m['plot_ind'] == 1]
+        # AWAC6m
+        n, = ax5.plot(AWAC6m['xFRF'] * np.ones(2), [temp6m - np.std(AWAC6m['Hs']), temp6m + np.std(AWAC6m['Hs'])], 'k-',
+                      label='Gauge Data')
+        o, = ax5.plot(AWAC6m['xFRF'] * np.ones(1), temp6m, 'k_', label='Gauge Data')
+    if AWAC8m is not None:
+        temp8m = AWAC8m['Hs'][AWAC8m['plot_ind'] == 1]
+        # AWAC8m
+        p, = ax5.plot(AWAC8m['xFRF'] * np.ones(2), [temp8m - np.std(AWAC8m['Hs']), temp8m + np.std(AWAC8m['Hs'])], 'k-',
+                      label='Gauge Data')
+        q, = ax5.plot(AWAC8m['xFRF'] * np.ones(1), temp8m, 'k_', label='Gauge Data')
 
     ax1.set_ylabel('Elevation (NAVD88) [$%s$]' % (p_dict['units']), fontsize=16)
     ax1.set_xlabel('Cross-shore Position [$%s$]' % (p_dict['units']), fontsize=16)
@@ -931,15 +922,14 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     else:
         sf2 = 0.9
     ax1.set_ylim([sf1 * min_val, sf2 * max_val])
-    ax1.set_xlim([min(dum_x), max(dum_x)])
+    ax1.set_xlim([min(crossShoreX), max(crossShoreX)])
     ax1.tick_params('y', colors='r')
     ax1.yaxis.label.set_color('red')
-
     ax5.tick_params('y', colors='g')
     # ax5.set_ylim([-1.05 * np.nanmax(p_dict['Hs'] + p_dict['sigma_Hs']), 1.05 * np.nanmax(p_dict['Hs'] + p_dict['sigma_Hs'])])
     ylim = ax1.get_ylim()
     ax5.set_ylim(ylim)
-    ax5.set_xlim([min(dum_x), max(dum_x)])
+    ax5.set_xlim([min(crossShoreX), max(crossShoreX)])
     ax5.yaxis.label.set_color('green')
 
     for tick in ax1.xaxis.get_major_ticks():
@@ -968,7 +958,6 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
                 borderaxespad=0., fontsize=12, handletextpad=0.05)
 
     # 1 to 1
-    one_one = np.linspace(min_val - 0.05 * (max_val - min_val), max_val + 0.05 * (max_val - min_val), 100)
     ax2 = plt.subplot2grid((2, 2), (1, 0), colspan=1)
     ax2.plot(one_one, one_one, 'k-', label='$45^{0}$-line')
     if min_val < 0 and max_val > 0:
@@ -992,16 +981,6 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
 
     # stats and stats text
     stats_dict = sb.statsBryant(models=p_dict['model'], observations=p_dict['obs'])
-    # stats_dict['bias'] = np.mean(p_dict['obs'] - p_dict['model'])
-    # stats_dict['RMSE'] = np.sqrt((1 / (float(len(p_dict['obs'])) - 1)) * np.sum(
-    #     np.power(p_dict['obs'] - p_dict['model'] - stats_dict['bias'], 2)))
-    # stats_dict['sym_slp'] = np.sqrt(np.sum(np.power(p_dict['obs'], 2)) / float(np.sum(np.power(p_dict['model'], 2))))
-    # # correlation coef
-    # dum = np.zeros([2, len(p_dict['model'])])
-    # dum[0] = p_dict['model'].flatten()
-    # dum[1] = p_dict['obs'].flatten()
-    # stats_dict['corr_coef'] = np.corrcoef(dum)[0, 1]
-
     # volume change
     # shallow
     index_XXm = np.min(np.argwhere(p_dict[
@@ -1105,25 +1084,14 @@ def mod_results(ofname, p_dict, obs_dict, ylims=None):
       plot of a bunch of model results
 
     """
-
     # Altimeter data!!!!!!!!
-    if 'Alt05' in obs_dict.keys():
-        Alt05 = obs_dict['Alt05']
-    else:
-        Alt05 = None
-    if 'Alt04' in obs_dict.keys():
-        Alt04 = obs_dict['Alt04']
-    else:
-        Alt04 = None
-    if 'Alt03' in obs_dict.keys():
-        Alt03 = obs_dict['Alt03']
-    else:
-        Alt03 = None
-
+    Alt05 = obs_dict.get('Alt05', None)
+    Alt04 = obs_dict.get('Alt04', None)
+    Alt03 = obs_dict.get('Alt03', None)
     # wave data
-    Adopp_35 = obs_dict['Adopp_35']
-    AWAC6m = obs_dict['AWAC6m']
-    AWAC8m = obs_dict['AWAC8m']
+    Adopp_35 = obs_dict.get('adop-3.5m', None)
+    AWAC6m = obs_dict.get('AWAC6m', None)
+    AWAC8m = obs_dict.get('AWAC8m', None)
 
     # get rid of this and include them in the handed dictionary if you want to include vegetation in the plots
     p_dict['veg_ind'] = []
@@ -1150,18 +1118,22 @@ def mod_results(ofname, p_dict, obs_dict, ylims=None):
     ax1.plot(p_dict['x'], p_dict['Hs_m'], 'b-', label='Model $H_{s}$')
 
     # observation plots HOOOOOOO!
-    temp35 = Adopp_35['Hs'][Adopp_35['plot_ind'] == 1]
-    temp6m = AWAC6m['Hs'][AWAC6m['plot_ind'] == 1]
-    temp8m = AWAC8m['Hs'][AWAC8m['plot_ind'] == 1]
-    # Adopp_35
-    ax1.plot(Adopp_35['xFRF']*np.ones(2), [temp35 - np.std(Adopp_35['Hs']), temp35 + np.std(Adopp_35['Hs'])], 'k-', label='Gauge Data')
-    ax1.plot(Adopp_35['xFRF']*np.ones(1), [temp35], 'k_')
-    # AWAC6m
-    ax1.plot(AWAC6m['xFRF']*np.ones(2), [temp6m - np.std(AWAC6m['Hs']), temp6m + np.std(AWAC6m['Hs'])], 'k-')
-    ax1.plot(AWAC6m['xFRF']*np.ones(1), [temp6m], 'k_')
-    # AWAC8m
-    ax1.plot(AWAC8m['xFRF']*np.ones(2), [temp8m - np.std(AWAC8m['Hs']), temp8m + np.std(AWAC8m['Hs'])], 'k-')
-    ax1.plot(AWAC8m['xFRF']*np.ones(1), [temp8m], 'k_')
+    if Adopp_35 is not None:
+        temp35 = Adopp_35['Hs'][Adopp_35['plot_ind'] == 1]
+        # Adopp_35
+        ax1.plot(Adopp_35['xFRF']*np.ones(2), [temp35 - np.std(Adopp_35['Hs']), temp35 + np.std(Adopp_35['Hs'])], 'k-', label='Gauge Data')
+        ax1.plot(Adopp_35['xFRF']*np.ones(1), [temp35], 'k_')
+    if AWAC6m is not None:
+        temp6m = AWAC6m['Hs'][AWAC6m['plot_ind'] == 1]
+        # AWAC6m
+        ax1.plot(AWAC6m['xFRF']*np.ones(2), [temp6m - np.std(AWAC6m['Hs']), temp6m + np.std(AWAC6m['Hs'])], 'k-')
+        ax1.plot(AWAC6m['xFRF']*np.ones(1), [temp6m], 'k_')
+    if AWAC8m is not None:
+        temp8m = AWAC8m['Hs'][AWAC8m['plot_ind'] == 1]
+
+        # AWAC8m
+        ax1.plot(AWAC8m['xFRF']*np.ones(2), [temp8m - np.std(AWAC8m['Hs']), temp8m + np.std(AWAC8m['Hs'])], 'k-')
+        ax1.plot(AWAC8m['xFRF']*np.ones(1), [temp8m], 'k_')
 
 
     ax1.set_ylabel('$H_{s}$ [$m$]', fontsize=16)
@@ -1249,23 +1221,20 @@ def mod_results(ofname, p_dict, obs_dict, ylims=None):
         col_num = 3
 
     # add altimeter data!!
-    if Alt05 is not None:
-        temp05 = Alt05['zb'][Alt05['plot_ind'] == 1]
-    if Alt04 is not None:
-        temp04 = Alt04['zb'][Alt04['plot_ind'] == 1]
-    if Alt03 is not None:
-        temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
-
     # Alt05
     if Alt05 is not None:
+        temp05 = Alt05['zb'][Alt05['plot_ind'] == 1]
+
         ax3.plot(Alt05['xFRF']*np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'k-', label='Gauge Data')
         ax3.plot(Alt05['xFRF'] * np.ones(1), [temp05], 'k_')
     # Alt04
     if Alt04 is not None:
+        temp04 = Alt04['zb'][Alt04['plot_ind'] == 1]
         ax3.plot(Alt04['xFRF']*np.ones(2), [temp04 - np.std(Alt04['zb']), temp04 + np.std(Alt04['zb'])], 'k-')
         ax3.plot(Alt04['xFRF'] * np.ones(1), [temp04], 'k_')
     # Alt03
     if Alt03 is not None:
+        temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
         ax3.plot(Alt03['xFRF']*np.ones(2), [temp03 - np.std(Alt03['zb']), temp03 + np.std(Alt03['zb'])], 'k-')
         ax3.plot(Alt03['xFRF'] * np.ones(1), [temp03], 'k_')
 
@@ -1338,73 +1307,67 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
       plot of some alongshore current data
 
     """
-
     # Altimeter data!!!!!!!!
-    if 'Alt05' in obs_dict.keys():
-        Alt05 = obs_dict['Alt05']
-    else:
-        Alt05 = None
-    if 'Alt04' in obs_dict.keys():
-        Alt04 = obs_dict['Alt04']
-    else:
-        Alt04 = None
-    if 'Alt03' in obs_dict.keys():
-        Alt03 = obs_dict['Alt03']
-    else:
-        Alt03 = None
-
+    Alt05 = obs_dict.get('Alt05', None)
+    Alt04 = obs_dict.get('Alt04', None)
+    Alt03 = obs_dict.get('Alt03', None)
     # wave data
-    Adopp_35 = obs_dict['Adopp_35']
-    AWAC6m = obs_dict['AWAC6m']
-    AWAC8m = obs_dict['AWAC8m']
-
+    Adopp_35 = obs_dict.get('adop-3.5m', None)
+    AWAC6m = obs_dict.get('AWAC6m', None)
+    AWAC8m = obs_dict.get('AWAC8m', None)
+    myMS = 10 # marker size for observations -- can turn this into a kwargs
     # get rid of this and include them in the handed dictionary if you want to include vegetation in the plots
     p_dict['veg_ind'] = []
     p_dict['non_veg_ind'] = []
-
+    p  = [] # axis label for how many things i've plotted
     # assert stuff here....
     assert len(p_dict['zb_m']) == len(p_dict['x']) == len(p_dict['vmean_m']) == len(p_dict['sigma_vm']), "Your x, zb, and y-vel arrays are not the same length!"
-
-    fig = plt.figure(figsize=(12, 9))
-    fig.suptitle(p_dict['p_title'], fontsize=18, fontweight='bold', verticalalignment='top')
-
-    ax1 = plt.subplot2grid((2, 1), (0, 0), colspan=1)
 
     # zb
     min_val = np.nanmin(p_dict['zb_m'])
     max_val = np.nanmax(p_dict['zb_m'])
     min_x = np.min(p_dict['x'])
     max_x = np.max(p_dict['x'])
-    dum_x = np.linspace(min_x - 0.05 * (max_x - min_x), max_x + 0.05 * (max_x - min_x), 100)
+    CrossShoreX = np.linspace(min_x - 0.05 * (max_x - min_x), max_x + 0.05 * (max_x - min_x), 100)
+    ####################################################################################
+    fig = plt.figure(figsize=(12, 9))
+    fig.suptitle(p_dict['p_title'], fontsize=18, fontweight='bold', verticalalignment='top')
+
+    ax1 = plt.subplot2grid((2, 1), (0, 0), colspan=1)
+
     if len(p_dict['veg_ind']) > 0:
         zb_date = p_dict['model_time'].strftime('%Y-%m-%d %H:%M')
         a, = ax1.plot(p_dict['x'][p_dict['veg_ind']], p_dict['zb_m'][p_dict['veg_ind']], 'g-', label='Vegetated $z_{b}$ ' + '(' + zb_date + ')')
         b, = ax1.plot(p_dict['x'][p_dict['non_veg_ind']], p_dict['zb_m'][p_dict['non_veg_ind']], 'y-', label='Non-vegetated $z_{b}$ ' + '(' + zb_date + ')')
         col_num = 5
+        p.extend((a,b))
     else:
         zb_date = p_dict['model_time'].strftime('%Y-%m-%d %H:%M')
         a, = ax1.plot(p_dict['x'], p_dict['zb_m'], 'y-', label='Model $z_{b}$ ' + '(' + zb_date + ')')
         col_num = 4
+        p.extend([a])
 
     # add altimeter data!!
-    if Alt05 is not None:
-        temp05 = Alt05['zb'][Alt05['plot_ind'] == 1]
-    if Alt04 is not None:
-        temp04 = Alt04['zb'][Alt04['plot_ind'] == 1]
-    if Alt03 is not None:
-        temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
     # Alt05
     if Alt05 is not None:
-        c, = ax1.plot(Alt05['xFRF']*np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'y-', label='Altimeter')
+        temp05 = Alt05['zb'][Alt05['plot_ind'] == 1]
+        c, = ax1.plot(Alt05['xFRF']*np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'y-', ms=myMS,  label='Altimeter')
         d, = ax1.plot(Alt05['xFRF'] * np.ones(1), [temp05], 'y_')
+        p.extend((c,d))
     # Alt04
     if Alt04 is not None:
-        e, = ax1.plot(Alt04['xFRF']*np.ones(2), [temp04 - np.std(Alt04['zb']), temp04 + np.std(Alt04['zb'])], 'y-')
+        temp04 = Alt04['zb'][Alt04['plot_ind'] == 1]
+        e, = ax1.plot(Alt04['xFRF']*np.ones(2), [temp04 - np.std(Alt04['zb']), temp04 + np.std(Alt04['zb'])], 'y-',ms=myMS)
         f, = ax1.plot(Alt04['xFRF'] * np.ones(1), [temp04], 'y_')
+        p.extend((e,f))
+
     # Alt03
     if Alt03 is not None:
-        g, = ax1.plot(Alt03['xFRF']*np.ones(2), [temp03 - np.std(Alt03['zb']), temp03 + np.std(Alt03['zb'])], 'y-')
+        temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
+        g, = ax1.plot(Alt03['xFRF']*np.ones(2), [temp03 - np.std(Alt03['zb']), temp03 + np.std(Alt03['zb'])],'y-', ms=myMS)
         h, = ax1.plot(Alt03['xFRF'] * np.ones(1), [temp03], 'y_')
+        p.extend((g,h))
+
 
     ax1.set_ylabel('Elevation (NAVD88) [$m$]', fontsize=16)
     # ax1.set_xlabel('Cross-shore Position [$m$]', fontsize=16)
@@ -1418,7 +1381,7 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
     else:
         sf2 = 0.9
     ax1.set_ylim([sf1 * min_val, sf2 * max_val])
-    ax1.set_xlim([min(dum_x), max(dum_x)])
+    ax1.set_xlim([min(CrossShoreX), max(CrossShoreX)])
     ax1.tick_params('y', colors='g')
     ax1.yaxis.label.set_color('green')
 
@@ -1433,26 +1396,36 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
     max_val = np.nanmax(p_dict['vmean_m'] + p_dict['sigma_vm'])
     ax2 = ax1.twinx()
     if min_val < 0 and max_val > 0:
-        ax2.plot(dum_x, np.zeros(len(dum_x)), 'b--')
+        ax2.plot(CrossShoreX, np.zeros(len(CrossShoreX)), 'b--')
 
     i, = ax2.plot(p_dict['x'], p_dict['vmean_m'], 'b-', label='Model $V$')
+    p.extend([i])
 
     # velocity data HOOOOOOOOO!
-    temp35V = Adopp_35['V'][Adopp_35['plot_ind_V'] == 1]
-    temp6mV = AWAC6m['V'][AWAC6m['plot_ind_V'] == 1]
-    temp8mV = AWAC8m['V'][AWAC8m['plot_ind_V'] == 1]
-    # Adopp_35
-    j, = ax2.plot(Adopp_35['xFRF']*np.ones(2), [temp35V - np.std(Adopp_35['V']), temp35V + np.std(Adopp_35['V'])], 'b:', label='Current Data')
-    k, = ax2.plot(Adopp_35['xFRF']*np.ones(1), [temp35V], 'b_')
-    # AWAC6m
-    l, = ax2.plot(AWAC6m['xFRF']*np.ones(2), [temp6mV - np.std(AWAC6m['V']), temp6mV + np.std(AWAC6m['V'])], 'b:')
-    m, = ax2.plot(AWAC6m['xFRF']*np.ones(1), [temp6mV], 'b_')
-    try:
+    if Adopp_35 is not None:
+        # Adopp_35
+        temp35V = Adopp_35['V'][Adopp_35['plot_ind_V'] == 1]
+        j, = ax2.plot(Adopp_35['xFRF']*np.ones(2), [temp35V - np.std(Adopp_35['V']), temp35V + np.std(Adopp_35['V'])], 'b:',ms=myMS, label='Current obs')
+        k, = ax2.plot(Adopp_35['xFRF']*np.ones(1), [temp35V], 'b_')
+        p.extend((j,k))
+
+    if AWAC6m is not None:
+        # AWAC6m
+        if Adopp_35 is None:
+            label = 'Current Obs'
+        else:
+            label=None
+        temp6mV = AWAC6m['V'][AWAC6m['plot_ind_V'] == 1]
+        l, = ax2.plot(AWAC6m['xFRF']*np.ones(2), [temp6mV - np.std(AWAC6m['V']), temp6mV + np.std(AWAC6m['V'])], 'b:', ms=myMS, label=label)
+        m, = ax2.plot(AWAC6m['xFRF']*np.ones(1), [temp6mV], 'b_')
+        p.extend((l,m))
+
+    if AWAC8m is not None:
         # AWAC8m
-        n, = ax2.plot(AWAC8m['xFRF']*np.ones(2), [temp8mV - np.std(AWAC8m['V']), temp8mV + np.std(AWAC8m['V'])], 'b:')
+        temp8mV = AWAC8m['V'][AWAC8m['plot_ind_V'] == 1]
+        n, = ax2.plot(AWAC8m['xFRF']*np.ones(2), [temp8mV - np.std(AWAC8m['V']), temp8mV + np.std(AWAC8m['V'])], 'b:', ms=myMS)
         o, = ax2.plot(AWAC8m['xFRF']*np.ones(1), [temp8mV], 'b_')
-    except:
-        pass
+        p.extend((n,o))
 
     ax2.set_ylabel('Along-shore Current [$m/s$]', fontsize=16)
     # ax2.set_xlabel('Cross-shore Position [$m$]', fontsize=16)
@@ -1470,7 +1443,7 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
         ax2.set_ylim([sf1 * min_val, sf2 * max_val])
     else:
         ax2.set_ylim(ylims[0])
-    ax2.set_xlim([min(dum_x), max(dum_x)])
+    ax2.set_xlim([min(CrossShoreX), max(CrossShoreX)])
     ax2.tick_params('y', colors='b')
     ax2.yaxis.label.set_color('blue')
 
@@ -1480,16 +1453,16 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
         tick.label.set_fontsize(14)
     ax2.tick_params(labelsize=14)
 
-    if col_num == 5:
-        if Alt05 is not None:
-            p = [a, b, c, i, j]
-        else:
-            p = [a, b, i, j]
-    else:
-        if Alt05 is not None:
-            p = [a, c, i, j]
-        else:
-            p = [a, i, j]
+    # if col_num == 5:
+    #     if Alt05 is not None:
+    #         p = [a, b, c, i, j]
+    #     else:
+    #         p = [a, b, i, j]
+    # else:
+    #     if Alt05 is not None:
+    #         p = [a, c, i, j]
+    #     else:
+    #         p = [a, i, j]
 
     ax1.legend(p, [p_.get_label() for p_ in p], bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=col_num,
                borderaxespad=0., fontsize=14)
@@ -1501,38 +1474,46 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
     max_val = np.nanmax(p_dict['zb_m'])
     min_x = np.min(p_dict['x'])
     max_x = np.max(p_dict['x'])
-    dum_x = np.linspace(min_x - 0.05 * (max_x - min_x), max_x + 0.05 * (max_x - min_x), 100)
+    CrossShoreX = np.linspace(min_x - 0.05 * (max_x - min_x), max_x + 0.05 * (max_x - min_x), 100)
+    p = []
     if len(p_dict['veg_ind']) > 0:
         zb_date = p_dict['model_time'].strftime('%Y-%m-%d %H:%M')
         a, = ax3.plot(p_dict['x'][p_dict['veg_ind']], p_dict['zb_m'][p_dict['veg_ind']], 'g-', label='Vegetated $z_{b}$ ' + '(' + zb_date + ')')
         b, = ax3.plot(p_dict['x'][p_dict['non_veg_ind']], p_dict['zb_m'][p_dict['non_veg_ind']], 'y-', label='Non-vegetated $z_{b}$ ' + '(' + zb_date + ')')
         col_num = 5
+        p.extend((a,b))
     else:
         zb_date = p_dict['model_time'].strftime('%Y-%m-%d %H:%M')
         a, = ax3.plot(p_dict['x'], p_dict['zb_m'], 'y-', label='Model $z_{b}$ ' + '(' + zb_date + ')')
         col_num = 4
-
-
+        p = [a]
     # add altimeter data!!
-    if Alt05 is not None:
-        temp05 = Alt05['zb'][Alt05['plot_ind'] == 1]
-    if Alt04 is not None:
-        temp04 = Alt04['zb'][Alt04['plot_ind'] == 1]
-    if Alt03 is not None:
-        temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
     # Alt05
     if Alt05 is not None:
-        c, = ax3.plot(Alt05['xFRF']*np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'y-', label='Altimeter')
+        temp05 = Alt05['zb'][Alt05['plot_ind'] == 1]
+        c, = ax3.plot(Alt05['xFRF']*np.ones(2), [temp05 - np.std(Alt05['zb']), temp05 + np.std(Alt05['zb'])], 'y-', ms=myMS, label='Altimeter')
         d, = ax3.plot(Alt05['xFRF'] * np.ones(1), [temp05], 'y_')
+        p.extend((c,d))
     # Alt04
     if Alt04 is not None:
-        e, = ax3.plot(Alt04['xFRF']*np.ones(2), [temp04 - np.std(Alt04['zb']), temp04 + np.std(Alt04['zb'])], 'y-')
+        if Alt05 is None:
+            label='altimeter'
+        else:
+            label=None
+        temp04 = Alt04['zb'][Alt04['plot_ind'] == 1]
+        e, = ax3.plot(Alt04['xFRF']*np.ones(2), [temp04 - np.std(Alt04['zb']), temp04 + np.std(Alt04['zb'])], 'y-', ms=myMS, label=label)
         f, = ax1.plot(Alt04['xFRF'] * np.ones(1), [temp04], 'y_')
+        p.extend((e,f))
     # Alt03
     if Alt03 is not None:
-        g, = ax3.plot(Alt03['xFRF']*np.ones(2), [temp03 - np.std(Alt03['zb']), temp03 + np.std(Alt03['zb'])], 'y-')
+        if Alt05 is None and Alt04 is None:
+            label='altimeter'
+        else:
+            label=None
+        temp03 = Alt03['zb'][Alt03['plot_ind'] == 1]
+        g, = ax3.plot(Alt03['xFRF']*np.ones(2), [temp03 - np.std(Alt03['zb']), temp03 + np.std(Alt03['zb'])], 'y-',ms=myMS)
         h, = ax3.plot(Alt03['xFRF'] * np.ones(1), [temp03], 'y_')
-
+        p.extend((g, h))
 
     ax3.set_ylabel('Elevation (NAVD88) [$m$]', fontsize=16)
     ax3.set_xlabel('Cross-shore Position [$m$]', fontsize=16)
@@ -1546,7 +1527,7 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
     else:
         sf2 = 0.9
     ax3.set_ylim([sf1 * min_val, sf2 * max_val])
-    ax3.set_xlim([min(dum_x), max(dum_x)])
+    ax3.set_xlim([min(CrossShoreX), max(CrossShoreX)])
     ax3.tick_params('y', colors='g')
     ax3.yaxis.label.set_color('green')
 
@@ -1561,27 +1542,35 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
     max_val = np.nanmax(p_dict['Hs_m'] + p_dict['sigma_Hs'])
     ax4 = ax3.twinx()
     if min_val < 0 and max_val > 0:
-        ax4.plot(dum_x, np.zeros(len(dum_x)), 'b--')
+        ax4.plot(CrossShoreX, np.zeros(len(CrossShoreX)), 'b--')
 
     i, = ax4.plot(p_dict['x'], p_dict['Hs_m'], 'b-', label='Model $H_{s}$')
-
+    p.extend([i])
     # observation plots HOOOOOOO!
-    temp35 = Adopp_35['Hs'][Adopp_35['plot_ind'] == 1]
-    temp6m = AWAC6m['Hs'][AWAC6m['plot_ind'] == 1]
-    temp8m = AWAC8m['Hs'][AWAC8m['plot_ind'] == 1]
-    # Adopp_35
-    j, = ax4.plot(Adopp_35['xFRF'] * np.ones(2), [temp35 - np.std(Adopp_35['Hs']), temp35 + np.std(Adopp_35['Hs'])], 'b:', label='Wave Data')
-    k, = ax4.plot(Adopp_35['xFRF'] * np.ones(1), [temp35], 'b_')
-    # AWAC6m
-    l, = ax4.plot(AWAC6m['xFRF'] * np.ones(2), [temp6m - np.std(AWAC6m['Hs']), temp6m + np.std(AWAC6m['Hs'])], 'b:')
-    m, = ax4.plot(AWAC6m['xFRF'] * np.ones(1), [temp6m], 'b_')
-    try:
-        # AWAC8m
-        n, = ax4.plot(AWAC8m['xFRF'] * np.ones(2), [temp8m - np.std(AWAC8m['Hs']), temp8m + np.std(AWAC8m['Hs'])], 'b:')
-        o, = ax4.plot(AWAC8m['xFRF'] * np.ones(1), [temp8m], 'b_')
-    except:
-        pass
 
+    if Adopp_35 is not None:
+        # Adopp_35
+        temp35 = Adopp_35['Hs'][Adopp_35['plot_ind'] == 1]
+        j, = ax4.plot(Adopp_35['xFRF'] * np.ones(2), [temp35 - np.std(Adopp_35['Hs']), temp35 + np.std(Adopp_35['Hs'])], 'b:', ms=myMS, label='Wave Observation')
+        k, = ax4.plot(Adopp_35['xFRF'] * np.ones(1), [temp35], 'b_')
+        p.extend((j,k))
+    if AWAC6m is not None:
+        if Adopp_35 is None:
+            label = 'Wave Obs'
+        else:
+            label=None
+        # AWAC6m
+        temp6m = AWAC6m['Hs'][AWAC6m['plot_ind'] == 1]
+        l, = ax4.plot(AWAC6m['xFRF'] * np.ones(2), [temp6m - np.std(AWAC6m['Hs']), temp6m + np.std(AWAC6m['Hs'])], 'b:', ms=myMS, label=label)
+        m, = ax4.plot(AWAC6m['xFRF'] * np.ones(1), [temp6m], 'b_')
+        p.extend((l,m))
+
+    if AWAC8m is not None:
+        # AWAC8m
+        temp8m = AWAC8m['Hs'][AWAC8m['plot_ind'] == 1]
+        n, = ax4.plot(AWAC8m['xFRF'] * np.ones(2), [temp8m - np.std(AWAC8m['Hs']), temp8m + np.std(AWAC8m['Hs'])],  'b:',ms=myMS)
+        o, = ax4.plot(AWAC8m['xFRF'] * np.ones(1), [temp8m], 'b_')
+        p.extend((n,o))
     ax4.set_ylabel('$H_{s}$ [$m$]', fontsize=16)
     ax4.set_xlabel('Cross-shore Position [$m$]', fontsize=16)
 
@@ -1598,7 +1587,7 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
         ax4.set_ylim([sf1 * min_val, sf2 * max_val])
     else:
         ax4.set_ylim(ylims[1])
-    ax4.set_xlim([min(dum_x), max(dum_x)])
+    ax4.set_xlim([min(CrossShoreX), max(CrossShoreX)])
     ax4.tick_params('y', colors='b')
     ax4.yaxis.label.set_color('blue')
 
@@ -1608,16 +1597,16 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
         tick.label.set_fontsize(14)
     ax4.tick_params(labelsize=14)
 
-    if col_num == 5:
-        if Alt05 is not None:
-            p = [a, b, c, i, j]
-        else:
-            p = [a, b, i, j]
-    else:
-        if Alt05 is not None:
-            p = [a, c, i, j]
-        else:
-            p = [a, i, j]
+    # if col_num == 5:
+    #     if Alt05 is not None:
+    #         p = [a, b, c, i, j]
+    #     else:
+    #         p = [a, b, i, j]
+    # else:
+    #     if Alt05 is not None:
+    #         p = [a, c, i, j]
+    #     else:
+    #         p = [a, i, j]
 
     ax3.legend(p, [p_.get_label() for p_ in p], bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=col_num,
                borderaxespad=0., fontsize=14)
@@ -1668,7 +1657,6 @@ def alt_PlotData(name, mod_time, mod_times, THREDDS='FRF'):
         dict['plot_ind'] = plot_ind
         dict['TS_toggle'] = True
 
-
     except:
         # just make it a masked array
         dict = {}
@@ -1712,14 +1700,14 @@ def wave_PlotData(name, mod_time, time, THREDDS='FRF'):
           'plot_ind' - this just tells it which data point it should plot for the snapshots
 
     """
-
+    warnings.warn("Don't use this function in new Development")
+    # take this function and break apart into multiple get data calls not in this library
     t1 = time[0] - DT.timedelta(days=0, hours=0, minutes=3)
     t2 = time[-1] + DT.timedelta(days=0, hours=0, minutes=3)
 
     frf_Data = getObs(t1, t2, THREDDS)
 
     try:
-
         dict = {}
         wave_data = frf_Data.getWaveSpec(gaugenumber=name)
         # print(wave_data['time'])
@@ -1734,25 +1722,21 @@ def wave_PlotData(name, mod_time, time, THREDDS='FRF'):
             dict['cur_time'] = cur_data['time']
             dict['plot_ind_V'] = np.where(abs(dict['cur_time'] - mod_time) == min(abs(dict['cur_time'] - mod_time)), 1, 0)
             # rotate my velocities!!!
-
-            # test_fun = lambda x: vectorRotation(x, theta=360 - (71.8 + (90 - 71.8) + 71.8))
-
             # troubleshooting the velocity stuff
             test_fun = lambda x: vectorRotation(x, theta=90 + 71.8)
 
             newV = [test_fun(x) for x in zip(cur_data['aveU'], cur_data['aveV'])]
             dict['U'] = np.array(zip(*newV)[0])
             dict['V'] = np.array(zip(*newV)[1])
-        
         dict['TS_toggle'] = True
 
     except:
-        print(('No data at %s!  Will return masked array.') %name)
+        print('No data at {}s!  Will return masked array.'.format(name))
         # just make it a masked array
         dict = {}
         dict['wave_time'] = time
         dict['cur_time'] = time
-        fill_x = np.ones(np.shape(dict['wave_time']))
+        fill_x = np.ones_like(dict['wave_time'])
         dict['Hs'] = np.ma.array(fill_x, mask=np.ones(np.shape(dict['wave_time'])))
         dict['name'] = 'AWAC8m'
         dict['xFRF'] = np.ma.array(np.ones(1), mask=np.ones(1))

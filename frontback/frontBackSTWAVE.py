@@ -134,7 +134,7 @@ def STsimSetup(startTime, inputDict):
         return -1, -1 ## abort runs
     # assert 'time' in rawspec, "\n++++\nThere's STILL No Wave data between %s and %s \n++++\n" % (d1, d2)
     prepdata = STPD.PrepDataTools()
-    # rotate and lower resolution of directional wave spectra
+    # rotate and lower resolution of directionalWaveGaugeList wave spectra
 
     wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=date_str, plot=plotFlag, full=full, outputPath=path_prefix)
     print("number of wave records %d with %d interpolated points" % (np.shape(wavepacket['spec2d'])[0], sum(wavepacket['flag'])))
@@ -767,11 +767,11 @@ def STanalyze(startTime, inputDict):
             # go get comparison data
             w = go.getWaveSpec(station)
             if 'time' in w:  # if there's data (not only location)
-                if station in go.directional:
-                    if full == False and station in go.directional:
+                if station in go.directionalWaveGaugeList:
+                    if full == False and station in go.directionalWaveGaugeList:
                         w['dWED'], w['wavedirbin'] = sbwave.HPchop_spec(w['dWED'], w['wavedirbin'], angadj=angadj)
                     obsStats = sbwave.waveStat(w['dWED'], w['wavefreqbin'], w['wavedirbin'])
-                else: # calc non directional stats
+                else: # calc non directionalWaveGaugeList stats
                     obsStats = sbwave.stats1D(w['fspec'], w['wavefreqbin'])
                 if station in ['waverider-17m', 'awac-11m', 'waverider-26m']:
                     modStats = sbwave.waveStat(obse_packet['ncSpec'][:, gg, :, :], obse_packet['Frequencies'], obse_packet['ncDirs'])  # compute model stats here
@@ -783,7 +783,7 @@ def STanalyze(startTime, inputDict):
                                                 nc.date2num(stat_packet['time'][:], 'seconds since 1970-01-01'),
                                                 np.arange(len(stat_packet['time']))) # time match
                 # don't plot if theres only 1 dot on the plot... save time
-                if station in go.directional:
+                if station in go.directionalWaveGaugeList:
                     plotList = ['Hm0', 'Tm', 'sprdF', 'sprdD', 'Tp', 'Dm']
                 else:
                     plotList = ['Hm0', 'Tm', 'sprdF', 'Tp']
