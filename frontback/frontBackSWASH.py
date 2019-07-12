@@ -19,7 +19,7 @@ from testbedutils import sblib as sb
 from testbedutils import waveLib as sbwave
 from plotting.operationalPlots import obs_V_mod_TS
 from testbedutils import geoprocess as gp
-#import multiprocessing
+import multiprocessing
 #import matplotlib
 #matplotlib.use('Agg')
 
@@ -171,6 +171,9 @@ def SwashAnalyze(startTime, inputDict, swio):
     go = getDataFRF.getObs(d1, d2, server)  # setting up get data instance
     prepdata = STPD.PrepDataTools()  # initializing instance for rotation scheme
     swio = swio                             # initializing read/write class as passed (has previous info from setup)
+    nprocessors = multiprocessing.cpu_count()/2                      # process plots with 4 processors
+    SeaSwellCutoff = 0.05
+    nSubSample = 5                          # data are output at high rate, how often do we want to plot
 
     ######################################################################################################################
     ######################################################################################################################
@@ -188,46 +191,10 @@ def SwashAnalyze(startTime, inputDict, swio):
     ##################################  plotting #########################################################################
     ######################################################################################################################
     ######################################################################################################################
-    nSubSample = 10
     if not os.path.exists(os.path.join(path_prefix,datestring, 'figures')):
         os.makedirs(os.path.join(path_prefix,datestring, 'figures'))  # make the directory for the simulation plots
     figureBaseFname = 'CMTB_waveModels_{}_{}_'.format(model, version_prefix)
     from matplotlib import pyplot as plt
-    SeaSwellCutoff = 0.05
-    # if pFlag == True:
-    #     ## remove images before making them
-    #     imgList = glob.glob(os.path.join(path_prefix, datestring, 'figures', '*.png'))
-    #     [os.remove(ff) for ff in imgList]
-    #
-    #     ############### write a parallel data load function ##################
-    #     dataOut = []
-    #
-    #     def parallel_generateCrossShoreTimeSeries(tidx):
-    #         ## generate a function that operates with only one input, can access local variable space
-    #         timeStep = simData['time'][tidx]
-    #         ofPlotName = os.path.join(path_prefix, datestring, 'figures',
-    #                                   figureBaseFname + 'TS_' + timeStep.strftime('%Y%m%dT%H%M%S%fZ') + '.png')
-    #         oP.generate_CrossShoreTimeseries(ofPlotName, simData['eta'][tidx].squeeze(), -simData['elevation'],
-    #                                          simData['xFRF'])
-    #         dataOut.append(ofPlotName)
-    #
-    #     ######################################################################
-    #     tstart = DT.datetime.now()
-    #     pool = multiprocessing.Pool(4)  # open multiprocessing pool
-    #     dataBack = pool.map(parallel_generateCrossShoreTimeSeries, range(0, len(simData['time']), nSubSample))
-    #     pool.close()
-    #     print('Took {} long to make all the plots in parallel {} processors'.format(DT.datetime.now() - tstart, 4))
-    #
-    #     # ## now make gif of waves moving across shore*
-    #     imgList = sorted(glob.glob(os.path.join(path_prefix, datestring, 'figures', figureBaseFname + '*TS_*.png')))
-    #     sb.makegif(imgList,
-    #                os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS_{}.gif'.format(datestring)),
-    #                dt=0.1)
-    #     print('Took {} long to make the movie and all the plots '.format(DT.datetime.now() - tstart))
-    #     # finish making images by taring files
-    #     tarOutFile = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS.tar.gz')
-    #     sb.myTarMaker(tarOutFile, imgList)
-    #     print('Took {} long to make all the plots, movie and tarball '.format(DT.datetime.now() - tstart))
     # make function for processing timeseries data
     fspec, freqs = sbwave.timeSeriesAnalysis1D(simData['time'].squeeze(), simData['eta'].squeeze(), bandAvg=6)
     total = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=None)
@@ -242,19 +209,34 @@ def SwashAnalyze(startTime, inputDict, swio):
     WL = simMeta['WL'] #added in editing, should possibly be changed?
     if pFlag == True:
         from plotting import operationalPlots as oP
-        ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TempFname.png')
-        oP.plotCrossShoreSummaryTS(ofname, simData['xFRF'], simData['elevation'], total,
-                               SeaSwellStats, IGstats, setup=setup, WL=WL)
-        ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + '_spectrograph.png')
-        oP.crossShoreSpectrograph(ofname, simData['xFRF'], freqs, fspec)
-        ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + '_surfaceTimeseries.png')
-        oP.crossShoreSurfaceTS2D(ofname, simData['eta'], simData['xFRF'], simData['time'])
-        # plt.figure()
-        # plt.plot()
-        #
-        # plot time-series of cross-shore evolution movie
-        print('this script makes double pictures, we can probably sub-sample')
+        ## remove images before making them if reprocessing
+        imgList = glob.glob(os.path.join(path_prefix, datestring, 'figures', '*.png'))
+        [os.remove(ff) for ff in imgList]
+        tstart = DT.datetime.now()
 
+        ############### write a parallel data load function ##################
+        dataOut = []
+        def parallel_generateCrossShoreTimeSeries(tidx):
+            ## generate a function that operates with only one input, can access local variable space
+            timeStep = simData['time'][tidx]
+            ofPlotName = os.path.join(path_prefix, datestring, 'figures',
+                                      figureBaseFname + 'TS_' + timeStep.strftime('%Y%m%dT%H%M%S%fZ') + '.png')
+            oP.generate_CrossShoreTimeseries(ofPlotName, simData['eta'][tidx].squeeze(), -simData['elevation'],
+                                             simData['xFRF'])
+            dataOut.append(ofPlotName)
+        ############### make TS plot in parallel -- has bugs   #########################################################
+        # pool = multiprocessing.Pool(nprocessors)  # open multiprocessing pool
+        # _ = pool.map(parallel_generateCrossShoreTimeSeries, range(0, len(simData['time']), nSubSample))
+        # pool.close()
+        #
+        # print('Took {} long to make all the plots in parallel {} processors'.format(DT.datetime.now() - tstart, nprocessors))
+        # ### now make gif of waves moving across shore*
+        # imgList = sorted(glob.glob(os.path.join(path_prefix, datestring, 'figures', figureBaseFname + '*TS_*.png')))
+        # sb.makegif(imgList,
+        #            os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS_{}.gif'.format(datestring)),
+        #            dt=0.1)
+        # print('Took {} long to make the movie and all the plots '.format(DT.datetime.now() - tstart))
+        #$$$$$$ in Seriel $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
         for tidx, timeStep in enumerate(simData['time']):
             ofPlotName = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS_' + timeStep.strftime('%Y%m%dT%H%M%S%fZ') +'.png')
             oP.generate_CrossShoreTimeseries(ofPlotName, simData['eta'][tidx].squeeze(), -simData['elevation'], simData['xFRF'])
@@ -265,17 +247,29 @@ def SwashAnalyze(startTime, inputDict, swio):
         tarOutFile = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS.tar.gz')
         sb.myTarMaker(tarOutFile, imgList)
 
-        ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TimeStack.png')
-        ## figure making
-        cmap = 'RdBu'
-        plt.figure()
-        mappable = plt.pcolor(simData['xFRF'], simData['time'], simData['eta'].squeeze(), cmap=cmap)
-        plt.colorbar(mappable)
-        plt.title('Time Stack for {} transect'.format(simData['yFRF']))
-        plt.ylabel('cross-shore position')
-        plt.xlabel('simulation time(s)')
-        plt.savefig(ofname)
-        plt.close()
+        ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TempFname.png')
+        oP.plotCrossShoreSummaryTS(ofname, simData['xFRF'], simData['elevation'], total,
+                               SeaSwellStats, IGstats, setup=setup, WL=WL)
+        ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + '_spectrograph.png')
+        oP.crossShoreSpectrograph(ofname, simData['xFRF'], freqs, fspec)
+        ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + '_surfaceTimeseries.png')
+        oP.crossShoreSurfaceTS2D(ofname, simData['eta'], simData['xFRF'], simData['time'])
+
+        print('this script makes double pictures, we can probably sub-sample')
+
+
+        #
+        # ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TimeStack.png')
+        # ## figure making
+        # cmap = 'RdBu'
+        # plt.figure()
+        # mappable = plt.pcolor(simData['xFRF'], simData['time'], simData['eta'].squeeze(), cmap=cmap)
+        # plt.colorbar(mappable)
+        # plt.title('Time Stack for {} transect'.format(simData['yFRF']))
+        # plt.ylabel('cross-shore position')
+        # plt.xlabel('simulation time(s)')
+        # plt.savefig(ofname)
+        # plt.close()
 
     # ################################
     #        Make NETCDF files       #
