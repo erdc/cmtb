@@ -184,6 +184,31 @@ def SwashAnalyze(startTime, inputDict, swio):
     simData, simMeta = swio.loadSwash_Mat(fname=matfile)  # load all files
 
     ######################################################################################################################
+    #################################   obtain total water level   #######################################################
+    ######################################################################################################################
+
+    eta = simData['eta'].squeeze()
+
+    # now adapting Chuan's runup code, here we use 0.08 m for runup threshold
+    r_depth = 0.08  # 4.0 * np.nanmax(np.abs(h[runupInd][1:] - h[runupInd][:-1]))
+
+    # Preallocate runup variable
+    runup = np.zeros(eta.shape[0])
+    x_runup = np.zeros_like(runup)
+
+    for aa in range(runup.shape[0]):
+        # Water depth
+        wdepth = eta[aa, :] + simData['elevation']
+        # Find the runup contour (search from left to right)
+        wdepth_ind = np.argmin(abs(wdepth - r_depth))  # changed from Chuan's original code
+        # Store the water surface elevation in matrix
+        runup[aa] = eta[aa, wdepth_ind]  # unrealistic values for large r_depth
+        # runup[aa]= -h[wdepth_ind]
+        # Store runup position
+        x_runup[aa] = simData['xFRF'][wdepth_ind]
+    maxRunup = np.amax(runup)
+
+    ######################################################################################################################
     ######################################################################################################################
     ##################################  plotting #########################################################################
     ######################################################################################################################
@@ -294,8 +319,8 @@ def SwashAnalyze(startTime, inputDict, swio):
                'tsTime': tsTime,
                'waveHsIG': np.reshape(IGstats['Hm0'], (1, len(simData['xFRF']))),
                'eta': np.swapaxes(simData['eta'], 0, 1),
-               #'totalWaterLevel': simMeta['WL'],##
-               #'totalWaterLevelTS': simData['totalWaterLevelTS'],##
+               'totalWaterLevel': maxRunup,
+               'totalWaterLevelTS': np.reshape(runup, (1, len(runup))),##
                'velocityU': np.swapaxes(simData['velocityU'], 0, 1),
                'velocityV': np.swapaxes(simData['velocityV'], 0, 1),
                'waveHs': np.reshape(SeaSwellStats['Hm0'], (1, len(simData['xFRF']))),#or from HsTS??
