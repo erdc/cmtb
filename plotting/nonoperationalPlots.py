@@ -39,7 +39,7 @@ def halfPlanePolarPlot(spectra, frequencies, directions, lims=[-18, 162], **kwar
         'contour_levels'(list): a list of contour levels to color
         'figsize' (tup): a tuple of figure size eg. (12, 10)
         'fname' (str): file path save name
-
+        'fontSize' (int): controls fontsize for labels
     Returns:
         Axis object: if you want to further modify the plot
 
@@ -50,6 +50,9 @@ def halfPlanePolarPlot(spectra, frequencies, directions, lims=[-18, 162], **kwar
         0], 'spectra should be shaped by freq then direction'
     assert np.array(spectra).shape[1] == np.array(directions).shape[
         0], 'spectra should be shaped by freq then direction'
+    fontsize=kwargs.get('fontSize', 12)
+    myTitle = kwargs.get('title', 'Polar Spectrum ')
+    figSize = kwargs.get('figsize', (11,11))
     # pre-processing spectra
     Edarray = np.asarray(spectra, dtype=object)  # make spectra an array (if not already )
     Ednew = np.append(spectra, spectra[:, 0:1], axis=1)  # add extra directional band to get it to wrap
@@ -64,10 +67,6 @@ def halfPlanePolarPlot(spectra, frequencies, directions, lims=[-18, 162], **kwar
         maxlevel = Edmax  # calculate max level
         step = (maxlevel - minlevel) / contourNumber  # associated step
         contour_levels = np.arange(minlevel, maxlevel, step)  # create list/array of contour levels for plot
-    if 'figsize' in kwargs:
-        figSize = kwargs['figsize']
-    else:
-        figSize = (11, 11)
     ########################################################################
     fig = plt.figure(figsize=figSize)  # create figure
     thetas = Dmean_rad[:]  # in radian NOT DEGREES
@@ -78,7 +77,7 @@ def halfPlanePolarPlot(spectra, frequencies, directions, lims=[-18, 162], **kwar
     colorax = ax.contourf(thetas, frequencies, Ednew, contour_levels)  # make plot
 
     ## Set titles and colorbar
-    plt.suptitle('Polar Spectrum ', fontsize=22, y=0.95, x=0.45)
+    plt.suptitle(myTitle, fontsize=22, y=0.95, x=0.45)
     cbar = fig.colorbar(colorax)
     cbar.set_label('Energy Density ($m^2/Hz/deg$)', rotation=270, fontsize=16)
     cbar.ax.get_yaxis().labelpad = 30
