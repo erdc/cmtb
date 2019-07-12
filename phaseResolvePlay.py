@@ -8,18 +8,20 @@ from prepdata import inputOutput
 from plotting import operationalPlots as oP
 import os, glob, multiprocessing
 from testbedutils import sblib as sb
+from plotting import operationalPlots as oP
+###########################################################################################################
 ## # my two comparison files
 # set global variables
 datestring = '2015-11-05T000000Z'
 nSubSample = 3
 plotting = True
-path_prefix = '/Users/l6kim/cmtb/data/SWASH/play'
+path_prefix = '/home/spike/cmtb/data/SWASH/Base'
 figureBaseFname = 'Stuff_'
 SeaSwellCutoff = 0.05
 WL = .355
 ########### initalize class from where i'm loading data from
 swio = inputOutput.swashIO(datestring, WL = WL)
-myMat = '/Users/l6kim/cmtb/data/SWASH/play/20151105T000000Z.mat'
+myMat = '/home/spike/cmtb/data/SWASH/Base/2015-10-05T000000Z/20151005T000000Z.mat'
 simData, meta = swio.loadSwash_Mat(myMat)
 
 if plotting == True:
@@ -50,6 +52,7 @@ if plotting == True:
     tarOutFile  = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS.tar.gz')
     sb.myTarMaker(tarOutFile, imgList)
     print('Took {} long to make all the plots, movie and tarball '.format(DT.datetime.now() - tstart))
+
 # make function for processing timeseries data
 fspec, freqs = wl.timeSeriesAnalysis1D(simData['time'].squeeze(),simData['eta'].squeeze(), bandAvg=6)
 total = wl.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=None)
@@ -61,7 +64,6 @@ HsTS = 4 * np.std(simData['eta'].squeeze(), axis=0)
 ####################################### Plot functions ######################################################
 #############################################################################################################
 setup = np.mean(simData['eta'], axis=0).squeeze()
-from plotting import operationalPlots as oP
 ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TempFname.png')
 oP.plotCrossShoreSummaryTS(ofname, simData['xFRF'], simData['elevation'], total,
                            SeaSwellStats, IGstats, setup=setup, WL=WL)
@@ -69,7 +71,6 @@ ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + '_sp
 oP.crossShoreSpectrograph(ofname, simData['xFRF'], freqs, fspec)
 ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + '_surfaceTimeseries.png')
 oP.crossShoreSurfaceTS2D(ofname, simData['eta'], simData['xFRF'], simData['time'])
-
 
 #####################################################################################################
 #####################################################################################################
