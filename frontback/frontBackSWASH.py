@@ -187,6 +187,31 @@ def SwashAnalyze(startTime, inputDict, swio):
     simData, simMeta = swio.loadSwash_Mat(fname=matfile)  # load all files
 
     ######################################################################################################################
+    #################################   obtain total water level   #######################################################
+    ######################################################################################################################
+
+    eta = simData['eta'].squeeze()
+
+    # now adapting Chuan's runup code, here we use 0.08 m for runup threshold
+    r_depth = 0.08  # 4.0 * np.nanmax(np.abs(h[runupInd][1:] - h[runupInd][:-1]))
+
+    # Preallocate runup variable
+    runup = np.zeros(eta.shape[0])
+    x_runup = np.zeros_like(runup)
+
+    for aa in range(runup.shape[0]):
+        # Water depth
+        wdepth = eta[aa, :] + simData['elevation']
+        # Find the runup contour (search from left to right)
+        wdepth_ind = np.argmin(abs(wdepth - r_depth))  # changed from Chuan's original code
+        # Store the water surface elevation in matrix
+        runup[aa] = eta[aa, wdepth_ind]  # unrealistic values for large r_depth
+        # runup[aa]= -h[wdepth_ind]
+        # Store runup position
+        x_runup[aa] = simData['xFRF'][wdepth_ind]
+    maxRunup = np.amax(runup)
+
+    ######################################################################################################################
     ######################################################################################################################
     ##################################  plotting #########################################################################
     ######################################################################################################################
@@ -242,8 +267,8 @@ def SwashAnalyze(startTime, inputDict, swio):
             oP.generate_CrossShoreTimeseries(ofPlotName, simData['eta'][tidx].squeeze(), -simData['elevation'], simData['xFRF'])
         # now make gif of waves moving across shore
         imgList = sorted(glob.glob(os.path.join(path_prefix, datestring, 'figures', '*_TS_*.png')))
-        sb.makegif(imgList, os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS_{}.gif'.format(datestring)),dt=0.1)
-
+        # sb.makegif(imgList, os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS_{}.gif'.format(datestring)),dt=0.1)
+        sb.makeMovie(os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS_{}.gif'.format(datestring)), imgList, fps=5)
         tarOutFile = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS.tar.gz')
         sb.myTarMaker(tarOutFile, imgList)
 
@@ -258,22 +283,10 @@ def SwashAnalyze(startTime, inputDict, swio):
         print('this script makes double pictures, we can probably sub-sample')
 
 
-        #
-        # ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TimeStack.png')
-        # ## figure making
-        # cmap = 'RdBu'
-        # plt.figure()
-        # mappable = plt.pcolor(simData['xFRF'], simData['time'], simData['eta'].squeeze(), cmap=cmap)
-        # plt.colorbar(mappable)
-        # plt.title('Time Stack for {} transect'.format(simData['yFRF']))
-        # plt.ylabel('cross-shore position')
-        # plt.xlabel('simulation time(s)')
-        # plt.savefig(ofname)
-        # plt.close()
-
-    # ################################
-    #        Make NETCDF files       #
-    # ################################
+    ##################################################################################################################
+    ######################        Make NETCDF files       ############################################################
+    # ################################################################################################################
+    ##################################################################################################################
     ## before netCDF.
     # get significant wave height for cross shore
     # slice the time series so we're on ly isolating the non-repeating time series of data
@@ -288,8 +301,8 @@ def SwashAnalyze(startTime, inputDict, swio):
                'tsTime': tsTime,
                'waveHsIG': np.reshape(IGstats['Hm0'], (1, len(simData['xFRF']))),
                'eta': np.swapaxes(simData['eta'], 0, 1),
-               #'totalWaterLevel': simMeta['WL'],##
-               #'totalWaterLevelTS': simData['totalWaterLevelTS'],##
+               'totalWaterLevel': maxRunup,
+               'totalWaterLevelTS': np.reshape(runup, (1, len(runup))),##
                'velocityU': np.swapaxes(simData['velocityU'], 0, 1),
                'velocityV': np.swapaxes(simData['velocityV'], 0, 1),
                'waveHs': np.reshape(SeaSwellStats['Hm0'], (1, len(simData['xFRF']))),#or from HsTS??
