@@ -44,7 +44,7 @@ def Master_CMS_run(inputDict):
     if workingDir[-1] == '/':
         outDataBase = workingDir + 'CMS/' + version_prefix + '/'  #codeDir + '/%s_CSHORE_data/' % version_prefix
     else:
-        outDataBase = workingDir + '/CMS/' + version_prefix +'/'
+        outDataBase = os.path.join(workingDir, 'CMS/' , version_prefix +'/')
 
     inputDict['path_prefix'] = outDataBase
     TOD = 0  # 0=start simulations at 0000

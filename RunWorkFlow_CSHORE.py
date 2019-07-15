@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #!/home/number/anaconda2/bin/python
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import os, getopt, sys, shutil, logging
 import numpy as np
 from subprocess import check_output
@@ -36,8 +36,8 @@ def master_CSHORE_run(inputDict):
     """
 
     version_prefix = inputDict['version_prefix']
-    endTime = inputDict['end_time']
-    startTime = inputDict['start_time']
+    endTime = inputDict['endTime']
+    startTime = inputDict.pop('startTime')
     simulationDuration = inputDict['simulationDuration']
     THREDDS = inputDict['THREDDS']
     workingDir = inputDict['workingDirectory']
@@ -103,14 +103,12 @@ def master_CSHORE_run(inputDict):
             if (b_time > prev_mod_stime) and (Time_O > b_time):
                 d1_N = b_time.replace(microsecond=0, second=0, minute=0, hour=0)
                 if d1_N != b_time:
-                    d1_N = d1_N + DT.timedelta(days=1)
+                    d1 = d1_N + DT.timedelta(days=1).copy()
                     # this means we rounded it down and have to add back a day to start on the 00:00:00 after the survey
 
                 # reset the first day of the simulations to be the day after or of the latest survey
                 # (depending on if the survey time is 00:00:00 or 12:00:00)
-                del d1
-                d1 = d1_N
-                del d1_N
+
 
         except IOError:
             # this means that this is the first time this has been run, so you don't have to worry about it.
@@ -153,7 +151,7 @@ def master_CSHORE_run(inputDict):
             if runFlag == True:
                 os.chdir(datadir)# changing locations to where data should be downloaded to
                 shutil.copy2(sorceCodePATH, datadir)
-                print('Bathy Interpolation done\n Beginning Simulation')
+                print('Beginning Simulation')
                 check_output(os.path.join('./', sorceCodePATH.split('/')[-1]), shell=True)
                 # as this is written the script has to be in the working directory, not in a sub-folder!
 
@@ -163,16 +161,6 @@ def master_CSHORE_run(inputDict):
                 print('**\nBegin Analyze Script')
                 CSHORE_analysis(startTime=time, inputDict=inputDict)
 
-            # not sure i want this so i commented it out for now
-            """
-            if pFlag == True and DT.date.today() == d2:
-                # move files
-                moveFnames = glob.glob(curdir + 'CMTB*.png')
-                moveFnames.extend(glob.glob(curdir + 'CMTB*.gif'))
-                for file in moveFnames:
-                    shutil.move(file,  '/mnt/gaia/CMTB')
-                    print 'moved %s ' % file
-            """
             print('----------------------SUCCESS--------------------')
         except Exception as e:
             os.chdir(curdir)
@@ -193,27 +181,6 @@ if __name__ == "__main__":
             inputDict = yaml.load(f)
     except:
         raise IOError('Input YAML file required.  See yaml_files/TestBedExampleInputs/CSHORE_Input_example for example yaml file.')
-
-
-    # add in defaults for inputDict
-    if 'THREDDS' not in list(inputDict.keys()):
-        inputDict['THREDDS'] = 'FRF'
-    if 'bathyLoc' not in list(inputDict.keys()):
-        inputDict['bathyLoc'] = 'integrated_bathy'
-    if 'profileNumber' not in list(inputDict.keys()):
-        inputDict['profileNumber'] = 960
-    if 'duration' not in list(inputDict.keys()):
-        inputDict['duration'] = 24
-    if 'generateFlag' not in list(inputDict.keys()):
-        inputDict['generateFlag'] = True
-    if 'pFlag' not in list(inputDict.keys()):
-        inputDict['pFlag'] = False
-    if 'runFlag' not in list(inputDict.keys()):
-        inputDict['runFlag'] = True
-    if 'analyzeFlag' not in list(inputDict.keys()):
-        inputDict['analyzeFlag'] = True
-    if 'logfileLoc' not in list(inputDict.keys()):
-        inputDict['logfileLoc'] = inputDict['workingDirectory']
 
     master_CSHORE_run(inputDict=inputDict)
 
