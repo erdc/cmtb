@@ -37,7 +37,7 @@ def halfPlanePolarPlot(spectra, frequencies, directions, lims=[-18, 162], **kwar
     Keyword Args:
         'contour_levels'(list): a list of contour levels to color
         'figsize' (tup): a tuple of figure size eg. (12, 10)
-        'fname' (str): file path save name
+        'baseGridFname' (str): file path save name
 
     Returns:
         Axis object: if you want to further modify the plot
@@ -86,8 +86,8 @@ def halfPlanePolarPlot(spectra, frequencies, directions, lims=[-18, 162], **kwar
     #     lines, labels = plt.thetagrids(degrange, labels=None, frac = 1.07)
     if lims is not None:
         ax.set_thetalim(np.deg2rad(lims))
-    if 'fname' in kwargs:
-        plt.savefig(kwargs['fname']);
+    if 'baseGridFname' in kwargs:
+        plt.savefig(kwargs['baseGridFname']);
         plt.close()
 
     return ax
@@ -108,7 +108,7 @@ def plot2DcontourSpec(spec2D, freqBin, dirBin, fname, pathCHLlogo=None, **kwargs
       **kwargs: 
 
     Returns:
-      saves a plot to the fname location
+      saves a plot to the baseGridFname location
 
     """
     # convert spectra from m2/rad to m2/hz
@@ -266,8 +266,8 @@ def pltspec(dirbin, freqbin, spec, name, bounds=[161.8, 341.8], nlines=15, show=
     plt.xlim(0.04, 0.5)
     aaaa = plt.colorbar(aaa)
     aaaa.set_label('$m^2/hz/rad$', rotation=90)
-    if 'fname' in kwargs:
-        plt.savefig(kwargs['fname'])
+    if 'baseGridFname' in kwargs:
+        plt.savefig(kwargs['baseGridFname'])
     if show == True:
         plt.show()
     plt.close()
@@ -749,7 +749,7 @@ def CreateGridPlotinFRF(outi, outj, spacings, fname):
       fname: file name output
 
     Returns:
-      a plot with file name fname
+      a plot with file name baseGridFname
 
     """
     from matplotlib import pyplot as plt
@@ -852,5 +852,5 @@ def plot_scatterAndQQ(fname, time,  model, observations, **kwargs):
     ax3.set_axis_off()
 
     plt.tight_layout(rect=[0, 0, 1, .95])
-    # fname = "/home/spike/repos/myresearch/STWAVE_Analysis/figures_Explore/Performance_{}_{}_{}_{}.png".format(gauge, returnParameter, binParameter, waveBins[bb])
+    # baseGridFname = "/home/spike/repos/myresearch/STWAVE_Analysis/figures_Explore/Performance_{}_{}_{}_{}.png".format(gauge, returnParameter, binParameter, waveBins[bb])
     plt.savefig(fname); plt.close()

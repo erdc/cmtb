@@ -24,7 +24,7 @@ from plotting.operationalPlots import obs_V_mod_TS
 from testbedutils import geoprocess as gp
 
 
-def CMSsimSetup(startTime, inputDict):
+def unSimSetup(startTime, inputDict):
     """This Function is the master call for the  data preparation for the Coastal Model
     Test Bed (CMTB) and the CMS wave/FLow model
 
@@ -38,21 +38,13 @@ def CMSsimSetup(startTime, inputDict):
 
     """
     # begin by setting up input parameters
-    if 'simulationDuration' in inputDict:
-        timerun = inputDict['simulationDuration']
-    else:
-        timerun = 24
-    if 'pFlag' in inputDict:
-        pFlag = inputDict['pFlag']
-    else:
-        pFlag = True
+
+    timerun = inputDict.get('simulationDuration', 24)
+    pFlag = inputDict.get('pFlag', True)
     assert 'version_prefix' in inputDict, 'Must have "version_prefix" in your input yaml'
     version_prefix = inputDict['version_prefix']
-    if 'THREDDS' in inputDict:
-        server = inputDict['THREDDS']
-    else:
-        print('Chosing CHL thredds by Default, this may be slower!')
-        server = 'CHL'
+    server = inputDict.get('THREDDS', 'CHL')
+    model = inputDict['model']
 
     TOD = 0  # hour of day simulation to start (UTC)
     path_prefix = inputDict['path_prefix']  # + "/%s/" %version_prefix  # data super directiory
@@ -190,24 +182,13 @@ def CMSanalyze(startTime, inputDict):
 
     """
     # ___________________define Global Variables___________________________________
-    if 'pFlag' in inputDict:
-        pFlag = inputDict['pFlag']
-    else:
-        pFlag = True  # will plot true by default
+    pFlag = inputDict.get('pFlag', True)
+    model = inputDict.get('model')
     version_prefix = inputDict['version_prefix']
-    path_prefix = inputDict[
-        'path_prefix']  # + "/%s/" %version_prefix   # 'data/CMS/%s/' % version_prefix  # for organizing data
+    path_prefix = inputDict.get(path_prefix, "/%s/".format(version_prefix)
     simulationDuration = inputDict['simulationDuration']
-    if 'netCDFdir' in inputDict:
-        Thredds_Base = inputDict['netCDFdir']
-    else:
-        whoami = check_output('whoami', shell=True)[:-1]
-        Thredds_Base = '/home/%s/thredds_data/' % whoami
-    if 'THREDDS' in inputDict:
-        server = inputDict['THREDDS']
-    else:
-        print('Chosing CHL thredds by Default, this may be slower!')
-        server = 'CHL'
+    Thredds_Base = inputDict.get('netCDFdir', '/home/{}/thredds_data/'.format(check_output('whoami', shell=True)[:-1]))
+    server = inputDict.get('THREDDS', 'CHL')
 
     # _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
     # establishing the resolution of the input datetime
@@ -215,7 +196,6 @@ def CMSanalyze(startTime, inputDict):
     d2 = d1 + DT.timedelta(0, simulationDuration * 3600, 0)
     datestring = d1.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
     fpath = os.path.join(path_prefix, datestring)
-    model = 'CMS'
     # ____________________________________________________________________________
     if version_prefix == 'HP':
         full = False
