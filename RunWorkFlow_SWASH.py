@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import matplotlib
-# matplotlib.use('Agg')
+matplotlib.use('Agg')
 import os, getopt, sys, shutil, glob, logging, yaml, time, pickle
 import datetime as DT
 from subprocess import check_output
@@ -20,7 +20,7 @@ def Master_SWASH_run(inputDict):
 
     """
     ## unpack Dictionary
-    version_prefix = inputDict['version_prefix']
+    version_prefix = inputDict['version_prefix'].lower()
     endTime = inputDict['endTime']
     startTime = inputDict['startTime']
     simulationDuration = inputDict['simulationDuration']
@@ -29,7 +29,9 @@ def Master_SWASH_run(inputDict):
     runFlag = inputDict['runFlag']
     analyzeFlag = inputDict['analyzeFlag']
     pFlag = inputDict['pFlag']
-    model = inputDict['modelName']
+    model = inputDict.get('modelName', 'SWASH').lower()
+    inputDict['path_prefix'] = os.path.join(workingDir, model, version_prefix)
+    outDataBase = inputDict['path_prefix']
     # data check
     prefixList = np.array(['base', 'ts'])
     assert (version_prefix.lower() == prefixList).any(), "Please enter a valid version prefix\n Prefix assigned = %s must be in List %s" % (version_prefix, prefixList)
@@ -41,8 +43,6 @@ def Master_SWASH_run(inputDict):
         import re
         inputDict['modelExecutable'] = re.sub(codeDir, '', inputDict['modelExecutable'])
 
-    outDataBase = os.path.join(workingDir, version_prefix) #(workingDir, model, version_prefix)
-    inputDict['path_prefix'] = outDataBase
     # ______________________ Logging  ____________________________
     # auto generated Log file using start_end timeSegment
     LOG_FILENAME = os.path.join(outDataBase,'logs/{}_BatchRun_Log_{}_{}_{}.log'.format(model,version_prefix, startTime, endTime))
@@ -106,7 +106,7 @@ def Master_SWASH_run(inputDict):
 
             if analyzeFlag == True:
                 print('**\nBegin Analyze Script %s ' % DT.datetime.now())
-                SWIO.path_prefix = os.path.join(workingDir, version_prefix, timeStamp)
+                SWIO.path_prefix = os.path.join(workingDir, model, version_prefix, timeStamp)
                 SwashAnalyze(timeSegment, inputDict, SWIO)
 
             if pFlag is True and DT.date.today() == projectEnd:
