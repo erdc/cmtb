@@ -11,7 +11,7 @@ start = DT.datetime(2018, 3, 2, 0, 0, 0)
 end = DT.datetime(2018, 3, 7, 23, 0, 0)
 ## set based on model
 pFlag = False
-full = False
+full = True
 version_prefix = 'Base'
 baseGridFname = '/home/spike/cmtb/grids/ww3/Mesh_interp_Mar2018.msh'
 model = 'WW3'
@@ -22,20 +22,22 @@ ww3io = inputOutput.ww3IO('')
 pdl = prepDataLib.PrepDataTools()
 gdtb = getDataFRF.getDataTestBed(start, end, THREDDS='FRF')
 go = getDataFRF.getObs(start, end)
-############ bathy #########################################
-gridNodes = ww3io.load_msh(baseGridFname)       # load old bathy
-bathy = gdtb.getBathyIntegratedTransect()       # get new bathy
-# do interpolation
-gridNodes = pdl.prep_Bathy(bathy, gridNodes=gridNodes, unstructured=True, plotFname=os.path.join(path_prefix,date_str, 'bathy'+date_str))
+# ############ bathy #########################################
+# gridNodes = ww3io.load_msh(baseGridFname)       # load old bathy
+# bathy = gdtb.getBathyIntegratedTransect()       # get new bathy
+# # do interpolation
+# gridNodes = pdl.prep_Bathy(bathy, gridNodes=gridNodes, unstructured=True, plotFname=os.path.join(path_prefix,date_str, 'bathy'+date_str))
 ###################### waves ################################
 rawspec = go.getWaveSpec()
 
 wavepacket = pdl.prep_spec(rawspec, version_prefix, datestr=date_str, plot=pFlag, full=full, deltaangle=5,
                                     outputPath=path_prefix, model= model)  # 50 freq bands are max for model
+rawWL = go.getWL()
+ww3io.WL = pdl.prep_WL(rawWL, wavepacket['epochtime'])
 
-ww3io.writeWW3_spec(wavepacket)
 
 from prepdata import inputOutput
+ww3io.writeWW3_spec(wavepacket)
 
 ########### run model ##########
 data=rawspec
