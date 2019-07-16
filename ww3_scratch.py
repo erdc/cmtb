@@ -6,7 +6,9 @@ from matplotlib import tri
 import numpy as np
 from prepdata import prepDataLib
 import os, sys
-
+from matplotlib.colors import LogNorm
+from matplotlib import pyplot as plt
+from scipy.interpolate import interp2d
 start = DT.datetime(2018, 3, 2, 0, 0, 0)
 end = DT.datetime(2018, 3, 7, 23, 0, 0)
 ## set based on model
@@ -39,8 +41,10 @@ ww3io.WL = pdl.prep_WL(rawWL, wavepacket['epochtime'])
 from prepdata import inputOutput
 ww3io.writeWW3_spec(wavepacket)
 
+
 ########### run model ##########
-data=rawspec
+dDir = 5
+rawspec=rawspec
 newfreq = [0.038]
 bw = [0.038/2]
 low = [0.0]
@@ -53,24 +57,45 @@ for ii in range(1, 35):
 
 high.append(np.ceil(newfreq[-1]))
 newfreq = np.array(newfreq)
-newdir = np.arange(0, 360, 10)
+newdir = np.arange(0, 360, dDir)
 
-blah = np.zeros((len(data['time']), 35, 72))
-blah2 = np.zeros((len(data['time']), 35, 36))
-for itime in range(len(data['time'])):
-    for idir in range(len(data['wavedirbin'])):
-        temp = data['dWED'][itime, :, idir]
-        blah[itime, :, idir] = np.interp(newfreq, data['wavefreqbin'], temp)
+blah = np.zeros((len(rawspec['time']), 35, 72))
+output2Dspec_tmp = np.zeros((len(rawspec['time']), 35, int(360 / dDir)))
+for itime in range(len(rawspec['time'])):
+    for idir in range(len(rawspec['wavedirbin'])):
+        temp = rawspec['dWED'][itime, :, idir]
+        blah[itime, :, idir] = np.interp(newfreq, rawspec['wavefreqbin'], temp)
     for ifre in range(len(newfreq)):
         tempf = blah[itime, ifre, :]
-        blah2[itime, ifre, :] = np.interp(newdir, data['wavedirbin'], tempf)
-
-# plt.pcolormesh(newfreq, newdir, data['dWED'])
-
-print(data['wavedirbin'].shape, newfreq.shape, blah.shape, blah2.shape)
+        output2Dspec_tmp[itime, ifre, :] = np.interp(newdir, rawspec['wavedirbin'], tempf)
+########## plot post interp
+tidx  = 100
+plt.figure()
+plt.subplot(121)
+plt.pcolormesh(output2Dspec_tmp[tidx], norm=LogNorm()); plt.colorbar()
+plt.subplot(122)
+plt.pcolormesh(newdir, newfreq, output2Dspec_tmp[tidx], norm=LogNorm()); plt.colorbar()
+plt.text(200, 0.5, '$E_T$ - {0:.2f}'.format(output2Dspec_tmp[tidx].sum()))
+#################
+############# try with interp2d
+output2Dspec_tmp = np.zeros((len(rawspec['time']), 35, int(360 / dDir)))
+for itime in range(len(rawspec['time'])):
+    f = interp2d( rawspec['wavedirbin'],rawspec['wavefreqbin'], rawspec['dWED'][itime])
+    output2Dspec_tmp[itime] = f( newdir, newfreq)
+###################
+# replot
+tidx  = 100
+plt.figure()
+plt.subplot(121)
+plt.pcolormesh(output2Dspec_tmp[tidx], norm=LogNorm()); plt.colorbar()
+plt.subplot(122)
+plt.pcolormesh(newdir, newfreq, output2Dspec_tmp[tidx], norm=LogNorm()); plt.colorbar()
+plt.text(200, 0.5, '$E_T$:{:.2f}'.format(output2Dspec_tmp[tidx].sum()))
+###################################################################################
+print(rawspec['wavedirbin'].shape, newfreq.shape, blah.shape, output2Dspec_tmp.shape)
 
 efth = np.expand_dims(blah, 1)
-efth2t = np.expand_dims(blah2, 1)
+output2Dspec_nc = np.expand_dims(output2Dspec_tmp, 1)
 
 # rotate directions
 tt = newdir + 180.0
@@ -84,7 +109,7 @@ idd2 = np.arange(0, iddt[0])
 dirindx = np.concatenate((idd1, idd2))
 print(dirindx, ttfl[dirindx])
 
-efthtemp = efth2t[:, :, :, ::-1]
+efthtemp = output2Dspec_nc[:, :, :, ::-1]
 efth2 = efthtemp[:, :, :, dirindx]
 
 ###############################################################
