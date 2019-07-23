@@ -12,47 +12,41 @@ from frontback.frontBackCMS import CMSsimSetup
 
 def Master_CMS_run(inputDict):
     """This function will run CMS with any version prefix given start, end, and timestep
+    designed to be for unstructured work flow
 
     Args:
       inputDict: a dictionary that is read from the input yaml
-
+        model(str): available (ww3, cms)
     Returns:
       None
 
     """
     ## unpack Dictionary
-    version_prefix = inputDict['version_prefix']
     endTime = inputDict['endTime']
     startTime = inputDict['startTime']
-    simulationDuration = inputDict['simulationDuration']
-    workingDir = inputDict['workingDirectory']
-    generateFlag = inputDict['generateFlag']
-    runFlag = inputDict['runFlag']
-    analyzeFlag = inputDict['analyzeFlag']
-    pFlag = inputDict['pFlag']
-
+    simulationDuration = int(inputDict['simulationDuration'])
+    workingDir = inputDict['workingDirectory'].lower()
+    version_prefix = inputDict.get('version_prefix', 'base').lower()
+    generateFlag = inputDict.get('generateFlag', True)
+    runFlag = inputDict.get('runFlag', True)
+    analyzeFlag = inputDict.get('analyzeFlag', True)
+    pFlag = inputDict.get('pFlag', True)
+    model = inputDict.get('model')
     # data check
-    prefixList = np.array(['HP', 'UNTUNED'])
+    prefixList = np.array(['hp', 'untuned', 'base'])
     assert (version_prefix == prefixList).any(), "Please enter a valid version prefix\n Prefix assigned = %s must be in List %s" % (version_prefix, prefixList)
-
     # __________________input directories________________________________
     codeDir = os.getcwd()  # location of code
-    # check executable
+    # check executable is it local or absolute path???
     if inputDict['modelExecutable'].startswith(codeDir):  # change to relative path
         import re
         inputDict['modelExecutable'] = re.sub(codeDir, '', inputDict['modelExecutable'])
 
-    if workingDir[-1] == '/':
-        outDataBase = workingDir + 'CMS/' + version_prefix + '/'  #codeDir + '/%s_CSHORE_data/' % version_prefix
-    else:
-        outDataBase = workingDir + '/CMS/' + version_prefix +'/'
-
+    outDataBase = os.path.join(workingDir, model, version_prefix)
     inputDict['path_prefix'] = outDataBase
-    TOD = 0  # 0=start simulations at 0000
     # ______________________ Logging  ____________________________
-    # auto generated Log file using start_end time?
-
-    LOG_FILENAME = outDataBase+'logs/cmtb_BatchRun_Log_%s_%s_%s.log' %(version_prefix, startTime, endTime)
+    # auto generated Log file using start_end time
+    LOG_FILENAME = os.path.join(outDataBase, 'logs', 'cmtb_BatchRun_Log_%s_%s_%s.log' %(version_prefix, startTime, endTime))
     # try:
     #     logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
     # except IOError:
@@ -63,8 +57,8 @@ def Master_CMS_run(inputDict):
     # ____________________________________________________________
     # establishing the resolution of the input datetime
     try:
-        projectEnd = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(TOD / 24., 0, 0)
-        projectStart = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(TOD / 24., 0, 0)
+        projectEnd = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ')
+        projectStart = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     except ValueError:
         assert len(endTime) == 10, 'Your Time does not fit convention, check T/Z and input format'
 
@@ -81,25 +75,24 @@ def Master_CMS_run(inputDict):
     curdir = os.getcwd()
     # ______________________________decide process and run _____________________________
     # run the process through each of the above dates
-    print('\n-\n-\nMASTER WorkFLOW for STWAVE SIMULATIONS\n-\n-\n')
+    print('------------------------------------\n\n************************************\n\n------------------------------------\n\n')
+    print('Master workflow for {} simulations'.format(model))
     print('Batch Process Start: %s     Finish: %s '% (projectStart, projectEnd))
-    print('The batch simulation is Run in %s Version' % version_prefix)
+    print('The batch simulation is run in "%s" version' % version_prefix)
     print('Check for simulation errors here %s' % LOG_FILENAME)
     print('------------------------------------\n\n************************************\n\n------------------------------------\n\n')
-
     # ________________________________________________ RUN LOOP ________________________________________________
     for time in dateStringList:
         try:
-            print('**\nBegin ')
-            print('Beginning Simulation %s' %DT.datetime.now())
+            print('-------------------------------Beginning Simulation {}-------------------------------'.format(DT.datetime.now()))
 
             if generateFlag == True:
                 CMSsimSetup(time, inputDict=inputDict)
-                datadir = outDataBase + ''.join(time.split(':'))  # moving to the new simulation's folder
+                datadir = os.path.join(outDataBase, ''.join(time.split(':')))  # moving to the new simulation's folder
 
             if runFlag == True: # run model
                 os.chdir(datadir) # changing locations to where input files should be made
-                print('Running CMS Simulation')
+                print('Running {} Simulation'.format(model.upper()))
                 dt = DT.datetime.now()
 
                 simOutput = check_output(codeDir + '%s %s.sim' %(inputDict['modelExecutable'], ''.join(time.split(':'))), shell=True)
@@ -118,18 +111,17 @@ def Master_CMS_run(inputDict):
                 for file in moveFnames:
                     shutil.move(file,  '/mnt/gaia/cmtb')
                     print('moved %s ' % file)
-            print('------------------SUCCESSS-----------------------------------------')
+            print('-------------------------------SUCCESSS-----------------------------------------')
 
         except Exception as e:
-            print('<< ERROR >> HAPPENED IN THIS TIME STEP ')
-            print(e)
-            logging.exception('\nERROR FOUND @ %s\n' %time, exc_info=True)
+            print('<< ERROR >> HAPPENED IN THIS TIME STEP\n{}'.format(e))
+            logging.exception('\nERROR FOUND @ {}\n'.format(time), exc_info=True)
             os.chdir(curdir)
 
 
 if __name__ == "__main__":
     opts, args = getopt.getopt(sys.argv[1:], "h", ["help"])
-    print('___________________\n________________\n___________________\n________________\n___________________\n________________\n')
+    print('___________________________________\n___________________________________\n___________________________________\n')
     print('USACE FRF Coastal Model Test Bed : CMS Wave')
 
     # we are no longer allowing a default yaml file.

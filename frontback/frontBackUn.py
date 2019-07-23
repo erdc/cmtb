@@ -24,10 +24,11 @@ from plotting.operationalPlots import obs_V_mod_TS
 from testbedutils import geoprocess as gp
 
 
-def unSimSetup(startTime, inputDict):
+def CMSsimSetup(startTime, inputDict):
     """This Function is the master call for the  data preparation for the Coastal Model
     Test Bed (CMTB) and the CMS wave/FLow model
 
+    Designed for unstructured grids (wave)
 
     NOTE: input to the function is the end of the duration.  All Files are labeled by this convention
     all time stamps otherwise are top of the data collection
@@ -39,29 +40,26 @@ def unSimSetup(startTime, inputDict):
     """
     # begin by setting up input parameters
 
-    timerun = inputDict.get('simulationDuration', 24)
-    pFlag = inputDict.get('pFlag', True)
-    assert 'version_prefix' in inputDict, 'Must have "version_prefix" in your input yaml'
-    version_prefix = inputDict['version_prefix']
+    timerun = int(inputDict.get('simulationDuration', 24))
+    plotFlag = inputDict.get('plotFlag', True)
+    version_prefix = inputDict['version_prefix'].lower()
     server = inputDict.get('THREDDS', 'CHL')
-    model = inputDict['model']
-
+    model = inputDict['model'].lower()
+    path_prefix = inputDict.get('path_prefix').lower()
     TOD = 0  # hour of day simulation to start (UTC)
-    path_prefix = inputDict['path_prefix']  # + "/%s/" %version_prefix  # data super directiory
+
     # ______________________________________________________________________________
     # define version parameters
-    versionlist = ['HP', 'UNTUNED']
-    assert version_prefix in versionlist, 'Please check your version Prefix'
-    simFnameBackground = inputDict['gridSIM']  # ''/home/spike/cmtb/gridsCMS/CMS-Wave-FRF.sim'
-    backgroundDepFname = inputDict['gridDEP']  # ''/home/spike/cmtb/gridsCMS/CMS-Wave-FRF.dep'
+    versionlist = ['hp', 'untuned', 'base']
+    assert version_prefix.lower() in versionlist, 'Please check your version Prefix'
+    simFnameBackground = inputDict.get('gridSIM', None)
+    backgroundDepFname = inputDict.get('gridDEP', None)
     # do versioning stuff here
-    if version_prefix == 'HP':
-        full = False
-    elif version_prefix == 'UNTUNED':
+    if version_prefix.lower() in ['hp', 'untuned']:
         full = False
     else:
+        full = True
         pass
-
     # _______________________________________________________________________________
     # set times
     try:
@@ -76,95 +74,107 @@ def unSimSetup(startTime, inputDict):
         date_str = d1.strftime('%Y-%m-%d')  # used to be endtime
         assert int(timerun) >= 24, 'Running Simulations with less than 24 Hours of simulation time require end ' \
                                    'Time format in type: %Y-%m-%dT%H:%M:%SZ'
-    if type(timerun) == str:
-        timerun = int(timerun)
-
     # __________________Make Diretories_____________________________________________
-    #
-    if not os.path.exists(path_prefix + date_str):  # if it doesn't exist
-        os.makedirs(path_prefix + date_str)  # make the directory
-    if not os.path.exists(path_prefix + date_str + "/figures/"):
-        os.makedirs(path_prefix + date_str + "/figures/")
+    if not os.path.exists(os.path.join(path_prefix, date_str)):                    # if it doesn't exist
+        os.makedirs(os.path.join(path_prefix, date_str))                           # make the directory
+    if not os.path.exists(os.path.join(path_prefix, date_str, 'figures')):
+        os.makedirs(os.path.join(path_prefix, date_str, "figures"))
 
     print("Model Time Start : %s  Model Time End:  %s" % (d1, d2))
-    print("OPERATIONAL files will be place in {0} folder".format(path_prefix + date_str))
-    # ______________________________________________________________________________
-    # begin model data gathering
-    ## _____________WAVES____________________________
+    print("OPERATIONAL files will be place in {0} folder".format(os.path.join(path_prefix, date_str)))
+    # __________________________________________________________________________________________________________________
+    # ____________________________ begin model data gathering __________________________________________________________
+    # __________________________________________________________________________________________________________________
+    gdTB = getDataTestBed(d1, d2)        # initialize get data test bed (bathy)
     go = getObs(d1, d2, THREDDS=server)  # initialize get observation
-    print('_________________\nGetting Wave Data')
+    prepdata = STPD.PrepDataTools()
+    ## _____________________WAVES____________________________
+    print('_________________ Getting Wave Data _________________')
     rawspec = go.getWaveSpec(gaugenumber=0)
     assert rawspec is not None, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
-
-    prepdata = STPD.PrepDataTools()
     # rotate and lower resolution of directional wave spectra
-    wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=date_str, plot=pFlag, full=full,
-                                    outputPath=path_prefix, CMSinterp=50)  # 50 freq bands are max for model
-    print("number of wave records %d with %d interpolated points" % (
+    wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=date_str, plot=plotFlag, full=full, deltaangle=5,
+                                    outputPath=path_prefix, model=model, CMSinterp=50)  # 50 freq bands are max for model
+    print("  - number of wave records %d with %d interpolated points" % (
     np.shape(wavepacket['spec2d'])[0], wavepacket['flag'].sum()))
 
     ## _____________WINDS______________________
-    print('_________________\nGetting Wind Data')
+    print('_________________ Getting Wind Data _________________')
     try:
-        rawwind = go.getWind(gaugenumber=0)
-        # average and rotate winds
-        windpacket = prepdata.prep_wind(rawwind, wavepacket['epochtime'])
-        # wind height correction
-        print('number of wind records %d with %d interpolated points' % (
-            np.size(windpacket['time']), sum(windpacket['flag'])))
+        rawwind = go.getWind(gaugenumber=0)                                      # get wind data
+        windpacket = prepdata.prep_wind(rawwind, wavepacket['epochtime'])        # vector average, rotate winds, correct to 10m
+        print('  -- number of wind records {} with {} interpolated points'.format(np.size(windpacket['time']), sum(windpacket['flag'])))
     except (RuntimeError, TypeError):
         windpacket = None
-        print(' NO WIND ON RECORD')
+        print('     NO WIND ON RECORD')
 
     ## ___________WATER LEVEL__________________
-    print('_________________\nGetting Water Level Data')
+    print('_________________ Getting Water Level Data _________________')
     try:
-        # get water level data
-        rawWL = go.getWL()
-        # average WL
-        WLpacket = prepdata.prep_WL(rawWL, wavepacket['epochtime'])
-        print('number of WL records %d, with %d interpolated points' % (
+        rawWL = go.getWL()                                            # get water level data
+        WLpacket = prepdata.prep_WL(rawWL, wavepacket['epochtime'])   # scalar average WL
+        print('  -- number of WL records %d, with %d interpolated points' % (
             np.size(WLpacket['time']), sum(WLpacket['flag'])))
     except (RuntimeError, TypeError):
         WLpacket = None
-    ### ____________ Get bathy grid from thredds ________________
-    gdTB = getDataTestBed(d1, d2)
-    # bathy = gdTB.getGridCMS(method='historical')
+    ### ____________ Get bathy grid from thredds _______________
+    print('_________________ Getting Bathymetry Data _________________')
     bathy = gdTB.getBathyIntegratedTransect(method=1)  # , ForcedSurveyDate=ForcedSurveyDate)
-    bathy = prepdata.prep_CMSbathy(bathy, simFnameBackground, backgroundGrid=backgroundDepFname)
+    if model.lower() in ['cms']:
+        bathy = prepdata.prep_CMSbathy(bathy, simFnameBackground, backgroundGrid=backgroundDepFname)
+    elif model.lower() in ['ww3']:
+        ww3io = inputOutput.ww3IO(os.path.join(path_prefix, date_str, date_str))
+        gridNodes = ww3io.load_msh(inputDict['grid'])
+        if plotFlag: bathyPlotFname = os.path.join(path_prefix, date_str, 'figures', date_str+'_bathy.png');
+        else: bathyPlotFname=False
+        bathy = prepdata.prep_Bathy(bathy, gridNodes, unstructured=True, plotFname=bathyPlotFname)
+    # __________________________________________________________________________________________________________________
+    # ____________________________ set model save points _______________________________________________________________
+    # __________________________________________________________________________________________________________________
     ### ___________ Create observation locations ________________ # these are cell i/j locations
     gaugelocs = []
     #get gauge nodes x/y
-    for gauge in go.gaugelist:
+    for gauge in go.waveGaugeList:
         pos = go.getWaveGaugeLoc(gauge)
-        coord = gp.FRFcoord(pos['lon'], pos['lat'], coordType='LL')
-        i = np.abs(coord['xFRF'] - bathy['xFRF'][::-1]).argmin()
-        j = np.abs(coord['yFRF'] - bathy['yFRF'][::-1]).argmin()
+        if model in ['cms']:  # model operates in local coordinates
+            coord = gp.FRFcoord(pos['lon'], pos['lat'], coordType='LL')
+            i = np.abs(coord['xFRF'] - bathy['xFRF'][::-1]).argmin()
+            j = np.abs(coord['yFRF'] - bathy['yFRF'][::-1]).argmin()
+        elif model in ['ww3']:
+            i, j = pos['lon'], pos['lat']
         gaugelocs.append([i,j])
+    # __________________________________________________________________________________________________________________
+    # ____________________________ begin writing model Input ___________________________________________________________
+    # __________________________________________________________________________________________________________________
+    print('_________________ writing output _________________')
 
-    ## begin output
-    cmsio = inputOutput.cmsIO()  # initializing the I/o Script writer
-    stdFname = os.path.join(path_prefix, date_str, date_str + '.std')  # creating file names now
-    simFnameOut = os.path.join(path_prefix, date_str, date_str + '.sim')
-    specFname = os.path.join(path_prefix, date_str, date_str + '.eng')
-    bathyFname = os.path.join(path_prefix, date_str, date_str + '.dep')
+    if model.lower() in ['cms']:
+        ## begin output
+        cmsio = inputOutput.cmsIO()  # initializing the I/o Script writer
+        stdFname = os.path.join(path_prefix, date_str, date_str + '.std')  # creating file names now
+        simFnameOut = os.path.join(path_prefix, date_str, date_str + '.sim')
+        specFname = os.path.join(path_prefix, date_str, date_str + '.eng')
+        bathyFname = os.path.join(path_prefix, date_str, date_str + '.dep')
 
-    gridOrigin = (bathy['x0'], bathy['y0'])
+        gridOrigin = (bathy['x0'], bathy['y0'])
 
-    cmsio.writeCMS_std(fname=stdFname, gaugeLocs=gaugelocs)
-    cmsio.writeCMS_sim(simFnameOut, date_str, gridOrigin)
-    cmsio.writeCMS_spec(specFname, wavePacket=wavepacket, wlPacket=WLpacket, windPacket=windpacket)
-    cmsio.writeCMS_dep(bathyFname, depPacket=bathy)
-    stio = inputOutput.stwaveIO('')
-    inputOutput.write_flags(date_str, path_prefix, wavepacket, windpacket, WLpacket, curpacket=None)
-
-    # remove old output files so they're not appended, cms defaults to appending output files
-    try:
-        os.remove(os.path.join(path_prefix, date_str, cmsio.waveFname))
-        os.remove(os.path.join(path_prefix, date_str, cmsio.selhtFname))
-        os.remove(os.path.join(path_prefix + date_str, cmsio.obseFname))
-    except OSError:  # there are no files to delete
-        pass
+        cmsio.writeCMS_std(fname=stdFname, gaugeLocs=gaugelocs)
+        cmsio.writeCMS_sim(simFnameOut, date_str, gridOrigin)
+        cmsio.writeCMS_spec(specFname, wavePacket=wavepacket, wlPacket=WLpacket, windPacket=windpacket)
+        cmsio.writeCMS_dep(bathyFname, depPacket=bathy)
+        inputOutput.write_flags(date_str, path_prefix, wavepacket, windpacket, WLpacket, curpacket=None)
+        # remove old output files so they're not appended, cms defaults to appending output files
+        try:
+            os.remove(os.path.join(path_prefix, date_str, cmsio.waveFname))
+            os.remove(os.path.join(path_prefix, date_str, cmsio.selhtFname))
+            os.remove(os.path.join(path_prefix + date_str, cmsio.obseFname))
+        except OSError:  # there are no files to delete
+            pass
+    elif model.lower() in ['ww3']:
+        print('need to write wind, WL, save points, steering file')
+        ww3io.WL = WLpacket['avgWL']
+        ww3io.writeWW3_spec(wavepacket)
+        ww3io.write_ww3_mesh(gridNodes=bathy)
 
 
 def CMSanalyze(startTime, inputDict):
@@ -185,7 +195,7 @@ def CMSanalyze(startTime, inputDict):
     pFlag = inputDict.get('pFlag', True)
     model = inputDict.get('model')
     version_prefix = inputDict['version_prefix']
-    path_prefix = inputDict.get(path_prefix, "/%s/".format(version_prefix)
+    path_prefix = inputDict.get('path_prefix', "/%s/".format(version_prefix))
     simulationDuration = inputDict['simulationDuration']
     Thredds_Base = inputDict.get('netCDFdir', '/home/{}/thredds_data/'.format(check_output('whoami', shell=True)[:-1]))
     server = inputDict.get('THREDDS', 'CHL')
@@ -241,11 +251,11 @@ def CMSanalyze(startTime, inputDict):
     # interp = np.ones((obse_packet['spec'].shape[0], obse_packet['spec'].shape[1], wavefreqbin.shape[0],
     #                   obse_packet['spec'].shape[3])) * 1e-6  ### TO DO marked for removal
     for station in range(0, np.size(obse_packet['spec'], axis=1)):
-        # for tt in range(0, np.size(obse_packet['spec'], axis=0)):  # interp back to 62 frequencies
+        # for dir_ocean in range(0, np.size(obse_packet['spec'], axis=0)):  # interp back to 62 frequencies
         #         f = interpolate.interp2d(obse_packet['wavefreqbin'], obse_packet['directions'],
-        #                                  obse_packet['spec'][tt, station, :, :].T, kind='linear')
+        #                                  obse_packet['spec'][dir_ocean, station, :, :].T, kind='linear')
         # interp back to frequency bands that FRF data are kept in
-        # interp[tt, station, :, :] = f(wavefreqbin, obse_packet['directions']).T
+        # interp[dir_ocean, station, :, :] = f(wavefreqbin, obse_packet['directions']).T
 
         # rotate the spectra back to true north
         obse_packet['ncSpec'][:, station, :, :], obse_packet['ncDirs'] = prepdata.grid2geo_spec_rotate(

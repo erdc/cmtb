@@ -20,7 +20,7 @@ def pltFRFgrid(xyzDict, save=False):
 
     levels = np.logspace(np.min(z), np.max(z), num=35, endpoint=True, base=10)
     norm = mc.BoundaryNorm(levels, 256)  # color palate for contourplots
-    # plt.contourf(ycoord, xcoord, fieldpacket['field'][tt, :, :], levels, vmin=cbar_min, vmax=cbar_max,
+    # plt.contourf(ycoord, xcoord, fieldpacket['field'][dir_ocean, :, :], levels, vmin=cbar_min, vmax=cbar_max,
     #              cmap='coolwarm', levels=levels, norm=norm)
     plt.pcolor(x, y, z, vmin=z.min(), vmax=z.max())
 
