@@ -25,38 +25,37 @@ from testbedutils import gridTools as gT
 from plotting import nonoperationalPlots as noP
 import string
 
-def CMSsimSetup(startTime, inputDict):
+def CMSsimSetup(startTime, inputDict, **kwargs):
     """
     Author: Spicer Bak
     Association: USACE CHL Field Research Facility
     Project:  Coastal Model Test Bed
-    This Function is the master call for the  data preparation for the Coastal Model
-    Test Bed (CMTB) and the CMS wave/FLow model
-        it is designed to pull from GetData and utilize
-        prep_datalib for development of the FRF CMTB
+
+    This Function is the master call for the preprocessing for unstructured grid model runs
+        it is designed to pull from GetData and utilize prep_datalib for development of the FRF CMTB
+
     NOTE: input to the function is the end of the duration.  All Files are labeled by this convention
     all time stamps otherwise are top of the data collection
-    INPUT:
-    :param startTime: this is a string of format YYYY-mm-ddTHH:MM:SSZ (or YYYY-mm-dd) in UTC time
-    :param inputDict: this is a dictionary that is read from the yaml read function
+
+    Args:
+        startTime(str): this is a string of format YYYY-mm-ddTHH:MM:SSZ (or YYYY-mm-dd) in UTC time
+        inputDict(dict): this is a dictionary that is read from the yaml read function
+         requires keys ['startTime', 'endTime', 'path_prefix',]  probably others (please add)
 
     """
     # begin by setting up input parameters
-    if 'timerun' in inputDict:
-        timerun = inputDict['timerun']
-    else:
-        timerun = 24
-    if 'pFlag' in inputDict:
-        pFlag = inputDict['pFlag']
-    else:
-        pFlag = True
+    timerun = inputDict.get('timerun', 24)
+    pFlag = inputDict.get('pFlag', True)
+    path_prefix = inputDict['path_prefix']
+    model = inputDict.get('model', 'CMS').lower()
 
     # first up, need to check which parts I am running
-    waveFlag = inputDict['wave']
-    flowFlag = inputDict['flow']
-    morphFlag = inputDict['morph']
+    waveFlag = inputDict.get('wave', True)
+    flowFlag = inputDict.get('flow', False)
+    morphFlag = inputDict.get('morph', False)
+    #TODO: check if better way to handle flags at begining of process
 
-    version_prefix = ''
+    version_prefix = 'base'
     if waveFlag:
         assert 'wave_version_prefix' in inputDict, 'Must have "wave_version_prefix" in your input yaml'
         wave_version_prefix = inputDict['wave_version_prefix']
@@ -79,38 +78,31 @@ def CMSsimSetup(startTime, inputDict):
         prefixList = np.array(['FIXED', 'MOBILE', 'MOBILE_RESET'])
         assert (morph_version_prefix == prefixList).any(), "Please enter a valid morph version prefix\n Prefix assigned = %s must be in List %s" % (morph_version_prefix, prefixList)
 
-
-    TOD = 0 # hour of day simulation to start (UTC)
-    path_prefix = inputDict['path_prefix']  #  + "/%s/" %version_prefix  # data super directiory
-
     # ______________________________________________________________________________
     # define version parameters
-    if waveFlag:
-        simFnameBackground = inputDict['gridSIM'] #''/home/spike/cmtb/gridsCMS/CMS-Wave-FRF.sim'
-        backgroundDepFname = inputDict['gridDEP'] # ''/home/spike/cmtb/gridsCMS/CMS-Wave-FRF.dep'
+    if model in ['cms'] and waveFlag is True:
+        simFnameBackground = inputDict.get('gridSIM', 'grids/CMS/CMS-Wave-FRF.sim')
+        backgroundDepFname = inputDict.get('gridDEP', 'grids/CMS/CMS-Wave-FRF.dep')
         # do versioning stuff here
         if wave_version_prefix == 'HP':
             full = False
-        elif wave_version_prefix == 'UNTUNED':
-            full = False
-        else:
-            pass
+    # TODO: is there things i can put up here for wave and flow
     if flowFlag:
-        # do some stuff with flow here
-        t = 1
+        # call cold starts here if time start is in cold start list
+        durationRamp = 1 # this is the ramp duration in days
     if morphFlag:
         # do some stuff with morph here
         t = 1
-
     # _______________________________________________________________________________
     # set times
     if inputDict['csFlag'] == 1:
         durationRamp = 1 # this is the ramp duration in days
+
     else:
         durationRamp = 0
 
     try:
-        d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(TOD / 24., 0, 0)
+        d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
         d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
         date_str = d1.strftime('%Y-%m-%dT%H%M%SZ')  # used to be endtime
         if inputDict['csFlag'] == 1:
@@ -407,10 +399,15 @@ def CMSsimSetup(startTime, inputDict):
         cmCards['WSE_NAME'] = date_str + '_%s_%s' %('h', str(int(1))) + '.xys'
         cmCards['BID_NAME'] = date_str + '.bid'
         cmsfio.write_CMSF_cmCards(path=path_prefix + date_str, inputDict=cmCards)
-
+        #     # copy over the executable
+        #     shutil.copy2(codeDir + '%s' %inputDict['flowExecutable'], datadir)
+        #     # copy over the .bid file
+        #     tempDir = os.getcwd().split('cmtb')
+        #     shutil.copy2(os.path.join(tempDir[0], 'cmtb/grids/CMS/CMS-Flow-FRF.bid',), datadir)
+        #     # rename this file
+        #     os.rename('CMS-Flow-FRF.bid', ''.join(time.split(':')) + '.bid')
     if morphFlag:
-        # not implemented yet
-        t = 1
+        raise NotImplementedError
 
 def CMSanalyze(startTime, inputDict):
     """
