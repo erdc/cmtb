@@ -12,20 +12,24 @@ import matplotlib.cm as cm
 from scipy.interpolate import griddata
 from numpy.random import *
 
-
-# these are all the ones that were formerly in plotFunctions.py
 def gradient_fill(x, y, fill_color=None, ax=None, zfunc=False, **kwargs):
     """
     This is a function that plots a gradient fill found here
     http://stackoverflow.com/questions/29321835/is-it-possible
     -to-get-color-gradients-under-curve-in-matplotlb?noredirect=1&lq=1
-    :param x:
-    :param y:
-    :param fill_color:
-    :param ax:  The axis from the plot
-    :param zfunc:
-    :param kwargs:
-    :return:
+   Args:
+        x:
+        y:
+        fill_color:
+        ax:  The axis from the plot
+        zfunc:
+
+   Keyword Args
+       keyword args from plt.plot
+
+    Returns
+        None
+
     """
 
     from matplotlib.patches import Polygon
