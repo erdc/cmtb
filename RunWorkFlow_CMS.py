@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #!/home/number/anaconda2/bin/python
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import os, getopt, sys, shutil, glob, logging, yaml
 import datetime as DT
 from subprocess import check_output
@@ -28,9 +28,9 @@ def Master_CMS_run(inputDict):
     flowFlag = inputDict.get('flow', False)
     morphFlag = inputDict.get('morph', False)
     # parse out the rest of the input dictionary
-    endTime = inputDict['end_date']
-    startTime = inputDict['start_date']
-    simulationDuration = inputDict['duration']
+    endTime_str = inputDict['endTime']
+    startTime_str = inputDict['startTime']
+    simulationDuration = inputDict['simulationDuration']
     workingDir = inputDict['workingDirectory']
     generateFlag = inputDict['generateFlag']
     runFlag = inputDict['runFlag']
@@ -70,66 +70,65 @@ def Master_CMS_run(inputDict):
 
     # ______________________ Logging  ____________________________
     # auto generated Log file using start_end time?
-    LOG_FILENAME = os.path.join(inputDict['path_prefix'], 'logs', 'CMTB_BatchRun_Log_%s_%s_%s.log' % (version_prefix, version_prefix, startTime.replace(':', ''), endTime.replace(':', '')))
-    try:
-        logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
-    except IOError:
-        os.makedirs(os.path.join(inputDict['path_prefix'],'logs'))
-        logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
-    logging.debug('\n-------------------\nTraceback Error Log for:\n\nSimulation Started: %s\n-------------------\n'
-                  % (DT.datetime.now()))
+    LOG_FILENAME = os.path.join(inputDict['path_prefix'], 'logs', 'CMTB_BatchRun_Log_%s_%s_%s.log' % (version_prefix, startTime_str.replace(':', ''), endTime_str.replace(':', '')))
+    # try:
+    #     logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
+    # except IOError:
+    #     os.makedirs(os.path.join(inputDict['path_prefix'],'logs'))
+    #     logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
+    # logging.debug('\n-------------------\nTraceback Error Log for:\n\nSimulation Started: %s\n-------------------\n'
+    #               % (DT.datetime.now()))
 
     # ____________________________________________________________
     # establishing the resolution of the input datetime
     try:
-        projectEnd = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ')
-        projectStart = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
+        projectEnd = DT.datetime.strptime(endTime_str, '%Y-%m-%dT%H:%M:%SZ')
+        projectStart = DT.datetime.strptime(startTime_str, '%Y-%m-%dT%H:%M:%SZ')
     except ValueError:
-        assert len(endTime) == 10, 'Your Time does not fit convention, check T/Z and input format'
+        assert len(endTime_str) == 10, 'Your Time does not fit convention, check T/Z and input format'
 
     # check the surveyNumber of the previous days run?
     cmtb_data = getDataTestBed(projectStart, projectStart + DT.timedelta(minutes=1), inputDict['THREDDS'])
     b_time = cmtb_data.getBathyIntegratedTransect()['time']
+    #TODO can i just pull all cold start dates and pass to next section to make decisions???
 
     # try to pull the .nc file of the previous run. -> this code is requried ONLY if we want to hot start CMS Flow!
-    CSflag = False
     try:
-        Time_O = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') - DT.timedelta(days=1)
-        # initialize the class
-        cmsfIO_O = inputOutput.cmsfIO()
+        ## this section checks to see if i need to re-run simulations that were previously run with old bathymetry (identifying cold starts)
+        timeYesterday = projectStart - DT.timedelta(days=1)  # find yesterdays simulation in datetime
+        cmsIO_yesterday = inputOutput.cmsfIO(path=os.path.join(inputDict['path_prefix'], DT.datetime.strftime(timeYesterday, '%Y-%m-%dT%H%M%SZ')))               # initialize the class
         # get into the directory I need
-        cmsfIO_O.read_CMSF_all(inputDict['path_prefix'] + DT.datetime.strftime(Time_O, '%Y-%m-%dT%H%M%SZ'))
+        cmsIO_yesterday.read_CMSF_all()
+        cmsIO_yesterday.read_CMSF_telnc()
+
         # what survey number did this thing use??
-        prev_mod_stime = cmsfIO_O.telnc_dict['surveyTime'][0]
-        # convert this to the datetime
-        prev_mod_stime = nc.num2date(prev_mod_stime, units='seconds since 1970-01-01')
+        prev_mod_stime = nc.num2date(cmsIO_yesterday.telnc_dict['surveyTime'][0], units='seconds since 1970-01-01')
+        CSflag = False
 
         # what time was this survey number?  this says that if
         # 1 - the previous model used a survey older than the latest survey
         # 2 - the previous model started AFTER the latest survey (i.e., it should have used the latest survey)
-        if (b_time > prev_mod_stime) and (Time_O > b_time):
+        if (b_time > prev_mod_stime) and (timeYesterday > b_time):
             d1_N = b_time.replace(microsecond=0, second=0, minute=0, hour=0)
             if d1_N != b_time:
                 # this means we rounded it down and have to add back a day to start on the 00:00:00 after the survey
                 d1_N = d1_N + DT.timedelta(days=1)
             # reset the first day of the simulations to be the day after or of the latest survey
             # (depending on if the survey time is 00:00:00 or 12:00:00)
-            del projectStart
             projectStart = d1_N
             CSflag = True
-            del d1_N
 
     except (IOError, OSError):
         # this means that this is the first time this has been run, so you MUST coldstart
         CSflag = True
 
-    # This is the portion that creates a list of simulation end times
-    dt_DT = DT.timedelta(0, simulationDuration * 60 * 60)  # timestep in datetime
+    # This is the portion that creates a list of simulation endTimes
+    simDur_DT = DT.timedelta(0, simulationDuration * 60 * 60)  # timestep in datetime
     # make List of Datestring items, for simulations
     dateStartList = [projectStart]
     dateStringList = [dateStartList[0].strftime("%Y-%m-%dT%H:%M:%SZ")]
-    for i in range(int(np.ceil((projectEnd-projectStart).total_seconds()/dt_DT.total_seconds()))-1):
-        dateStartList.append(dateStartList[-1] + dt_DT)
+    for i in range(int(np.ceil((projectEnd - projectStart).total_seconds()/simDur_DT.total_seconds()))-1):
+        dateStartList.append(dateStartList[-1] + simDur_DT)
         dateStringList.append(dateStartList[-1].strftime("%Y-%m-%dT%H:%M:%SZ"))
 
     # toggle my cold start flags
@@ -147,15 +146,11 @@ def Master_CMS_run(inputDict):
     print('The batch simulation is Run in %s Version' % version_prefix)
     print('Check for simulation errors here %s' % LOG_FILENAME)
     print('------------------------------------\n\n************************************\n\n------------------------------------\n\n')
-
-
     # ________________________________________________ RUNNING LOOP ________________________________________________
     cnt = 0
     for time in dateStringList:
         try:
             print('**\nBegin ')
-            print('Beginning Simulation %s' %DT.datetime.now())
-
             # toggle my coldStart flags
             inputDict['csFlag'] = csFlag[cnt]
             cnt += 1                # increment
@@ -166,8 +161,9 @@ def Master_CMS_run(inputDict):
 
             if runFlag == True: # run model
                 os.chdir(datadir) # changing locations to where input files should be made
-                print('Running {} Simulation'.format(model))
                 dt = DT.datetime.now()
+                print('Beginning {} Simulation {}'.format(model, dt))
+
                 if waveFlag is True or flowFlag is True:
                     _ = check_output(codeDir + '%s %s.sim' %(inputDict['waveExecutable'], ''.join(time.split(':'))), shell=True)
                 # if flowFlag:

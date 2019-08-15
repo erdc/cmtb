@@ -48,6 +48,7 @@ def CMSsimSetup(startTime, inputDict, **kwargs):
     pFlag = inputDict.get('pFlag', True)
     path_prefix = inputDict['path_prefix']
     model = inputDict.get('model', 'CMS').lower()
+    version_prefix = inputDict.get('version_prefix', 'base').lower()
 
     # first up, need to check which parts I am running
     waveFlag = inputDict.get('wave', True)
@@ -55,24 +56,24 @@ def CMSsimSetup(startTime, inputDict, **kwargs):
     morphFlag = inputDict.get('morph', False)
     #TODO: check if better way to handle flags at begining of process
 
-    version_prefix = 'base'
+
     if waveFlag:
         assert 'wave_version_prefix' in inputDict, 'Must have "wave_version_prefix" in your input yaml'
-        wave_version_prefix = inputDict['wave_version_prefix']
+        wave_version_prefix = inputDict.get('wave_version_prefix', 'base').lower()
         version_prefix = version_prefix + '_' + wave_version_prefix
         # data check
-        prefixList = np.array(['HP', 'UNTUNED'])
-        assert (wave_version_prefix == prefixList).any(), "Please enter a valid wave version prefix\n Prefix assigned = %s must be in List %s" % (wave_version_prefix, prefixList)
+        prefixList = np.array(['base','hp', 'untuned'])
+        assert (wave_version_prefix.lower() == prefixList).any(), "Please enter a valid wave version prefix\n Prefix assigned = %s must be in List %s" % (wave_version_prefix, prefixList)
     if flowFlag:
         assert 'flow_version_prefix' in inputDict, 'Must have "flow_version_prefix" in your input yaml'
-        flow_version_prefix = inputDict['flow_version_prefix']
+        flow_version_prefix = inputDict.get('flow_version_prefix', 'base').lower()
         version_prefix = version_prefix + '_' + flow_version_prefix
         # data check
-        prefixList = np.array(['STANDARD'])
+        prefixList = np.array(['base'])
         assert (flow_version_prefix == prefixList).any(), "Please enter a valid flow version prefix\n Prefix assigned = %s must be in List %s" % (flow_version_prefix, prefixList)
     if morphFlag:
         assert 'morph_version_prefix' in inputDict, 'Must have "morph_version_prefix" in your input yaml'
-        morph_version_prefix = inputDict['morph_version_prefix']
+        morph_version_prefix = inputDict.get('morph_version_prefix', 'base')
         version_prefix = version_prefix + '_' + morph_version_prefix
         # data check
         prefixList = np.array(['FIXED', 'MOBILE', 'MOBILE_RESET'])
@@ -80,26 +81,28 @@ def CMSsimSetup(startTime, inputDict, **kwargs):
 
     # ______________________________________________________________________________
     # define version parameters
+    # TODO: is there things i can put up here for wave and flow
     if model in ['cms'] and waveFlag is True:
         simFnameBackground = inputDict.get('gridSIM', 'grids/CMS/CMS-Wave-FRF.sim')
         backgroundDepFname = inputDict.get('gridDEP', 'grids/CMS/CMS-Wave-FRF.dep')
         # do versioning stuff here
-        if wave_version_prefix == 'HP':
+        if wave_version_prefix in ['base', 'HP']:
             full = False
-    # TODO: is there things i can put up here for wave and flow
+        cmsio = inputOutput.cmsIO()  # initializing the I/o Script writer
+        hotStartFlag = False
+        print('TODO: Define hotstart flag from bathy times input to this function ')
     if flowFlag:
         # call cold starts here if time start is in cold start list
-        durationRamp = 1 # this is the ramp duration in days
+        if inputDict['csFlag'] == 1:
+            durationRamp = 1  # this is the ramp duration in days
+        else:
+            durationRamp = 0
+        cmsfio = inputOutput.cmsfIO()  # initializing the I/o Script writer
     if morphFlag:
         # do some stuff with morph here
         t = 1
     # _______________________________________________________________________________
     # set times
-    if inputDict['csFlag'] == 1:
-        durationRamp = 1 # this is the ramp duration in days
-
-    else:
-        durationRamp = 0
 
     try:
         d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
@@ -110,12 +113,12 @@ def CMSsimSetup(startTime, inputDict, **kwargs):
         else:
             # new plan - if not coldstart, then we need to look up the hotstart file from the previous run and
             # see how far back we need to pull data for to write the boundary condition file
-            dP = d1 - DT.timedelta(0, timerun * 3600, 0)
-            date_strP = dP.strftime('%Y-%m-%dT%H%M%SZ')
-            HSpath = os.path.join(path_prefix + date_strP, 'ASCII_HotStart')
+            datePrevious = d1 - DT.timedelta(0, timerun * 3600, 0)
+            date_strPrevious = datePrevious.strftime('%Y-%m-%dT%H%M%SZ')
+            hotStartFromPath = os.path.join(path_prefix + date_strPrevious, 'ASCII_HotStart')
             # load hot-start files
             cmsfio = inputOutput.cmsfIO()
-            cmsfio.read_CMSF_etaDict(HSpath)
+            cmsfio.read_CMSF_etaDict(hotStartFromPath)
             durationMod = int(cmsfio.eta_dict['time'])
             d1F = d1 - DT.timedelta(hours=durationMod)
     except ValueError:
@@ -128,59 +131,49 @@ def CMSsimSetup(startTime, inputDict, **kwargs):
         else:
             # new plan - if not coldstart, then we need to look up the hotstart file from the previous run and
             # see how far back we need to pull data for to write the boundary condition file
-            dP = d1 - DT.timedelta(0, timerun * 3600, 0)
-            date_strP = dP.strftime('%Y-%m-%dT%H%M%SZ')
-            HSpath = os.path.join(path_prefix + date_strP, 'ASCII_HotStart')
+            datePrevious = d1 - DT.timedelta(0, timerun * 3600, 0)
+            date_strPrevious = datePrevious.strftime('%Y-%m-%dT%H%M%SZ')
+            hotStartFromPath = os.path.join(path_prefix + date_strPrevious, 'ASCII_HotStart')
             # load hot-start files
             cmsfio = inputOutput.cmsfIO()
-            cmsfio.read_CMSF_etaDict(HSpath)
+            cmsfio.read_CMSF_etaDict(hotStartFromPath)
             durationMod = int(cmsfio.eta_dict['time'])
             d1F = d1 - DT.timedelta(hours=durationMod)
         assert int(timerun) >= 24, 'Running Simulations with less than 24 Hours of simulation time require end ' \
                                    'Time format in type: %Y-%m-%dT%H:%M:%SZ'
-    if type(timerun) == str:
-        timerun = int(timerun)
 
-    # __________________Make Diretories_____________________________________________
-    #
-    if not os.path.exists(path_prefix + date_str):  # if it doesn't exist
-        os.makedirs(path_prefix + date_str)  # make the directory
-    if not os.path.exists(path_prefix + date_str + "/figures/"):
-        os.makedirs(path_prefix + date_str + "/figures/")
-
-    print("Model Time Start : %s  Model Time End:  %s" % (d1, d2))
-    print(u"OPERATIONAL files will be place in {0} folder".format(path_prefix + date_str))
-
-    ### ____________ Get bathy grid from thredds ________________
-    gdTB = getDataTestBed(d1, d2)
-    #bathy = gdTB.getGridCMS(method='historical')
-    bathy = gdTB.getBathyIntegratedTransect(method=1) #, ForcedSurveyDate=ForcedSurveyDate)
-
-    # ______________________________________________________________________________
-    # begin model data gathering
-    go = getObs(d1F, d2, THREDDS='FRF')  # initialize get observation
-    # create all my time lists
+    # create all time lists
     waveTs = inputDict['wave_time_step']
     flowTs = inputDict['flow_time_step']
     morphTs = inputDict['morph_time_step']
     TS_list = [waveTs, flowTs, morphTs]
-    mTS = min(TS_list)
+    mTS = np.nanmin(np.array(TS_list, dtype=np.float64))
     timeList = [d1F + DT.timedelta(minutes=mTS*x) for x in range(0, int((1440/float(mTS))*(d2-d1F).days + (d2-d1F).seconds/float(60*mTS)))]
     waveTimeList = [d1 + DT.timedelta(minutes=waveTs*x) for x in range(0, int((1440/float(waveTs))*(d2-d1).days + (d2-d1).seconds/float(60*waveTs)))]
     flowTimeList = [d1F + DT.timedelta(minutes=flowTs * x) for x in range(0, int((1440 / float(flowTs)) * (d2 - d1F).days + (d2 - d1F).seconds / float(60 * flowTs)))]
     morphTimeList = [d1 + DT.timedelta(minutes=morphTs * x) for x in range(0, int((1440 / float(morphTs)) * (d2 - d1).days + (d2 - d1).seconds / float(60 * morphTs)))]
+    # TODO why do i need time steps for every model?
+    # __________________Make Diretories_____________________________________________
+    #
+    if not os.path.exists(os.path.join(path_prefix, date_str)):  # if it doesn't exist
+        os.makedirs(os.path.join(path_prefix, date_str))  # make the directory
+    if not os.path.exists(os.path.join(path_prefix, date_str, 'figures')):
+        os.makedirs(os.path.join(path_prefix, date_str, "figures"))
+
+    print("Model Time Start : %s  Model Time End:  %s" % (d1, d2))
+    print(u"OPERATIONAL files will be place in {0} folder".format(os.path.join(path_prefix, date_str)))
+    ###############################3###################################3###################################3############
+    ###################################3###################################3###################################3########
+    ### ____________ Get bathy grid from server ________________
+    ###################################3###################################3###################################3########
+    ###################################3###################################3###################################3########
+    gdTB = getDataTestBed(d1, d2)
     prepdata = STPD.PrepDataTools()
-
-    if waveFlag:
-        ## _____________WAVES____________________________
-        rawspec = go.getWaveSpec(gaugenumber=0)
-        assert rawspec is not None, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
-
-        # rotate and lower resolution of directional wave spectra
-        wavepacket = prepdata.prep_spec(rawspec, wave_version_prefix, datestr=date_str, plot=pFlag, full=full, outputPath=path_prefix, CMSinterp=50) # 50 freq bands are max for model
-        print("number of wave records %d with %d interpolated points" % (np.shape(wavepacket['spec2d'])[0], wavepacket['flag'].sum()))
-
-    # need wind for both wave and flow
+    go = getObs(d1F, d2, THREDDS=inputDict['THREDDS'])  # initialize get observation
+    #bathy = gdTB.getGridCMS(method='historical')
+    bathy = gdTB.getBathyIntegratedTransect(method=1)
+    # ______________________________________________________________________________
+    # begin model data gathering
     ## _____________WINDS______________________
     print('_________________\nGetting Wind Data')
     try:
@@ -206,17 +199,21 @@ def CMSsimSetup(startTime, inputDict, **kwargs):
 
     # write the files I need for the different parts of CMS i am running
     if waveFlag:
+        ## _____________WAVES____________________________
+        rawspec = go.getWaveSpec(gaugenumber=0)
+        assert rawspec is not None, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
 
-        cmsio = inputOutput.cmsIO()  # initializing the I/o Script writer
-        # I think everything from here down is CMS-wave specific?
+        # rotate and lower resolution of directional wave spectra
+        wavepacket = prepdata.prep_spec(rawspec, wave_version_prefix, datestr=date_str, plot=pFlag, full=full, outputPath=path_prefix, CMSinterp=50) # 50 freq bands are max for model
+        print("number of wave records %d with %d interpolated points" % (np.shape(wavepacket['spec2d'])[0], wavepacket['flag'].sum()))
 
         # modify packets for different time-steps!
         windpacketW, WLpacketW, wavepacketW = prepdata.mod_packets(waveTimeList, windpacket, WLpacket, wavepacket=wavepacket)
 
-        bathyW = prepdata.prep_CMSbathy(bathy, simFnameBackground, backgroundGrid=backgroundDepFname)
+        bathyWaves = prepdata.prep_CMSbathy(bathy, simFnameBackground, backgroundGrid=backgroundDepFname)
         ### ___________ Create observation locations ________________ # these are cell i/j locations
-        gaugeLocs = [[1, 25],  # Waverider 26m
-                     [49, 150],  # waverider 17m
+        gaugeLocs = [[1, 25],     # Waverider 26m
+                     [49, 150],   # waverider 17m
                      [212, 183],  # awac 11m
                      [251, 183],  # 8m
                      [282, 183],  # 6m
@@ -226,186 +223,58 @@ def CMSsimSetup(startTime, inputDict, **kwargs):
                      [328, 183],  # xp150m
                      [330, 183]]  # xp125m
 
-        ## begin output
-        stdFname = path_prefix + date_str + '/' + date_str + '.std'  # creating file names now
-        simFnameOut = path_prefix + date_str + '/' + date_str +'.sim'
-        specFname = path_prefix + date_str + '/' + date_str +'.eng'
-        bathyFname = path_prefix + date_str +'/' + date_str + '.dep'
-        # engFname = path_prefix + date_str + '/' + date_str + '.eng'
-        # origin = cmsio.ReadCMS_sim(simFnameBackground)
-        gridOrigin = (bathyW['x0'], bathyW['y0'])
+        ## begin output file name creation
+        stdFname = os.path.join(path_prefix + date_str, date_str + '.std')
+        simFnameOut = os.path.join(path_prefix + date_str,  date_str +'.sim')
+        specFname = os.path.join(path_prefix + date_str, date_str +'.eng')
+        bathyFname = os.path.join(path_prefix + date_str, date_str + '.dep')
 
+        # origin = cmsio.ReadCMS_sim(simFnameBackground)
+        gridOrigin = (bathyWaves['x0'], bathyWaves['y0'])
+        # write files
         cmsio.writeCMS_std(fname=stdFname, gaugeLocs=gaugeLocs)
         cmsio.writeCMS_sim(simFnameOut, date_str, gridOrigin)
         cmsio.writeCMS_spec(specFname, wavePacket=wavepacketW, wlPacket=WLpacketW, windPacket=windpacketW)
-        cmsio.writeCMS_dep(bathyFname, depPacket=bathyW)
+        cmsio.writeCMS_dep(bathyFname, depPacket=bathyWaves)
         stio = inputOutput.stwaveIO('')
         stio.write_flags(date_str, path_prefix, wavepacketW, windpacketW, WLpacketW, curpacket=None)
-
-        # remove old output files so they're not appended, cms defaults to appending output files
-        try:
-            os.remove(path_prefix + date_str + '/' + cmsio.waveFname)
-            os.remove(path_prefix + date_str + '/' + cmsio.selhtFname)
-            os.remove(path_prefix + date_str + '/' + cmsio.obseFname)
-        except OSError: # there are no files to delete
-            pass
+        cmsio.clearAllSimFiles(path_prefix+date_str) # remove old output files so they're not appended (cms default)
 
     if flowFlag:
-        cmsfio = inputOutput.cmsfIO()  # initializing the I/o Script writer
-
         # check to be sure the .tel file is in the inputYaml
         assert 'gridTEL' in inputDict.keys(), 'Error: to run CMS-Flow a .tel file must be specified.'
 
         # modify packets for different time-steps!
         windpacketF, WLpacketF, wavepacketF = prepdata.mod_packets(flowTimeList, windpacket, WLpacket)
 
-        # remove old output files so they're not appended, cms defaults to appending output files
-        try:
-            os.remove(path_prefix + date_str + '/' + date_str + '_h_1.xys')
-        except OSError:  # there are no files to delete
-            pass
-        try:
-            os.remove(path_prefix + date_str + '/' + date_str + '_wind_vel.xys')
-        except OSError:  # there are no files to delete
-            pass
-        try:
-            os.remove(path_prefix + date_str + '/' + date_str + '_wind_dir.xys')
-        except OSError:  # there are no files to delete
-            pass
-        try:
-            os.remove(path_prefix + date_str + '/' + date_str + '.tel')
-        except OSError:  # there are no files to delete
-            pass
-        try:
-            os.remove(path_prefix + date_str + '/' + date_str + '.cmcards')
-        except OSError:  # there are no files to delete
-            pass
-        try:
-            os.remove(path_prefix + date_str + '/' + date_str + '.bid')
-        except OSError:  # there are no files to delete
-            pass
-        try:
-            os.remove(path_prefix + date_str + '/' + date_str + '.nc')
-        except OSError:  # there are no files to delete
-            pass
-
+        #################### PREP DATA ################################################################################
         # now we need to write the .xys files for these... - note, .bid file is always the same, so no need to write.
-        windDirDict = {}
-        windDirDict['simName'] = date_str
-        windDirDict['BCtype'] = 'wind_dir'
-        windDirDict['times'] = [(dt-windpacketF['time'][0]).days*24 + (dt-windpacketF['time'][0]).seconds/float(3600) for dt in windpacketF['time']]
-        windDirDict['values'] = windpacketF['avgdir_CMSF']
+        cmCards, windDirDict, windVelDict, wlDict = prepdata.prep_dataCMSF(windpacketF, WLpacketF, bathy, inputDict, hotStartFlag)
+        HSfname = 'ASCII_HotStart'
+        cmsfio.clearAllSimFiles(path_prefix + date_str,
+                                hotStart=hotStartFlag)  # clear previous sim files before writing hotstarts
+        ###################### end Prep Data for flow ##################################################################
+
+
+        ############# write CMS Flow files #############################################################################
+        ncgYaml = 'yaml_files/BATHY/CMSFtel0_global.yml'
+        ncvYaml = 'yaml_files/BATHY/CMSFtel0_var.yml'
+        makenc.makenc_CMSFtel(ofname=os.path.join(path_prefix + date_str, date_str + '.nc'), dataDict=cmsfio.telnc_dict,
+                              globalYaml=ncgYaml, varYaml=ncvYaml)
+        cmsfio.write_CMSF_tel(path=path_prefix + date_str, telDict=cmsfio.telnc_dict)
+        cmsfio.write_CMSF_cmCards(path=path_prefix + date_str, inputDict=cmCards)
         cmsfio.write_CMSF_xys(path=path_prefix + date_str, xysDict=windDirDict)
-
-        windVelDict = windDirDict
-        windVelDict['BCtype'] = 'wind_vel'
-        windVelDict['values'] = windpacketF['avgspd']
-        windVelDict['values'] = windpacketF['avgspd']
         cmsfio.write_CMSF_xys(path=path_prefix + date_str, xysDict=windVelDict)
-
-        wlDict = windDirDict
-        wlDict['BCtype'] = 'h'
-        wlDict['values'] = WLpacketF['avgWL']
-        wlDict['cellstringNum'] = 1
         cmsfio.write_CMSF_xys(path=path_prefix + date_str, xysDict=wlDict)
 
-        # now lets doctor up the .tel file
-        cmsfio.read_CMSF_telnc(inputDict['gridTEL'])
-        ugridDict = {}
-        ugridDict['coord_system'] = 'FRF'
-        ugridDict['x'] = cmsfio.telnc_dict['xFRF']
-        ugridDict['y'] = cmsfio.telnc_dict['yFRF']
-        ugridDict['units'] = 'm'
-
-        newzDict = gT.interpIntegratedBathy4UnstructGrid(ugridDict=ugridDict, bathy=bathy)
-        # now i need to replace my old depth values with the new ones
-        depth = cmsfio.telnc_dict['depth'].copy()
-        newDepth = -1*newzDict['z']
-        # if node is inactive, we do not need to replace!
-        newDepth[depth < -900] = np.nan  # so set those to nan!
-
-        # integrate this back into the .tel file?
-        depth[~np.isnan(newDepth)] = newDepth[~np.isnan(newDepth)]
-        del cmsfio.telnc_dict['depth']
-        cmsfio.telnc_dict['depth'] = depth
-        cmsfio.telnc_dict['surveyNumber'] = bathy['surveyNumber']
-        cmsfio.telnc_dict['surveyTime'] = bathy['time']
-
-        # write this out to a .tel file and a netcdf file in the folder
-        ncgYaml = os.getcwd() + '/yaml_files/BATHY/CMSFtel0_global.yml'
-        ncvYaml = os.getcwd() + '/yaml_files/BATHY/CMSFtel0_var.yml'
-        makenc.makenc_CMSFtel(ofname=os.path.join(path_prefix + date_str, date_str + '.nc'), dataDict=cmsfio.telnc_dict, globalYaml=ncgYaml, varYaml=ncvYaml)
-        cmsfio.telnc_dict['simName'] = date_str
-        cmsfio.write_CMSF_tel(path=path_prefix + date_str, telDict=cmsfio.telnc_dict)
-
-        # write the cmcards file - also, what do we need to expose?
-        cmCards = {}
-        cmCards['gridAngle'] = cmsfio.telnc_dict['azimuth']
-        cmCards['gridOriginX'] = cmsfio.telnc_dict['origin_easting']
-        cmCards['gridOriginY'] = cmsfio.telnc_dict['origin_northing']
-        cmCards['simName'] = date_str
-        cmCards['simulationLabel'] = 'CMSF_' + date_str
-        cmCards['telFileName'] = date_str + '.tel'
-        cmCards['hydroTimestep'] = 60*inputDict['flow_time_step']
-        if durationRamp > 0:
-            cmCards['durationRun'] = inputDict['duration'] + 24*durationRamp
-        else:
-            cmCards['durationRun'] = inputDict['duration'] + durationMod
-        cmCards['startingJdate'] = '01001'
-
-        cmCards['startingJdateHour'] = 1
-        cmCards['durationRamp'] = durationRamp
-        cmCards['WIND_DIR_CURVE'] = date_str + '_%s'% ('wind_dir') + '.xys'
-        cmCards['WIND_SPEED_CURVE'] = date_str + '_%s' % ('wind_vel') + '.xys'
-
-        # add hot start files?
-        if os.path.isdir(os.path.join(path_prefix + date_str, 'ASCII_HotStart')):
-            shutil.rmtree(os.path.join(path_prefix + date_str, 'ASCII_HotStart'))
-        if os.path.isdir(os.path.join(path_prefix + date_str, 'ASCII_Solutions')):
-            shutil.rmtree(os.path.join(path_prefix + date_str, 'ASCII_Solutions'))
-
-        HSfname = 'ASCII_HotStart'
-        if durationRamp == 0:
-
-            # just copy over the hot start files from the previous day
-
-            # what is the date_str of the previous day?
-            dP = d1 - DT.timedelta(0, timerun * 3600, 0)
-            date_strP = dP.strftime('%Y-%m-%dT%H%M%SZ')
-            HSpath = os.path.join(path_prefix + date_strP, HSfname)
-            # copy them over to new folder
-            writeFolder = os.path.join(path_prefix + date_str, HSfname)
-            shutil.copytree(HSpath, writeFolder)
-            # delete the ones that I need to replace!
-            os.remove(os.path.join(writeFolder, 'AutoHotStart.xy'))
-            os.remove(os.path.join(writeFolder, 'SingleHotStart.xy'))
-            os.remove(os.path.join(writeFolder, 'AutoHotStart_wet.dat'))
-            os.remove(os.path.join(writeFolder, 'AutoHotStart_vel.dat'))
-            os.remove(os.path.join(writeFolder, 'AutoHotStart_p.dat'))
-            os.remove(os.path.join(writeFolder, 'AutoHotStart_eta.dat'))
-
-            # copy over hot start files and change some stuff - DLY 03/18/2019 - this is the one that works
-            cmsfio.mod_CMSF_HotStart(os.path.join(HSpath, 'AutoHotStart.xy'), os.path.join(writeFolder, 'AutoHotStart.xy'), 'NAME', date_strP, date_str)
-            cmsfio.mod_CMSF_HotStart(os.path.join(HSpath, 'SingleHotStart.xy'), os.path.join(writeFolder, 'SingleHotStart.xy'), 'NAME', date_strP, date_str)
-            cmsfio.mod_CMSF_HotStart(os.path.join(HSpath, 'AutoHotStart_wet.dat'), os.path.join(writeFolder, 'AutoHotStart_wet.dat'), 'TS 0', '48.0000', '24.0000')
-            cmsfio.mod_CMSF_HotStart(os.path.join(HSpath, 'AutoHotStart_vel.dat'), os.path.join(writeFolder, 'AutoHotStart_vel.dat'), 'TS 0', '48.0000', '24.0000')
-            cmsfio.mod_CMSF_HotStart(os.path.join(HSpath, 'AutoHotStart_p.dat'), os.path.join(writeFolder, 'AutoHotStart_p.dat'), 'TS 0', '48.0000', '24.0000')
-            cmsfio.mod_CMSF_HotStart(os.path.join(HSpath, 'AutoHotStart_eta.dat'), os.path.join(writeFolder, 'AutoHotStart_eta.dat'), 'TS 0', '48.0000', '24.0000')
-
-            # and tag the cmcards file appropriately
-            cmCards['hotstartFile'] = os.path.join(path_prefix + date_str, HSfname, 'AutoHotStart.sup')
-        cmCards['hotstartWriteInterval'] = 1
-        cmCards['NUM_STEPS'] = len(WLpacketF['avgWL'])
-        cmCards['WSE_NAME'] = date_str + '_%s_%s' %('h', str(int(1))) + '.xys'
-        cmCards['BID_NAME'] = date_str + '.bid'
-        cmsfio.write_CMSF_cmCards(path=path_prefix + date_str, inputDict=cmCards)
-        #     # copy over the executable
-        #     shutil.copy2(codeDir + '%s' %inputDict['flowExecutable'], datadir)
-        #     # copy over the .bid file
-        #     tempDir = os.getcwd().split('cmtb')
-        #     shutil.copy2(os.path.join(tempDir[0], 'cmtb/grids/CMS/CMS-Flow-FRF.bid',), datadir)
-        #     # rename this file
-        #     os.rename('CMS-Flow-FRF.bid', ''.join(time.split(':')) + '.bid')
+        ########### came from above function  ###########################
+        # copy over the executable
+        shutil.copy2(codeDir + '%s' %inputDict['flowExecutable'], datadir)
+        # copy over the .bid file
+        tempDir = os.getcwd().split('cmtb')
+        shutil.copy2(os.path.join(tempDir[0], 'cmtb/grids/CMS/CMS-Flow-FRF.bid',), datadir)
+        # rename this file
+        os.rename('CMS-Flow-FRF.bid', ''.join(time.split(':')) + '.bid')
     if morphFlag:
         raise NotImplementedError
 
@@ -486,24 +355,11 @@ def CMSanalyze(startTime, inputDict):
     # correct angles
     stat_packet['WaveDm'] = testbedutils.anglesLib.angle_correct(stat_packet['WaveDm'])
 
-    # Load Spatial Data sets for plotting
-    # wavefreqbin = np.array([0.04, 0.0475, 0.055, 0.0625, 0.07, 0.0775, 0.085, 0.0925, 0.1, 0.1075, 0.115, 0.1225, 0.13, 0.1375,
-    #               0.145, 0.1525, 0.16, 0.1675, 0.175, 0.1825, 0.19, 0.1975, 0.205, 0.2125, 0.22, 0.2275, 0.235, 0.2425, 0.25,
-    #               0.2575, 0.2645, 0.2725, 0.28, 0.2875, 0.2945, 0.3025, 0.31, 0.3175, 0.3245, 0.3325, 0.34, 0.3475, 0.3545,
-    #               0.3625, 0.37, 0.3775, 0.3845, 0.3925, 0.4, 0.4075, 0.4145, 0.4225, 0.43, 0.4375, 0.4445, 0.4525, 0.46, 0.4675,
-    #               0.475, 0.4825, 0.49, 0.4975])
-
     obse_packet['ncSpec'] = np.ones(
         (obse_packet['spec'].shape[0], obse_packet['spec'].shape[1], obse_packet['spec'].shape[2], 72)) * 1e-6
     # interp = np.ones((obse_packet['spec'].shape[0], obse_packet['spec'].shape[1], wavefreqbin.shape[0],
     #                   obse_packet['spec'].shape[3])) * 1e-6  ### TO DO marked for removal
     for station in range(0, np.size(obse_packet['spec'], axis=1)):
-        # for tt in range(0, np.size(obse_packet['spec'], axis=0)):  # interp back to 62 frequencies
-    #         f = interpolate.interp2d(obse_packet['wavefreqbin'], obse_packet['directions'],
-    #                                  obse_packet['spec'][tt, station, :, :].T, kind='linear')
-            # interp back to frequency bands that FRF data are kept in
-            # interp[tt, station, :, :] = f(wavefreqbin, obse_packet['directions']).T
-
         # rotate the spectra back to true north
         obse_packet['ncSpec'][:, station, :, :], obse_packet['ncDirs'] = prepdata.grid2geo_spec_rotate(
                 obse_packet['directions'],  obse_packet['spec'][:, station, :, :])   #interp[:, station, :, :]) - this was with interp

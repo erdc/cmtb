@@ -85,7 +85,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     # subplot 1 - measured spectra
     sub1 = fig.add_subplot(2, 3, 4)
     sub1.set_title('Measured Spectra', y=1.05)
-    aaa = sub1.contourf(rawFreqBin, rawDirBin, zip(*pltrawdWED),
+    aaa = sub1.contourf(rawFreqBin, rawDirBin, pltrawdWED.T,
                         vmin=cbar_min, vmax=cbar_max, levels=levels, norm=norm)
     sub1.plot([0, 1], [70, 70], '--k', linewidth=lw)  # pier angle
     if full == False:
@@ -111,7 +111,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
         for iii in range(0, nlines):
             lineloc = bounds[0] + diff * iii
             sub2.plot([0, 1], [lineloc, lineloc], '--w', linewidth=lw)
-    bbb = sub2.contourf(rotFreqBin, rotDirBin, zip(*pltrotdWED),
+    bbb = sub2.contourf(rotFreqBin, rotDirBin, pltrotdWED.T,
                         vmin=cbar_min, vmax=cbar_max, levels=levels, norm=norm)
     sub2.set_ylabel('Wave Direction - (0$\degree$=Shore norm +south)')
     sub2.set_xlabel('Frequency(hz)')
@@ -122,7 +122,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     # subplot 3
     sub3 = fig.add_subplot(2, 3, 6)
     sub3.set_title('Centered Input Spectra', y=1.05)
-    ccc = sub3.contourf(interpFreqBin, interpDirBin, zip(*pltintdWED),
+    ccc = sub3.contourf(interpFreqBin, interpDirBin, pltintdWED.T,
                         vmin=cbar_min, vmax=cbar_max, levels=levels, norm=norm)
     sub3.plot([0, 1], [0, 0], '--k', linewidth=3.0)
     sub3.set_ylabel('Wave Direction - (0$\degree$ Shore Norm +south)')
