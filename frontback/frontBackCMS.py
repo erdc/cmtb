@@ -224,10 +224,10 @@ def CMSsimSetup(startTime, inputDict, **kwargs):
                      [330, 183]]  # xp125m
 
         ## begin output file name creation
-        stdFname = os.path.join(path_prefix + date_str, date_str + '.std')
-        simFnameOut = os.path.join(path_prefix + date_str,  date_str +'.sim')
-        specFname = os.path.join(path_prefix + date_str, date_str +'.eng')
-        bathyFname = os.path.join(path_prefix + date_str, date_str + '.dep')
+        stdFname = os.path.join(path_prefix, date_str, date_str + '.std')
+        simFnameOut = os.path.join(path_prefix, date_str,  date_str +'.sim')
+        specFname = os.path.join(path_prefix, date_str, date_str +'.eng')
+        bathyFname = os.path.join(path_prefix, date_str, date_str + '.dep')
 
         # origin = cmsio.ReadCMS_sim(simFnameBackground)
         gridOrigin = (bathyWaves['x0'], bathyWaves['y0'])
@@ -236,8 +236,7 @@ def CMSsimSetup(startTime, inputDict, **kwargs):
         cmsio.writeCMS_sim(simFnameOut, date_str, gridOrigin)
         cmsio.writeCMS_spec(specFname, wavePacket=wavepacketW, wlPacket=WLpacketW, windPacket=windpacketW)
         cmsio.writeCMS_dep(bathyFname, depPacket=bathyWaves)
-        stio = inputOutput.stwaveIO('')
-        stio.write_flags(date_str, path_prefix, wavepacketW, windpacketW, WLpacketW, curpacket=None)
+        inputOutput.write_flags(date_str, path_prefix, wavepacketW, windpacketW, WLpacketW, curpacket=None)
         cmsio.clearAllSimFiles(path_prefix+date_str) # remove old output files so they're not appended (cms default)
 
     if flowFlag:
@@ -249,8 +248,11 @@ def CMSsimSetup(startTime, inputDict, **kwargs):
 
         #################### PREP DATA ################################################################################
         # now we need to write the .xys files for these... - note, .bid file is always the same, so no need to write.
-        cmCards, windDirDict, windVelDict, wlDict = prepdata.prep_dataCMSF(windpacketF, WLpacketF, bathy, inputDict, hotStartFlag)
-        HSfname = 'ASCII_HotStart'
+        inputDict['durationRamp'] = 1
+        inputDict['savePath'] = os.path.join(path_prefix, date_str)
+        cmCards, windDirDict, windVelDict, wlDict = prepdata.prep_dataCMSF(windpacketF, WLpacketF, bathy, inputDict,
+                                                                           cmsfio, hotStartFlag)
+
         cmsfio.clearAllSimFiles(path_prefix + date_str,
                                 hotStart=hotStartFlag)  # clear previous sim files before writing hotstarts
         ###################### end Prep Data for flow ##################################################################
