@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-#!/home/number/anaconda2/bin/python
 import matplotlib
 matplotlib.use('Agg')
-import os, getopt, sys, shutil, glob, logging, yaml
+import os, getopt, sys, shutil, glob, logging, yaml, re
 import datetime as DT
 from subprocess import check_output
 import numpy as np
-from frontback.frontBackCMS import CMSanalyze
-from frontback.frontBackCMS import CMSsimSetup
+from frontback import frontBackWW3
+from getdatatestbed.getDataFRF import getObs
+from testbedutils import fileHandling
 
 
-def Master_CMS_run(inputDict):
+def Master_ww3_run(inputDict):
     """This function will run CMS with any version prefix given start, end, and timestep
 
     Args:
@@ -20,7 +20,7 @@ def Master_CMS_run(inputDict):
       None
 
     """
-    ## unpack Dictionary
+    ## unpack input Dictionary
     version_prefix = inputDict['version_prefix']
     endTime = inputDict['endTime']
     startTime = inputDict['startTime']
@@ -30,44 +30,27 @@ def Master_CMS_run(inputDict):
     runFlag = inputDict['runFlag']
     analyzeFlag = inputDict['analyzeFlag']
     pFlag = inputDict['pFlag']
+    model = inputDict.get('model', 'ww3')
+    server = inputDict.get('THREDDS', 'CHL')
 
-    # data check
-    prefixList = np.array(['HP', 'UNTUNED'])
-    assert (version_prefix == prefixList).any(), "Please enter a valid version prefix\n Prefix assigned = %s must be in List %s" % (version_prefix, prefixList)
+    # __________________pre-processing checks________________________________
+    fileHandling.checkVersionPrefix(version_prefix, model)
 
     # __________________input directories________________________________
     codeDir = os.getcwd()  # location of code
     # check executable
     if inputDict['modelExecutable'].startswith(codeDir):  # change to relative path
-        import re
         inputDict['modelExecutable'] = re.sub(codeDir, '', inputDict['modelExecutable'])
+    workingDirectory = os.path.join(workingDir, model.lower(),version_prefix)
+    inputDict['path_prefix'] =  workingDirectory
 
-    if workingDir[-1] == '/':
-        outDataBase = workingDir + 'CMS/' + version_prefix + '/'  #codeDir + '/%s_CSHORE_data/' % version_prefix
-    else:
-        outDataBase = workingDir + '/CMS/' + version_prefix +'/'
-
-    inputDict['path_prefix'] = outDataBase
-    TOD = 0  # 0=start simulations at 0000
     # ______________________ Logging  ____________________________
     # auto generated Log file using start_end time?
+    LOG_FILENAME = fileHandling.logFileLogic(workingDirectory, version_prefix, startTime, endTime, log=False)
 
-    LOG_FILENAME = outDataBase+'logs/cmtb_BatchRun_Log_%s_%s_%s.log' %(version_prefix, startTime, endTime)
-    # try:
-    #     logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
-    # except IOError:
-    #     os.makedirs(outDataBase+'logs')
-    #     logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
-    # logging.debug('\n-------------------\nTraceback Error Log for:\n\nSimulation Started: %s\n-------------------\n'
-    #               % (DT.datetime.now()))
-    # ____________________________________________________________
-    # establishing the resolution of the input datetime
-    try:
-        projectEnd = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(TOD / 24., 0, 0)
-        projectStart = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(TOD / 24., 0, 0)
-    except ValueError:
-        assert len(endTime) == 10, 'Your Time does not fit convention, check T/Z and input format'
-
+    # __________________get time list to loop over________________________________
+    projectEnd = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ')
+    projectStart = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     # This is the portion that creates a list of simulation end times
     dt_DT = DT.timedelta(0, simulationDuration * 60 * 60)  # timestep in datetime
     # make List of Datestring items, for simulations
@@ -76,46 +59,44 @@ def Master_CMS_run(inputDict):
     for i in range(int(np.ceil((projectEnd-projectStart).total_seconds()/dt_DT.total_seconds()))-1):
         dateStartList.append(dateStartList[-1] + dt_DT)
         dateStringList.append(dateStartList[-1].strftime("%Y-%m-%dT%H:%M:%SZ"))
+    fileHandling.displayStartInfo(projectStart, projectEnd, version_prefix, LOG_FILENAME, model)
 
-    errors, errorDates = [],[]
-    curdir = os.getcwd()
-    # ______________________________decide process and run _____________________________
-    # run the process through each of the above dates
-    print('\n-\n-\nMASTER WorkFLOW for STWAVE SIMULATIONS\n-\n-\n')
-    print('Batch Process Start: %s     Finish: %s '% (projectStart, projectEnd))
-    print('The batch simulation is Run in %s Version' % version_prefix)
-    print('Check for simulation errors here %s' % LOG_FILENAME)
-    print('------------------------------------\n\n************************************\n\n------------------------------------\n\n')
-    ## gather all data
-    go = getObs(d1, d2, THREDDS=server)  # initialize get observation
+    # ______________________________gather all data _____________________________
+    go = getObs(startTime, endTime, THREDDS=server)  # initialize get observation
     rawspec = go.getWaveSpec(gaugenumber=0)
     rawWL = go.getWL()
-
     rawwind = go.getWind(gaugenumber=0)
 
     # ________________________________________________ RUN LOOP ________________________________________________
+    # run the process through each of the above dates
+    errors, errorDates, curdir = [], [], os.getcwd()
     for time in dateStringList:
         try:
-            print('**\nBegin ')
             print('Beginning Simulation %s' %DT.datetime.now())
 
             if generateFlag == True:
-                CMSsimSetup(time, inputDict=inputDict)
-                datadir = outDataBase + ''.join(time.split(':'))  # moving to the new simulation's folder
+                gaugelocs = []
+                # get gauge nodes x/y new idea: put gauges into input/output instance for the model, then we can save it
+                for gauge in ww3io.waveGaugeList:
+                    pos = go.getWaveGaugeLoc(gauge)
+                    i, j = pos['lon'], pos['lat']
+                    gaugelocs.append([i, j])
+
+                ww3io = frontBackWW3.ww3simSetup(time, inputDict=inputDict, allWind=rawwind, allWL=rawWL, allWave=rawspec, gaugelocs=gaugelocs)
+                datadir = workingDirectory + ''.join(time.split(':'))  # moving to the new simulation's folder
 
             if runFlag == True: # run model
                 os.chdir(datadir) # changing locations to where input files should be made
-                print('Running CMS Simulation')
+                print('Running {} Simulation'.format(model))
                 dt = DT.datetime.now()
-
-                simOutput = check_output(codeDir + '%s %s.sim' %(inputDict['modelExecutable'], ''.join(time.split(':'))), shell=True)
+                _ = check_output(codeDir + '%s %s.sim' %(inputDict['modelExecutable'], ''.join(time.split(':'))), shell=True)
 
                 print('Simulation took %s ' % (DT.datetime.now() - dt))
                 os.chdir(curdir)
 
             if analyzeFlag == True:
                 print('**\nBegin Analyze Script %s ' % DT.datetime.now())
-                CMSanalyze(time, inputDict=inputDict)
+                frontBackWW3.ww3analyze(time, inputDict=inputDict)
 
             if pFlag == True and DT.date.today() == projectEnd:
                 # move files
@@ -137,7 +118,6 @@ if __name__ == "__main__":
     opts, args = getopt.getopt(sys.argv[1:], "h", ["help"])
     print('___________________\n________________\n___________________\n________________\n___________________\n________________\n')
     print('USACE FRF Coastal Model Test Bed : CMS Wave')
-
     # we are no longer allowing a default yaml file.
     # It will throw and error and tell the user where to go look for the example yaml
     try:
@@ -146,6 +126,6 @@ if __name__ == "__main__":
         with open(os.path.join(yamlLoc), 'r') as f:
             inputDict = yaml.load(f)
     except:
-        raise IOError('Input YAML file required.  See yaml_files/TestBedExampleInputs/CMS_Input_example for example yaml file.')
+        raise IOError('Input YAML file required.  See yaml_files/TestBedExampleInputs/{}_Input_example for example yaml file.'.format(model))
 
-    Master_CMS_run(inputDict=inputDict)
+    Master_ww3_run(inputDict=inputDict)
