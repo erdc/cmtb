@@ -99,8 +99,12 @@ def ww3simSetup(startTime, inputDict,allWind , allWL, allWave, gaugelocs=None):
     print('_________________ writing output _________________')
     print('need to write wind, WL, save points, steering file')
     ww3io.WL = WLpacket['avgWL']
-    ww3io.writeWW3_spec(wavepacket)
     ww3io.write_ww3_mesh(gridNodes=bathy)
+    ww3io.writeWW3_namelist()                                       # will write with defaults with no
+    specFname = ww3io.writeWW3_spec(wavepacket)                     # write individual spec file
+    specListFileName = ww3io.writeWW3_speclist(specFname)           # write list of individual files used as boundary
+    ww3io.writeWW3_bouncfile(specListFilename=specListFileName)     # write boundary files
+    ww3io.writeWW3_grid()
     return ww3io
 
 def ww3analyze(startTime, inputDict):
