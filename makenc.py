@@ -888,43 +888,47 @@ def makenc_tiBATHY(ofname, dataDict, globalYaml, varYaml):
     fid.close()
 
 def makenc_CMSFtel(ofname, dataDict, globalYaml, varYaml):
-    """
-    this script is going to save a .tel file as a netcdf.
+    """this script is going to save a .tel file as a netcdf.
     we are going to have 4 EXTRA variables that are not in a regular .tel file
     --> the xFRF and yFRF positions of each of the grid nodes
     --> lat and lon positions of the grid nodes
-    :param ofname: this is the name of the cshore_ncfile you are building
-    :param dataDict: keys must include...
-        NOTE: these are all 1D arrays of identical length
-        elevation or depth - 'm', if depth will be converted to elevation prior to writing
-        xFRF - m
-        yFRF - m
-        cellID - integer
-        azimuth - .tel grid azimuth
-        xPos - local .tel grid x-position of each cell
-        yPos - local .tel grid y-position of each cell
-        dx - x-direction grid spacing for each cell
-        dy - y-direction grid spacing for each cell
-        topNeighbor1 - cellID of first top neighbor
-        topNeighbor2 - cellID of second top neighbor
-        leftNeighbor1 - cellID of first left neighbor
-        leftNeighbor2 - cellID of second left neighbor
-        bottomNeighbor1 - cellID of first bottom neighbor
-        bottomNeighbor2 - cellID of second bottom neighbor
-        rightNeighbor1 - cellID of first right neighbor
-        rightNeighbor2 - cellID of second right neighbor
-        latitude - latitude of each cell (optional)
-        longitude - longitude of each cell (optional)
-        **if you don't have lat and lon keys this will generate then from your xFRF and yFRF data
-    :param globalYaml: full path to the globalYaml used to build this ncFile
-    :param varYaml: full path to the varYaml used to build this ncFile
-    :return: netCDF file with CMS flow tel file contents (including an added section for xFRF, yFRF of cell location)
+
+    Args
+        ofname: this is the name of the cshore_ncfile you are building
+        dataDict: keys must include... NOTE: these are all 1D arrays of identical length; if you don't have lat
+                and lon keys this will generate then from your xFRF and yFRF data
+            'elevation' or 'depth': if depth will be converted to elevation prior to writing [units: m]
+            'xFRF': cross-shore coordinate
+            'yFRF': alongshore coordinate
+            'cellID':  integer of cell id number
+            'azimuth': rotation of grid tel grid azimuth
+            'xPos':  local .tel grid x-position of each cell
+            'yPos':  local .tel grid y-position of each cell
+            'dx':  x-direction grid spacing for each cell
+            'dy':  y-direction grid spacing for each cell
+            'topNeighbor1': cellID of first top neighbor
+            'topNeighbor2': cellID of second top neighbor
+            'leftNeighbor1': cellID of first left neighbor
+            'leftNeighbor2': cellID of second left neighbor
+            'bottomNeighbor1': cellID of first bottom neighbor
+            'bottomNeighbor2': cellID of second bottom neighbor
+            'rightNeighbor1': cellID of first right neighbor
+            'rightNeighbor2': cellID of second right neighbor
+            'latitude':  latitude of each cell (optional)
+            'longitude': longitude of each cell (optional)
+
+        globalYaml: full path to the globalYaml used to build this ncFile
+        varYaml: full path to the varYaml used to build this ncFile
+
+    Returns:
+        netCDF file with CMS flow tel file contents (including an added section for xFRF, yFRF of cell location)
 
     Other NOTES: the ugrid convention specifies that neighboring elements/nodes/etc..
                  must be specified as counter-clockwise as viewed from the top.  This is DIFFERENT then the arrangement
                  of the neighboring cells in the raw .tel file!!!!! so when READING from this NC file please keep
                  that in mind.  Also, the .tel file actually holds depths instead of elevations.  finally, I think
                  that the .tel file uses -999 as inactive cells, so we will be masking those.
+
     """
 
     globalAtts = import_template_file(globalYaml)

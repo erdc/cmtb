@@ -35,7 +35,7 @@ xFRF:
     long_name: 'cross-shore position of each cell - m'
     data_type: 'f8'
     dim: ['cellID']
-    fill_value: '-9999.99'
+    fill_value: '-999'
     short_name: 'xFRF'
     coordinates: 'xFRF'
     description: 'cross-shore position of each cell in m FRF coordinates'
@@ -47,31 +47,35 @@ yFRF:
     long_name: 'along-shore position of each cell - m'
     data_type: 'f8'
     dim: ['cellID']
-    fill_value: '-9999.99'
+    fill_value: '-999'
     short_name: 'yFRF'
     coordinates: 'yFRF'
     description: 'along-shore position of each cell in m FRF coordinates'
 
 latitude:
     name: 'latitude'
-    units: 'decimal degrees'
-    standard_name: ''
+    units: 'degrees_north'
+    axis: 'Y'
+    _CoordinateAxisType: 'Lat'
+    standard_name: 'latitude'
     long_name: 'latitude of each cell in decimal degrees'
     data_type: 'f8'
     dim: ['cellID']
-    fill_value: '-9999.99'
+    fill_value: '-999'
     short_name: 'latitude'
     coordinates: 'latitude'
     description: 'latitude of each cell in decimal degrees'
 
 longitude:
     name: 'longitude'
-    units: 'decimal degrees'
-    standard_name: ''
+    units: 'degrees_east'
+    standard_name: 'longitude'
+    _CoordinateAxisType: 'Lon'
+    axis: 'X'
     long_name: 'longitude of each cell in decimal degrees'
     data_type: 'f8'
     dim: ['cellID']
-    fill_value: '-9999.99'
+    fill_value: '-999'
     short_name: 'longitude'
     coordinates: 'longitude'
     description: 'longitude of each cell in decimal degrees'
@@ -83,7 +87,7 @@ xPos:
     long_name: 'x-position'
     data_type: 'f8'
     dim: ['cellID']
-    fill_value: '-9999.99'
+    fill_value: '-999'
     short_name: 'xPos'
     coordinates: 'xPos'
     description: 'this is the x-position of each cell in the local .tel file coordinate system'
@@ -95,7 +99,7 @@ yPos:
     long_name: 'y-position'
     data_type: 'f8'
     dim: ['cellID']
-    fill_value: '-9999.99'
+    fill_value: '-999'
     short_name: 'yPos'
     coordinates: 'yPos'
     description: 'this is the y-position of each cell in the local .tel file coordinate system'
@@ -107,7 +111,7 @@ dx:
     long_name: 'x-direction cell spacing'
     data_type: 'f8'
     dim: ['cellID']
-    fill_value: '-9999.99'
+    fill_value: '-999'
     short_name: 'dx'
     coordinates: 'xPos'
     description: 'the cell spacing of each cell in the x-direction of the local .tel file coordinate system'
@@ -119,7 +123,7 @@ dy:
     long_name: 'y-direction cell spacing'
     data_type: 'f8'
     dim: ['cellID']
-    fill_value: '-9999.99'
+    fill_value: '-999'
     short_name: 'dy'
     coordinates: 'yPos'
     description: 'the cell spacing of each cell in the y-direction of the local .tel file coordinate system'
@@ -143,7 +147,7 @@ origin_easting:
     long_name: 'NCSP Easting of .tel file grid origin'
     data_type: 'f8'
     dim: ['one']
-    fill_value: '-9999.99'
+    fill_value: '-999'
     short_name: 'origin_easting'
     coordinates: 'm NCSP'
     description: 'The NSCP Easting of the origin for the .tel file grid'
@@ -155,7 +159,7 @@ origin_northing:
     long_name: 'NCSP Northing of .tel file grid origin'
     data_type: 'f8'
     dim: ['one']
-    fill_value: '-9999.99'
+    fill_value: '-999'
     short_name: 'origin_northing'
     coordinates: 'm NCSP'
     description: 'The NSCP Northing of the origin for the .tel file grid'
@@ -167,7 +171,7 @@ numberCells:
     long_name: 'number of cells'
     data_type: 'f8'
     dim: ['one']
-    fill_value: '-9999.99'
+    fill_value: '-999'
     short_name: 'number of cells'
     coordinates: 'N/A'
     description: 'the total number of cells in the .tel file grid'
@@ -179,7 +183,7 @@ cellNeighbors:
     long_name: 'cell IDs of neighboring cells'
     data_type: 'f8'
     dim: ['cellID', 'eight']
-    fill_value: '-9999.99'
+    fill_value: '-999'
     short_name: 'neighboring cell IDs'
     coordinates: 'N/A'
     description: 'Cell IDs of all the cells that neighbor the current cell - counterclockwise from the top right'

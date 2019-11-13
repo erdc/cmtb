@@ -49,9 +49,10 @@ yFRF:
 
 longitude:
     name: 'longitude'
-    units: 'm'
-    standard_name: ''
-    long_name: 'Significant Wave Height'
+    units: 'degrees_east'
+    standard_name: 'longitude'
+    axis: 'X'
+    _CoordinateAxisType: 'Lon'
     data_type: 'f8'
     dim: ['Y_shore','X_shore']
     fill_value: '-999.99'
@@ -60,8 +61,10 @@ longitude:
 
 latitude:
     name: 'latitude'
-    units: 'm'
-    standard_name: ''
+    units: 'degrees_north'
+    standard_name: 'latitude'
+    axis: 'Y'
+    _CoordinateAxisType: 'Lat'
     long_name: 'latitude'
     data_type: 'f8'
     dim: [ 'Y_shore', 'X_shore']

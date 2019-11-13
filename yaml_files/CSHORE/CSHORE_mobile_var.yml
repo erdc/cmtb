@@ -265,27 +265,29 @@ bottomElevation:
 # extra stuff
 latitude:
     name: 'latitude'
-    units: 'Degrees'
-    standard_name: ''
+    units: 'degrees_north'
+    standard_name: 'latitude'
+    axis: 'Y'
+    _CoordinateAxisType: 'Lat'
     long_name: 'Latitude of each node in decimal degrees'
     data_type: 'f8'
     dim: ['xFRF']
     fill_value: '-999.99'
     short_name: 'lat'
-    coordinates: 'xFRF yFRF'
-    description: 'Latitude of the CMTB CSHORE model nodes in decimal degrees'
+    coordinates: 'lon lat'
 
 longitude:
     name: 'longitude'
-    units: 'Degrees'
-    standard_name: ''
+    units: 'degrees_east'
+    standard_name: 'longitude'
+    axis: 'X'
+    _CoordinateAxisType: 'Lon'
     long_name: 'Longitude of each node in decimal degrees'
     data_type: 'f8'
     dim: ['xFRF']
     fill_value: '-999.99'
     short_name: 'lon'
-    coordinates: 'xFRF yFRF'
-    description: 'Longitude of the CMTB CSHORE model nodes in decimal degrees'
+    coordinates: 'lon lat'
 
 surveyNumber:
     name: 'surveyNumber'
