@@ -8,13 +8,10 @@ part of the Coastal Model Test Bed (CMTB)
 """
 import numpy as np
 import netCDF4 as nc
-import csv
+import csv, os, sys, yaml
 import datetime as DT
-import yaml
 import time as ttime
-import sys
 import prepdata.inputOutput
-
 sys.path.append('/home/number/repos')
 from testbedutils.geoprocess import FRFcoord
 from testbedutils import geoprocess as gp
@@ -25,10 +22,10 @@ def readflags(flagfname, header=1):
     :param flagfname: the relative/absolute location of the flags file
     :return: flags of data dtype=dictionary
     """
-    times, waveflag, windflag, WLflag, curflag,allflags = [], [],[],[],[],[]
+    times, waveflag, windflag, WLflag, curflag, allflags = [], [],[],[],[],[]
 
     try:
-        with open(flagfname, 'rb') as f:
+        with open(flagfname, 'r') as f:
             reader = csv.reader(f)  # opening file
             for row in reader:  # iteratin
                 # go over the open file
@@ -39,8 +36,6 @@ def readflags(flagfname, header=1):
                     curflag.append(int(row[5]))  # appending ocean Currents flag data
                     times.append(DT.datetime.strptime(row[0]+row[1], '%Y-%m-%d%H%M'))
                     allflags.append([int(row[2]), int(row[3]), int(row[4]), int(row[5])])
-        # creating array of flags
-        allflags = np.array(allflags)
     except IOError:
         allflags = None
     # putting data into a dictionary
@@ -49,8 +44,7 @@ def readflags(flagfname, header=1):
              'waveflag': waveflag,
              'WLflag': WLflag,
              'curflag': curflag,
-             'allflags': allflags
-             }
+             'allflags': np.array(allflags)}
     return flags
 
 def import_template_file(yaml_location):
@@ -240,7 +234,7 @@ def makenc_field(data_lib, globalyaml_fname, flagfname, ofname, var_yaml_fname):
     :param var_yaml_fname:
     :return:
     """
-
+    assert os.path.isfile(var_yaml_fname), 'NetCDF yaml files are not created'  # make sure yaml file is in place
     # import global atts
     globalatts = import_template_file(globalyaml_fname)
     # import variable data and meta
@@ -361,9 +355,7 @@ def makenc_FRFGrid(gridDict, ofname, globalYaml, varYaml):
     fid.close()
 
 def makenc_Station(stat_data, globalyaml_fname, flagfname, ofname, stat_yaml_fname):
-    """
-
-    This function will make netCDF files from the station output data from the
+    """This function will make netCDF files from the station output data from the
     Coastal Model Test Bed of STWAVE for the STATion files
 
     :param stat_data:
@@ -1141,39 +1133,33 @@ def makenc_CMSFrun_wTel(ofname, dataDict, globalYaml, varYaml):
     fid.close()
 
 def makenc_CMSFrun(ofname, dataDict, globalYaml, varYaml):
-    """
-    this script is going to save a CMSF flow run as a netcdf.
-    :param ofname: this is the name of the  cmsfncfile you are building
-    :param dataDict: keys must include...
+    """this script makes a netCDF file from simulation data contained in dataDict with info from the yaml inputs
 
-        NOTE: these are all 1D arrays of identical length
-        elevation or depth - 'm', if depth will be converted to elevation prior to writing
+    Args:
+        ofname: this is the name of the  cmsfncfile you are building
+        dataDict:  these are all 1D arrays of identical length, keys must include...
+            elevation or depth - 'm', if depth will be converted to elevation prior to writing
                                 NOTE: elevation will be converted to time X cellID array by this fxn
 
-        cellID - integer
-
-        Note: these are all time X cellID arrays
-        aveE - average eastward velocity
-        aveN - average north velocity
-        waterLevel - water level
-
-        time - needs to be in epoch time!
-
-        Note: this can either be dimensioned in time, or this script will copy it across a time-dimensioned array
-        durationRamp - ramp duration in day
-
-
-    :param globalYaml: full path to the globalYaml used to build this ncFile
-    :param varYaml: full path to the varYaml used to build this ncFile
-    :return: netCDF file with CMS flow tel file contents (including an added section for xFRF, yFRF of cell location)
+            cellID (int) - Note: these are all time X cellID arrays
+            aveE - average eastward velocity
+            aveN - average north velocity
+            waterLevel - water level
+            time - input time stamp in needs to be in epoch time!Note: this can either be dimensioned in time, or this
+                script will copy it across a time-dimensioned array
+            durationRamp - ramp duration in day
+        globalYaml: full path to the globalYaml used to build this ncFile
+        varYaml: full path to the varYaml used to build this ncFile
+    Returns:
+        netCDF file with CMS flow tel file contents (including an added section for xFRF, yFRF of cell location)
 
     Other NOTES: the ugrid convention specifies that neighboring elements/nodes/etc..
                  must be specified as counter-clockwise as viewed from the top.  This is DIFFERENT then the arrangement
                  of the neighboring cells in the raw .tel file!!!!! so when READING from this NC file please keep
                  that in mind.  Also, the .tel file actually holds depths instead of elevations.  finally, I think
                  that the .tel file uses -999 as inactive cells, so we will be masking those.
-    """
 
+    """
     globalAtts = import_template_file(globalYaml)
     varAtts = import_template_file(varYaml)
 
