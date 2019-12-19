@@ -1181,37 +1181,22 @@ def makenc_CMSFrun(ofname, dataDict, globalYaml, varYaml):
         dataDict['numberActiveCells'] = dataDict['cellID'].shape[0]
 
     # stack up the elevation and durationRamp variables so they can be indexed by time.
-    if np.shape(dataDict['elevation']) == np.shape(dataDict['aveE']):
-        pass
-    else:
+    if np.shape(dataDict['elevation']) != np.shape(dataDict['aveE']):
         newElev = np.zeros(np.shape(dataDict['aveE']))
         for ss in range(0, dataDict['time'].shape[0]):
             newElev[ss, :] = dataDict['elevation']
-        del dataDict['elevation']
         dataDict['elevation'] = newElev
-    if np.shape(dataDict['durationRamp']) == np.shape(dataDict['time']):
-        pass
-    else:
-        newRamp = np.zeros(dataDict['time'].shape[0])
-        for ss in range(0, dataDict['time'].shape[0]):
-            newRamp[ss] = dataDict['durationRamp']
-        del dataDict['durationRamp']
-        dataDict['durationRamp'] = newRamp
-    if np.shape(dataDict['surveyNumber']) == np.shape(dataDict['time']):
-        pass
-    else:
+
+    if np.shape(dataDict['surveyNumber']) != np.shape(dataDict['time']):
         newSN = np.zeros(dataDict['time'].shape[0])
         for ss in range(0, dataDict['time'].shape[0]):
             newSN[ss] = dataDict['surveyNumber']
-        del dataDict['surveyNumber']
         dataDict['surveyNumber'] = newSN
-    if np.shape(dataDict['surveyTime']) == np.shape(dataDict['time']):
-        pass
-    else:
+
+    if np.shape(dataDict['surveyTime']) != np.shape(dataDict['time']):
         newST = np.zeros(dataDict['time'].shape[0])
         for ss in range(0, dataDict['time'].shape[0]):
             newST[ss] = dataDict['surveyTime']
-        del dataDict['surveyTime']
         dataDict['surveyTime'] = newST
 
     # write data to file

@@ -4,15 +4,43 @@ from subprocess import check_output
 import netCDF4 as nc
 import numpy as np
 from getdatatestbed import getDataFRF
-from getdatatestbed import getPlotData
 from testbedutils import sblib as sb
 from testbedutils import waveLib as sbwave
 from testbedutils import fileHandling
-import testbedutils.anglesLib
+from testbedutils import anglesLib, gridTools
 from prepdata import prepDataLib
 from prepdata import inputOutput
-import plotting.operationalPlots as oP
-from plotting.operationalPlots import obs_V_mod_TS
+from plotting import operationalPlots as oP
+
+def modStartTimes(oldStartTime, modifiedStartTime, inputDict, datestring):
+    """
+    modifies start time/end time for going into wave setup when running a cold start, puts it back to the way it was if
+    running off of hot-start
+
+    Args:
+        oldStartTime: start time of original simulation
+        modifiedStartTime: datetime object as output from CMSFlow
+        inputDict: input dictionary read from yaml steering file
+        datestring(str): to save files use this string
+
+    Returns:
+        modified datestring and inputDict
+
+    """
+
+    if isinstance(oldStartTime, str):
+        oldStartTime = DT.datetime.strptime(oldStartTime, "%Y-%m-%dT%H:%M:%SZ")
+    if modifiedStartTime != oldStartTime:             # i have to modify the start times for the wave simulation
+        inputDict['org_simulationDuration'] = inputDict['simulationDuration']
+        inputDict['simulationDuration'] = np.abs(modifiedStartTime - oldStartTime).total_seconds()/60/60 + inputDict['simulationDuration']
+        inputDict['startTime'] = modifiedStartTime.strftime("%Y-%m-%dT%H:%M:%SZ")
+    elif 'org_simulationDuration' in inputDict:                # return input dict back to the way it was
+        inputDict['simulationDuration'] = inputDict.pop('org_simulationDuration')
+
+    #set file name base for naming conventions
+    inputDict['datestring'] = datestring # oldStartTime.strftime("%Y%m%dT%H%M%SZ")
+
+    return modifiedStartTime.strftime("%Y-%m-%dT%H:%M:%SZ"), inputDict
 
 def CMSFsimSetup(startTime, inputDict, **kwargs):
     """This Function is the master call for the preprocessing for unstructured grid model runs
@@ -38,8 +66,12 @@ def CMSFsimSetup(startTime, inputDict, **kwargs):
 
     """
     # begin by setting up input parameters
-    timerun = inputDict.get('timerun', 24)
-    pFlag = inputDict.get('pFlag', True)
+    if 'org_simulationDuration' in inputDict:
+        # reset sim duration, if the previous run was extra long to match the last bathy time (plus run duration)
+        simulationDuration = inputDict['org_simulationDuration']
+    else:
+        simulationDuration = inputDict.get('simulationDuration', 24)
+    # pFlag = inputDict.get('plotFlag', True)  # no plots generated
     path_prefix = inputDict['path_prefix']
     model = inputDict.get('model', 'CMS').lower()
     version_prefix = inputDict.get('version_prefix', 'base').lower()
@@ -48,13 +80,10 @@ def CMSFsimSetup(startTime, inputDict, **kwargs):
     morphFlag = inputDict.get('morph', False)
     durationRamp = inputDict.get('rampDuration', 1)
     #TODO: check if better way to handle flags at begining of process
-
-    assert 'flow_version_prefix' in inputDict, 'Must have "flow_version_prefix" in your input yaml'
+    print('-----> pre-processing flow')
     flow_version_prefix = inputDict.get('flow_version_prefix', 'base').lower()
     version_prefix = version_prefix + '_' + flow_version_prefix
     # data check
-
-
 
     if morphFlag:
         assert 'morph_version_prefix' in inputDict, 'Must have "morph_version_prefix" in your input yaml'
@@ -64,111 +93,72 @@ def CMSFsimSetup(startTime, inputDict, **kwargs):
         prefixList = np.array(['FIXED', 'MOBILE', 'MOBILE_RESET'])
         assert (morph_version_prefix == prefixList).any(), "Please enter a valid morph version prefix\n Prefix assigned = %s must be in List %s" % (morph_version_prefix, prefixList)
 
-
     # _______________________________________________________________________________
     # _______________________________________________________________________________
     # set times (based on hot-start logic)
     # _______________________________________________________________________________
     # _______________________________________________________________________________
-    # call cold starts here if time start is in cold start list
-    # if inputDict['csFlag'] == 1:
-    #     durationRamp = 1  # this is the ramp duration in days
-    # else:
-    #     durationRamp = 0
-    # initalize classes
-
     d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
-    d2 = d1 + DT.timedelta(hours=timerun)
-    go = getDataFRF.getObs(d1, d2, THREDDS=inputDict['THREDDS'])  # initialize get observation in case i need it
-
-    print('TODO: Define hotstart flag from bathy times input to this function  ')
-    print('\n\n\Do HotStartLogic !!!! \n\n\n')
-    inputDict['csFlag'] = 1
-    prepdata = prepDataLib.PrepDataTools()                            # intialize prep data for preparation
-    hotStartFlag, d1, d2, durationRamp = prepdata.hotStartLogic(d1, d2, bathyTimes, durationRamp)
-    date_str = d1.strftime('%Y%m%dT%H%M%SZ')             # this is used for all naming conventions
-    cmsfio = inputOutput.cmsfIO(path=os.path.join(path_prefix, date_str))  # initializing the I/o Script writer
+    d2 = d1 + DT.timedelta(hours=simulationDuration)
+    # inputDict['csFlag'] = 0
+    prepdata = prepDataLib.PrepDataTools()                                                      # initialize prep data for preparation
+    cmsfio = inputOutput.cmsfIO(path=os.path.join(path_prefix, d1.strftime('%Y%m%dT%H%M%SZ')))  # iniitializing the I/o Script writer
+    cmsfio.simulationDuration = simulationDuration
+    cmsfio, d1Flow = prepdata.hotStartLogic(d1, cmsfio, bathyTimes, durationRamp)
     # __________________Make Diretories_____________________________________________
-    fileHandling.makeCMTBfileStructure(path_prefix, date_str)
-
-    if hotStartFlag is False:  # cold start
-        d1Flow = d1 - DT.timedelta(hours=int(24*durationRamp))
-    else:  # hotstart
-        # look up the hotstart file from the previous run and see how far back we need to pull data for to write the boundary condition file
-        datePrevious = sb.whatIsYesterday(d1, stringOut='%Y-%m-%dT%H%M%SZ', days=timerun/24)
-        hotStartFromPath = os.path.join(path_prefix + datePrevious, 'ASCII_HotStart')
-        # load hot-start files
-        cmsfio.read_CMSF_etaDict(hotStartFromPath)
-        durationMod = int(cmsfio.eta_dict['time'])
-        d1Flow = d1 - DT.timedelta(hours=durationMod)
-
-
+    fileHandling.makeCMTBfileStructure(path_prefix, cmsfio.datestring)
     # get data if i don't already have it
-    rawwind = kwargs.get('allWind', None) # go.getWind(gaugenumber=0))
-    rawWL = kwargs.get('allWL', None) #  go.getWL())
-    rawspec = kwargs.get('allWaves', None) # go.getWaveSpec(gaugenumber=0))
+    rawwind = kwargs.get('allWind', None)       # go.getWind(gaugenumber=0))
+    rawWL = kwargs.get('allWL', None)           # go.getWL())
+    rawspec = kwargs.get('allWaves', None)      # go.getWaveSpec(gaugenumber=0))
     timeList, waveTimeList, flowTimeList, morphTimeList = prepdata.CMSF_createTimeLists(d1, d2, rawspec, rawWL,
                                                                                         d1Flow=d1Flow)
-    ############################
-    gdTB = getDataFRF.getDataTestBed(d1, d2)  # initalize bathy retrival
+    ##################################################################################################################
+    gdTB = getDataFRF.getDataTestBed(d1, d2)                        # initalize bathy retrival
     bathy = gdTB.getBathyIntegratedTransect(method=1)
-    # ______________________________________________________________________________
-    ## _____________WINDS______________________
-    # average and rotate winds & correct elevation to 10m
+    ## _____________WINDS average and rotate winds & correct elevation to 10m ____________
     windpacket = prepdata.prep_wind(rawwind, flowTimeList, model=model)
-
-    ## ___________WATER LEVEL__________________
-    # average WL
+    ## ___________WATER LEVEL average WL__________________
     WLpacket = prepdata.prep_WL(rawWL, flowTimeList)
-
     # check to be sure the .tel file is in the inputYaml
     assert 'gridTEL' in inputDict.keys(), 'Error: to run CMS-Flow a .tel file must be specified.'
 
-    # modify packets for different time-steps!
-    windpacketF, WLpacketF, wavepacketF = prepdata.mod_packets(flowTimeList, windpacket, WLpacket)
+    # modify packets for different time-steps by interpolating to necessary timestep and removing extra data
+    # it's unclear if this step does anything that's not already done above, maybe in future raise error - sb
+    windpacketF, WLpacketF, _ = prepdata.mod_packets(flowTimeList, windpacket, WLpacket)
 
     #################### PREP DATA ################################################################################
-    # now we need to write the .xys files for these... - note, .bid file is always the same, so no need to write.
-    inputDict['durationRamp'] = 1
-    # inputDict['savePath'] = os.path.join(path_prefix, date_str)
-    cmCards, windDirDict, windVelDict, wlDict, cmsfio = prepdata.prep_dataCMSF(windpacketF, WLpacketF, bathy, inputDict,
-                                                                       cmsfio, hotStartFlag)
     # clear previous sim files before writing hotstarts
-    cmsfio.clearAllSimFiles(path_prefix + date_str, hotStart=hotStartFlag)
+    cmsfio.clearAllFlowSimFiles(path=None)  # uses already established with None value
+    # now we need to write the .xys files for these... - note, .bid file is always the same, so no need to write.
+    cmCards, windDirDict, windVelDict, wlDict, cmsfio = prepdata.prep_dataCMSF(windpacketF, WLpacketF, bathy, inputDict,
+                                                                       cmsfio)
     ###################### end Prep Data for flow ##################################################################
-
     ##______________________________________________________________________________________________________________
     # _____________________ begin file writing for flow  ___________________________________________________________
     ##______________________________________________________________________________________________________________
-    ncgYaml = 'yaml_files/BATHY/CMSFtel0_global.yml'
-    ncvYaml = 'yaml_files/BATHY/CMSFtel0_var.yml'
-    makenc.makenc_CMSFtel(ofname=os.path.join(path_prefix, date_str, date_str + '_tel.nc'), dataDict=cmsfio.telnc_dict,
+    ncgYaml = 'yaml_files/flowModels/cmsf/{}/CMSFtel0_global.yml'.format(flow_version_prefix)
+    ncvYaml = 'yaml_files/flowModels/cmsf/CMSFtel0_var.yml'
+    makenc.makenc_CMSFtel(ofname=os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring + '_tel.nc'), dataDict=cmsfio.telnc_dict,
                           globalYaml=ncgYaml, varYaml=ncvYaml)
-    cmsfio.write_CMSF_tel(path=os.path.join(path_prefix, date_str), telDict=cmsfio.telnc_dict)
-    cmsfio.write_CMSF_cmCards(path=os.path.join(path_prefix, date_str), inputDict=cmCards)
-    cmsfio.write_CMSF_xys(path=os.path.join(path_prefix, date_str), xysDict=windDirDict)
-    cmsfio.write_CMSF_xys(path=os.path.join(path_prefix, date_str), xysDict=windVelDict)
-    cmsfio.write_CMSF_xys(path=os.path.join(path_prefix, date_str), xysDict=wlDict)
-
-
+    cmsfio.write_CMSF_tel(ofname=os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring + '.tel'), telDict=cmsfio.telnc_dict)
+    cmsfio.write_CMSF_cmCards(fname=os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring+'.cmcards'), inputDict=cmCards)
+    cmsfio.write_CMSF_xys(ofname=os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring+'_wind_dir.xys'), xysDict=windDirDict)
+    cmsfio.write_CMSF_xys(ofname=os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring+'_wind_vel.xys'), xysDict=windVelDict)
+    cmsfio.write_CMSF_xys(ofname=os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring+'_h_1.xys'), xysDict=wlDict)
     # copy over the executable
-    shutil.copy2(inputDict['modelExecutable'], os.path.join(path_prefix, date_str))
+    shutil.copy2(inputDict['modelExecutable'], os.path.join(path_prefix, cmsfio.datestring))
     # copy over the .bid file
-    shutil.copy2('grids/CMS/CMS-Flow-FRF.bid', os.path.join(path_prefix, date_str, date_str+'.bid'))
+    shutil.copy2('grids/CMS/CMS-Flow-FRF.bid', os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring+'.bid'))
 
-    return d1Flow, d2, cmsfio
+    return d1Flow, d2, cmsfio, waveTimeList
 
     if morphFlag:
-        raise NotImplementedError
+        raise NotImplementedError('morphology has Not been implmented')
 
 def CMSsimSetup(startTime, inputDict, **kwargs):
-    """
-    Author: Spicer Bak
-    Association: USACE CHL Field Research Facility
-    Project:  Coastal Model Test Bed
-
-    This Function is the master call for the preprocessing for unstructured grid model runs
-        it is designed to pull from GetData and utilize prep_datalib for development of the FRF CMTB
+    """This Function is the master call for the preprocessing for unstructured CMS grid model runs
+        it is designed to pull from GetData and utilize prepdatalib for development of the FRF CMTB
 
     NOTE: input to the function is the end of the duration.  All Files are labeled by this convention
     all time stamps otherwise are top of the data collection
@@ -183,47 +173,35 @@ def CMSsimSetup(startTime, inputDict, **kwargs):
         allWaves = dictionary with pregathered Waves
         allWind = dictionary with pregathered Wind
         allWL = dictionary with pregathered WL
+        flowFlag(bool): if also running flow model too
 
     """
     # begin by setting up input parameters
-    timerun = inputDict.get('timerun', 24)
-    pFlag = inputDict.get('pFlag', True)
+    timerun = inputDict.get('simulationDuration', 24)
+    pFlag = inputDict.get('plotFlag', True)
     path_prefix = inputDict['path_prefix']
     model = inputDict.get('model', 'CMS').lower()
     version_prefix = inputDict.get('version_prefix', 'base').lower()
     bathyTimes = kwargs.get('bathyTimes', None)
-    # first up, need to check which parts I am running
-    waveFlag = inputDict.get('wave', True)
-    flowFlag = inputDict.get('flow', False)
-    morphFlag = inputDict.get('morph', False)
+    flowFlag = kwargs.get('flowFlag', False)  # default Run Waves only
+
     #TODO: check if better way to handle flags at begining of process
-
-
-    assert 'wave_version_prefix' in inputDict, 'Must have "wave_version_prefix" in your input yaml'
+    print('------>  pre-processing wave')
     wave_version_prefix = inputDict.get('wave_version_prefix', 'base').lower()
-    version_prefix = version_prefix + '_' + wave_version_prefix
-    # data check
-    prefixList = np.array(['base','hp', 'untuned'])
-    assert (wave_version_prefix.lower() == prefixList).any(), "Please enter a valid wave version prefix\n Prefix assigned = %s must be in List %s" % (wave_version_prefix, prefixList)
-
-    # ______________________________________________________________________________
     # define version parameters
     # TODO: is there things i can put up here for wave and flow from above??
     simFnameBackground = inputDict.get('gridSIM', 'grids/CMS/CMS-Wave-FRF.sim')
     backgroundDepFname = inputDict.get('gridDEP', 'grids/CMS/CMS-Wave-FRF.dep')
     # do versioning stuff here
-    if wave_version_prefix in ['base', 'HP']:
-        full = False
     cmsio = inputOutput.cmsIO()  # initializing the I/o Script writer
-
     d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
-    date_str = d1.strftime('%Y%m%dT%H%M%SZ')  # used to be endtime
 
+    datestring = inputDict.get('datestring', d1.strftime('%Y%m%dT%H%M%SZ'))
 
     # __________________Make Diretories_____________________________________________
-    fileHandling.makeCMTBfileStructure(path_prefix, date_str)
-
+    fileHandling.makeCMTBfileStructure(path_prefix, datestring)
+    fileHandling.checkVersionPrefix(model, version_prefix)
     #################################################################################################################
     #################################################################################################################
     ### ____________ Get prep data (get it if needed)  ________________
@@ -238,11 +216,12 @@ def CMSsimSetup(startTime, inputDict, **kwargs):
     ############################
     gdTB = getDataFRF.getDataTestBed(d1, d2)  # initalize bathy retrival
     bathy = gdTB.getBathyIntegratedTransect(method=1)
-
-    # create time list for wave model time step
-    waveTs = np.median(np.diff(rawspec['epochtime'])) / 60  # time step in minutes of observations
-    waveTimeList = [d1 + DT.timedelta(minutes=waveTs * x) for x in
-                    range(0, int((1440 / float(waveTs)) * (d2 - d1).days + (d2 - d1).seconds / float(60 * waveTs)))]
+    full=False  # CMS wave doesn't operate in full plane mode
+    # create time list for wave model time step, grab from input dict (if was created from flow, need 1 extra value to bound
+    # start and finish of flow runs (will have to figure out a way to throw last value out)
+    waveTs = np.median(np.diff(rawspec['epochtime']))   # time step in minutes of observations
+    waveTimeList = inputDict.get('waveTimeList', [d1 + DT.timedelta(seconds=waveTs * x) for x in
+                        range(int((d2 - d1).total_seconds() / float( waveTs)))])
 
     # __________________________________________________________________________________________________________________
     ## _____________WINDS______________________
@@ -253,11 +232,10 @@ def CMSsimSetup(startTime, inputDict, **kwargs):
     # average WL
     WLpacket = prepdata.prep_WL(rawWL, waveTimeList)
 
-
     ## _____________WAVES____________________________
-    # rotate and lower resolution of directional wave spectra
-    wavepacket = prepdata.prep_spec(rawspec, wave_version_prefix, datestr=date_str, plot=pFlag, full=full,
-                                    outputPath=path_prefix, CMSinterp=50, model=model) # 50 freq bands are max for model
+    # rotate and lower resolution of directional wave spectra -- 50 freq bands are max for cms model
+    wavepacket = prepdata.prep_spec(rawspec, wave_version_prefix, datestr=datestring, plot=pFlag, full=full,
+                                    outputPath=path_prefix, CMSinterp=50, model=model, waveTimeList=waveTimeList)
     bathyWaves = prepdata.prep_CMSbathy(bathy, simFnameBackground, backgroundGrid=backgroundDepFname)
 
     ### ___________ Create observation locations ________________ # these are cell i/j locations
@@ -275,24 +253,24 @@ def CMSsimSetup(startTime, inputDict, **kwargs):
     # _____________________ begin file writing for waves ___________________________________________________________
     ##______________________________________________________________________________________________________________
     ## begin output file name creation
-    stdFname = os.path.join(path_prefix, date_str, date_str + '.std')
-    simFnameOut = os.path.join(path_prefix, date_str,  date_str +'.sim')
-    specFname = os.path.join(path_prefix, date_str, date_str +'.eng')
-    bathyFname = os.path.join(path_prefix, date_str, date_str + '.dep')
+    stdFname = os.path.join(path_prefix, datestring, datestring + '.std')
+    simFnameOut = os.path.join(path_prefix, datestring,  datestring +'.sim')
+    specFname = os.path.join(path_prefix, datestring, datestring +'.eng')
+    bathyFname = os.path.join(path_prefix, datestring, datestring + '.dep')
 
     # modify packets for different time-steps!
+
     windpacketW, WLpacketW, wavepacketW = prepdata.mod_packets(waveTimeList, windpacket, WLpacket, wavepacket=wavepacket)
     # write files
     cmsio.writeCMS_std(fname=stdFname, gaugeLocs=gaugeLocs)
-    cmsio.writeCMS_sim(simFnameOut, date_str, origin=(bathyWaves['x0'], bathyWaves['y0']))
+    cmsio.writeCMS_sim(simFnameOut, datestring, origin=(bathyWaves['x0'], bathyWaves['y0']))
     cmsio.writeCMS_spec(specFname, wavePacket=wavepacketW, wlPacket=WLpacketW, windPacket=windpacketW)
     cmsio.writeCMS_dep(bathyFname, depPacket=bathyWaves)
-    inputOutput.write_flags(date_str, path_prefix, wavepacketW, windpacketW, WLpacketW, curpacket=None)
-    cmsio.clearAllSimFiles(path_prefix+date_str) # remove old output files so they're not appended (cms default)
+    inputOutput.write_flags(datestring, path_prefix, wavepacketW, windpacketW, WLpacketW, curpacket=None)
+    cmsio.clearAllWaveSimFiles(os.path.join(path_prefix, datestring), flowFlag = flowFlag) # remove old output files so they're not appended (cms default)
 
 def CMSanalyze(startTime, inputDict):
-    """
-    This runs the analyze script for cms
+    """This runs the analyze script for cms
         Author: Spicer Bak
     Association: USACE CHL Field Research Facility
     Project:  Coastal Model Test Bed
@@ -307,45 +285,28 @@ def CMSanalyze(startTime, inputDict):
         netCDF files to the inputDict['netCDFdir'] directory
     """
     # ___________________define Global Variables___________________________________
-    if 'pFlag' in inputDict:
-        pFlag = inputDict['pFlag']
-    else:
-        pFlag = True  # will plot true by default
-
-    # version prefixes!
-    wave_version_prefix = inputDict['wave_version_prefix']
-
-    path_prefix = inputDict['path_prefix'] #  + "/%s/" %wave_version_prefix   # 'data/CMS/%s/' % wave_version_prefix  # for organizing data
-    TOD = 0  # Time of day simulation to start
-    simulationDuration = inputDict['duration']
-    if 'netCDFdir' in inputDict:
-        Thredds_Base = inputDict['netCDFdir']
-    else:
-        whoami = check_output('whoami', shell=True)[:-1]
-        Thredds_Base = '/home/%s/thredds_data/' % whoami
-
+    pFlag = inputDict.get('plotFlag', True)      # version prefixes!
+    wave_version_prefix = inputDict.get('wave_version_prefix', 'base')
+    path_prefix = inputDict['path_prefix']
+    simulationDuration = inputDict.get('simulationDuration', 24)
+    Thredds_Base = inputDict.get('netCDFdir', '/home/%s/thredds_data/' % check_output('whoami', shell=True)[:-1])
+    model = inputDict.get('model', 'cms').lower()
     # _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
     # establishing the resolution of the input datetime
-    d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(TOD / 24., 0, 0)
+    d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     d2 = d1 + DT.timedelta(0, simulationDuration * 3600, 0)
-    datestring = d1.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
-    fpath = path_prefix + datestring + '/'
+    # use start time from input Dict to define this as it stays static in the case of coldstarts (for coupled sims), while d1 does not
+    datestring = inputDict.get('datestring', inputDict['startTime'].replace(':','').replace('-',''))  # a string for file names
+    fpath = os.path.join(path_prefix, datestring)
     # ____________________________________________________________________________
-    if wave_version_prefix == 'HP':
-        full = False
-    elif wave_version_prefix == 'UNTUNED':
-        full = False
-    else:
-        pass
-
+    full=False  # CMS wave doesn't have full plane capability
     # _____________________________________________________________________________
-
     print('\nBeggining of Analyze Script\nLooking for file in ' + fpath)
     print('\nData Start: %s  Finish: %s' % (d1, d2))
     print('Analyzing simulation')
     go = getDataFRF.getObs(d1, d2)  # setting up get data instance
-    prepdata = STPD.PrepDataTools()  # initializing instance for rotation scheme
-    cio = cmsIO()  # =pathbase) looks for model output files in folder to analyze
+    prepdata = prepDataLib.PrepDataTools()                            # intialize prep data for preparation
+    cio = inputOutput.cmsIO()  # looks for model output files in folder to analyze
 
     ######################################################################################################################
     ######################################################################################################################
@@ -354,7 +315,7 @@ def CMSanalyze(startTime, inputDict):
     ######################################################################################################################
     t=DT.datetime.now()
     print('Loading files ')
-    cio.ReadCMS_ALL(fpath)  # load all files
+    cio.ReadCMS_ALL(fpath, CMSF=True)  # load all files
     stat_packet = cio.stat_packet  # unpack dictionaries from class instance
     obse_packet = cio.obse_Packet
     dep_pack = cio.dep_Packet
@@ -363,9 +324,9 @@ def CMSanalyze(startTime, inputDict):
     wave_pack = cio.wave_Packet
     print('Loaded files in %s' % (DT.datetime.now() - t))
     # correct model outout angles from STWAVE(+CCW) to Geospatial (+CW)
-    stat_packet['WaveDm'] = testbedutils.anglesLib.STWangle2geo(stat_packet['WaveDm'])
+    stat_packet['WaveDm'] = anglesLib.STWangle2geo(stat_packet['WaveDm'])
     # correct angles
-    stat_packet['WaveDm'] = testbedutils.anglesLib.angle_correct(stat_packet['WaveDm'])
+    stat_packet['WaveDm'] = anglesLib.angle_correct(stat_packet['WaveDm'])
 
     obse_packet['ncSpec'] = np.ones(
         (obse_packet['spec'].shape[0], obse_packet['spec'].shape[1], obse_packet['spec'].shape[2], 72)) * 1e-6
@@ -386,8 +347,8 @@ def CMSanalyze(startTime, inputDict):
     ##################################  Spatial Data HERE     ############################################################
     ######################################################################################################################
     ######################################################################################################################
-    tempClass = prepdata.prepDataLib.PrepDataTools()
-    gridPack = tempClass.makeCMSgridNodes(float(cio.sim_Packet[0]), float(cio.sim_Packet[1]),
+    # tempClass = prepdata.prepDataLib.PrepDataTools()
+    gridPack = prepdata.makeCMSgridNodes(float(cio.sim_Packet[0]), float(cio.sim_Packet[1]),
                                                      float(cio.sim_Packet[2]), dep_pack['dx'], dep_pack['dy'],
                                                      dep_pack['bathy'])# dims [t, x, y]
     # ################################
@@ -397,7 +358,7 @@ def CMSanalyze(startTime, inputDict):
     if np.median(gridPack['elevation']) < 0:
         gridPack['elevation'] = -gridPack['elevation']
 
-    fldrArch = 'waveModels/CMS/%s/' % wave_version_prefix
+    fldrArch = os.path.join('waveModels', model, wave_version_prefix)
     spatial = {'time': nc.date2num(wave_pack['time'], units='seconds since 1970-01-01 00:00:00'),
                'station_name': 'Regional Simulation Field Data',
                'waveHs': np.transpose(wave_pack['waveHs'], (0,2,1)),  # put into dimensions [t, y, x]
@@ -416,19 +377,11 @@ def CMSanalyze(startTime, inputDict):
                'NJ': dep_pack['NJ'],
                'grid_azimuth': gridPack['azimuth']
                }
-
-    TdsFldrBase = os.path.join(Thredds_Base, fldrArch, 'Field')
-    fieldOfname = TdsFldrBase + '/Field%s.nc' % datestring
-    if not os.path.exists(TdsFldrBase):
-        os.makedirs(TdsFldrBase)  # make the directory for the thredds data output
-    if not os.path.exists(TdsFldrBase + '/Field.ncml'):
-        STio = stwaveIO('')
-        STio.makencml(TdsFldrBase + '/Field.ncml')  # remake the ncml if its not there
+    fieldOfname = fileHandling.makeTDSfileStructure(os.path.join(Thredds_Base, 'Field'), fldrArch, datestring, field='Field')
     # make file name strings
-    flagfname = fpath + 'Flags%s.out.txt' % datestring  # startTime # the name of flag file
-    fieldYaml = 'yaml_files/%sField_globalmeta.yml' % (fldrArch)  # field
-    varYaml = 'yaml_files/%sField_var.yml' % (fldrArch)
-    assert os.path.isfile(fieldYaml), 'NetCDF yaml files are not created'  # make sure yaml file is in place
+    flagfname = os.path.join(fpath, 'Flags%s.out.txt' % datestring)  # startTime # the name of flag file
+    fieldYaml = os.path.join('yaml_files',fldrArch, 'Field_globalmeta.yml')  # field
+    varYaml = os.path.join('yaml_files',fldrArch, 'Field_var.yml')
     makenc.makenc_field(data_lib=spatial, globalyaml_fname=fieldYaml, flagfname=flagfname,
                         ofname=fieldOfname, var_yaml_fname=varYaml)
     ###################################################################################################################
@@ -438,7 +391,7 @@ def CMSanalyze(startTime, inputDict):
     plotParams = [('waveHs', 'm'), ('bathymetry', 'NAVD88 $[m]$'), ('waveTp', 's'), ('waveDm', 'degTn')]
     if pFlag == True:
         for param in plotParams:
-            print('    plotting %s...' %param[0])
+            print('    plotting field %s...' %param[0])
             spatialPlotPack = {'title': 'Regional Grid: %s' % param[0],
                                'xlabel': 'Longshore distance [m]',
                                'ylabel': 'Cross-shore distance [m]',
@@ -451,7 +404,7 @@ def CMSanalyze(startTime, inputDict):
             oP.plotSpatialFieldData(dep_pack, spatialPlotPack, fnameSuffix, fpath, nested=0)
             # now make a gif for each one, then delete pictures
             fList = sorted(glob.glob(fpath + '/figures/*%s*.png' % param[0]))
-            sb.makegif(fList, fpath + '/figures/CMTB_%s_%s_%s.gif' % (wave_version_prefix, param[0], datestring))
+            sb.makeMovie(fpath + '/figures/CMTB_%s_%s_%s.mp4' % (wave_version_prefix, param[0], datestring), fList)
             [os.remove(ff) for ff in fList]
 
     ######################################################################################################################
@@ -459,7 +412,7 @@ def CMSanalyze(startTime, inputDict):
     ##################################  Wave Station Files HERE (loop) ###################################################
     ######################################################################################################################
     ######################################################################################################################
-
+    print('stationList should be generated by look up table')
     # this is a list of file names to be made with station data from the parent simulation
     stationList = ['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array', 'awac-6m', 'awac_4.5m', 'adop-3.5m',
                    'xp200m', 'xp150m', 'xp125m']
@@ -468,32 +421,28 @@ def CMSanalyze(startTime, inputDict):
         stationName = 'CMTB-waveModels_CMS_%s_%s' % (wave_version_prefix, station)  # xp 125
 
         # this needs to be the same order as the run script
-        stat_yaml_fname = 'yaml_files/' + fldrArch + 'Station_var.yml'
-        globalyaml_fname = 'yaml_files/' + fldrArch + 'Station_globalmeta.yml'
+        stat_yaml_fname = os.path.join('yaml_files', fldrArch, 'Station_var.yml')
+        globalyaml_fname = os.path.join('yaml_files', fldrArch, 'Station_globalmeta.yml')
 
         # getting lat lon, easting northing idx's
         Idx_i = len(gridPack['i']) - np.argwhere(gridPack['i'] == stat_packet['iStation'][
             gg]).squeeze() - 1  # to invert the coordinates from offshore 0 to onshore 0
-
         Idx_j = np.argwhere(gridPack['j'] == stat_packet['jStation'][gg]).squeeze()
-        w = go.getWaveSpec(station)
-        # print('   Comparison location taken from thredds, check positioning ')
-        stat_data = {'time': nc.date2num(stat_packet['time'][:], units='seconds since 1970-01-01 00:00:00'),
-                     'waveHs': stat_packet['waveHs'][:, gg],
-                     'waveTm': np.ones_like(stat_packet['waveHs'][:, gg]) * -999,
-                     # this isn't output by model, but put in fills to stay consitant
-                     'waveDm': stat_packet['WaveDm'][:, gg],
-                     'waveTp': stat_packet['Tp'][:, gg],
-                     'waterLevel': stat_packet['waterLevel'][:, gg],
-                     'swellHs': stat_packet['swellHs'][:, gg],
-                     'swellTp': stat_packet['swellTp'][:, gg],
-                     'swellDm': stat_packet['swellDm'][:, gg],
-                     'seaHs': stat_packet['seaHs'][:, gg],
-                     'seaTp': stat_packet['seaTp'][:, gg],
-                     'seaDm': stat_packet['seaDm'][:, gg],
 
+        stat_data = {'time': nc.date2num(stat_packet['time'][:], units='seconds since 1970-01-01 00:00:00'),
+                     'waveHs': stat_packet['waveHs'][-len(stat_packet['time'][:]):, gg],
+                     'waveTm': np.ones_like(stat_packet['waveHs'][-len(stat_packet['time'][:]):, gg]) * -999,  # this isn't output by model, but put in fills to stay consistent
+                     'waveDm': stat_packet['WaveDm'][-len(stat_packet['time'][:]):, gg],
+                     'waveTp': stat_packet['Tp'][-len(stat_packet['time'][:]):, gg],
+                     'waterLevel': stat_packet['waterLevel'][-len(stat_packet['time'][:]):, gg],
+                     'swellHs': stat_packet['swellHs'][-len(stat_packet['time'][:]):, gg],
+                     'swellTp': stat_packet['swellTp'][-len(stat_packet['time'][:]):, gg],
+                     'swellDm': stat_packet['swellDm'][-len(stat_packet['time'][:]):, gg],
+                     'seaHs': stat_packet['seaHs'][-len(stat_packet['time'][:]):, gg],
+                     'seaTp': stat_packet['seaTp'][-len(stat_packet['time'][:]):, gg],
+                     'seaDm': stat_packet['seaDm'][-len(stat_packet['time'][:]):, gg],
                      'station_name': stationName,
-                     'directionalWaveEnergyDensity': obse_packet['ncSpec'][:, gg, :, :],
+                     'directionalWaveEnergyDensity': obse_packet['ncSpec'][-len(stat_packet['time'][:]):, gg, :, :],
                      'waveDirectionBins': obse_packet['ncDirs'],
                      'waveFrequency': obse_packet['wavefreqbin'],
                      ###############################
@@ -502,22 +451,18 @@ def CMSanalyze(startTime, inputDict):
                      'NI': dep_pack['NI'],
                      'NJ': dep_pack['NJ'],
                      'grid_azimuth': gridPack['azimuth']}
+
+        w = go.getWaveSpec(station)
         try:
-            stat_data['Latitude'] = w['latitude']
-            stat_data['Longitude'] = w['longitude']
-        except KeyError:  # this should be rectified
             stat_data['Latitude'] = w['lat']
             stat_data['Longitude'] = w['lon']
-        # Name files and make sure server directory has place for files to go
+        except (TypeError, UnboundLocalError):
+            stat_data['Latitude'] = -999   # gridPack['longitude'][Idx_i, Idx_j] # something seems wrong with gridPack
+            stat_data['Longitude'] = -999  # gridPack['latitude'][Idx_i, Idx_j]
+
+        ## make netCDF: Name files and make sure server directory has place for files to go
         print('making netCDF for model output at %s ' % station)
-        TdsFldrBase = os.path.join(Thredds_Base, fldrArch, station)
-        outFileName = TdsFldrBase + '/'+stationName + '_%s.nc' % datestring
-        if not os.path.exists(TdsFldrBase):
-            os.makedirs(TdsFldrBase)  # make the directory for the file/ncml to go into
-        if not os.path.exists(TdsFldrBase + '/' + stationName + '.ncml'):
-            STio = stwaveIO('')
-            STio.makencml(TdsFldrBase + '/' + stationName + '.ncml')
-        # make netCDF
+        outFileName = fileHandling.makeTDSfileStructure(os.path.join(Thredds_Base, station), fldrArch,  datestring, station)
         makenc.makenc_Station(stat_data, globalyaml_fname=globalyaml_fname, flagfname=flagfname,
                               ofname=outFileName, stat_yaml_fname=stat_yaml_fname)
 
@@ -526,10 +471,9 @@ def CMSanalyze(startTime, inputDict):
         ###############################   Plotting  Below   ###############################################################
         ###################################################################################################################
 
-
-        if pFlag == True and 'time' in w:
+        if pFlag == True and w is not None and 'time' in w:
             if full == False:
-                w['dWED'], w['wavedirbin'] = prepdata.HPchop_spec(w['dWED'], w['wavedirbin'], angadj=70)
+                w['dWED'], w['wavedirbin'] = sbwave.HPchop_spec(w['dWED'], w['wavedirbin'], angadj=70)
             obsStats = sbwave.waveStat(w['dWED'], w['wavefreqbin'], w['wavedirbin'])
 
             modStats = sbwave.waveStat(obse_packet['ncSpec'][:, gg, :, :], obse_packet['wavefreqbin'],
@@ -541,71 +485,62 @@ def CMSanalyze(startTime, inputDict):
                                             np.arange(len(stat_packet['time'])))  # time match
 
             for param in modStats:  # loop through each bulk statistic
-                print('    plotting %s: %s' %(station, param))
                 if param in ['Tp', 'Tm10']:
                     units = 's'
                     title = '%s period' % param
                 elif param in ['Hm0']:
                     units = 'm'
                     title = 'Wave Height %s ' % param
-                elif param in ['Dm',  'Dp']:
+                elif param in ['Dm', 'Dp']:
                     units = 'degrees'
                     title = 'Direction %s' % param
-                # elif param in ['sprdF', 'sprdD']:
-                #     units = ''
-                #     title = 'Spread %s ' % param
+                    # elif param in ['sprdF', 'sprdD']:
+                    #     units = ''
+                    #     title = 'Spread %s ' % param
 
-                # now run plots
-                if param in ['meta','Tm', 'sprdF', 'VecAvgMeanDir','Tave', 'Dmp','sprdD']:
-                    pass
-                else:
+                    # now run plots
+                if param in ['Hm0', 'Tp', 'Tm', 'Tave', 'Tm10', 'Dp', 'Dm', 'Dm2']:
+                    print('    plotting %s: %s' % (station, param))
                     p_dict = {'time': nc.num2date(time, 'seconds since 1970-01-01'),
                               'obs': obsStats[param][obsi.astype(int)],
                               'model': modStats[param][modi.astype(int)],
                               'var_name': param,
                               'units': units,  # ) -> this will be put inside a tex math environment!!!!
                               'p_title': title}
-                    ofname = fpath + 'figures/Station_%s_%s_%s' % (station, param, datestring)
+                    ofname = os.path.join(fpath, 'figures',
+                                          'Station_%s_%s_%s.png' % (station, param, datestring))
+                    # make sure
+                    if len(p_dict['obs']) > 4 and not np.ma.array(p_dict['obs'], copy=False).mask.all():
 
-                    # need to check here if your data is chock full of nans?
-                    # this happened for the xp200m Wave Height Hm0 data for the 10-01-2015 CMS run.
-                    # I don't know how big of a problem this is... but they were all nan, like every single point...
-                    # just going to nanmin and nanmax on the axis labels is not going to fix that...
-                    if sum(np.isnan(p_dict['obs'])) > len(p_dict['obs']) - 5:
-                        pass
-                    elif sum(np.isnan(p_dict['model'])) > len(p_dict['model']) - 5:
-                        pass
-                    else:
-                        obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png')
+                        stats = oP.obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png')
 
-                    if station == 'waverider-26m' and param == 'Hm0':
-                        # this is a fail safe to abort run if the boundary conditions don't
-                        # meet qualtity standards below
-                        bias = 0.1  # bias has to be within 10 centimeters
-                        RMSE = 0.1  # RMSE has to be within 10 centimeters
-                        stats = sb.statsBryant(p_dict['obs'], p_dict['model'])
-                        try:
-                            assert stats['RMSE'] < RMSE, 'RMSE test on spectral boundary energy failed'
-                            assert np.abs(stats['bias']) < bias, 'bias test on spectral boundary energy failed'
-                        except:
-                            print('!!!!!!!!!!FAILED BOUNDARY!!!!!!!!')
-                            print('deleting data from thredds!')
-                            os.remove(fieldOfname)
-                            os.remove(outFileName)
-                            raise RuntimeError('The Model Is not validating its offshore boundary condition')
+                        if station == 'waverider-26m' and param == 'Hm0':
+                            # this is a fail safe to abort run if the boundary conditions don't
+                            # meet quality standards below
+                            bias = 0.1  # bias has to be within 10 centimeters
+                            RMSE = 0.1  # RMSE has to be within 10 centimeters
+                            try:
+                                assert stats['RMSE'] < RMSE, 'RMSE test on spectral boundary energy failed'
+                                assert np.abs(stats['bias']) < bias, 'bias test on spectral boundary energy failed'
+                            except:
+                                print('!!!!!!!!!!FAILED BOUNDARY!!!!!!!!\ndeleting data from thredds!')
+                                os.remove(fieldOfname)
+                                os.remove(outFileName)
+                                raise RuntimeError('The Model Is not validating its offshore boundary condition')
 
-def CMSFanalyze(startTime, inputDict):
+def CMSFanalyze(inputDict, cmsfio):
     """ This runs the analyze script for cmsflow
     Author: David Young
 
 
-    This Function is the master call for the  data preperation for
+    This Function is the master call for the  data postprocessing for
     the Coastal Model Test Bed (CMTB).  It is designed to pull from
     GetData and utilize prep_datalib for development of the FRF CMTB
 
     Args:
         startTime: this is the start time of this model run
         inputDict: this is an input dictionary that was generated with the keys from the project input yaml file
+
 
     Keyword Args:
 
@@ -615,36 +550,27 @@ def CMSFanalyze(startTime, inputDict):
 
     """
     # ___________________define Global Variables___________________________________
-    pFlag = inputDict.get('pFlag', True)
+    pFlag = inputDict.get('plotFlag', True)
     # version prefixes!
     flow_version_prefix = inputDict['flow_version_prefix']
-    path_prefix = inputDict['path_prefix']  # + "/%s/" %wave_version_prefix   # 'data/CMS/%s/' % wave_version_prefix  # for organizing data
-    simulationDuration = inputDict['duration']
+    path_prefix = inputDict['path_prefix']                   # for organizing data
+    simulationDuration = inputDict['simulationDuration']
     Thredds_Base = inputDict.get('netCDFdir', '/home/%s/thredds_data/'.format(check_output('whoami', shell=True)[:-1]))
-
-    # _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
-    # establishing the resolution of the input datetime
-    d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
-    d2 = d1 + DT.timedelta(0, simulationDuration * 3600, 0)
-    date_str = d1.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
+    d1 = DT.datetime.strptime(inputDict['startTime'], '%Y-%m-%dT%H:%M:%SZ')
+    date_str = inputDict.get('datestring', d1.strftime('%Y%m%dT%H%M%SZ'))
+    prepdata = prepDataLib.PrepDataTools()
     fpath = os.path.join(path_prefix, date_str)
-
-    print('\nBeggining of Analyze Script\nLooking for file in ' + fpath)
-    print('\nData Start: %s  Finish: %s\nAnalyzing simulation' % (d1, d2))
-    # initalize instances
-    go = getDataFRF.getObs(d1, d2)  # setting up get data instance
-    prepdata = prepDataLib.PrepDataTools()  # initializing instance for rotation scheme
-    cio = inputOutput.cmsfIO()  # looks for model output files in folder to analyze
-    timeunits = 'seconds since 1970-01-01 00:00:00'
+    model = inputDict['model'].lower() + 'f'
     ######################################################################################################################
     ######################################################################################################################
     ##################################   Load Data Here / Massage Data Here   ############################################
     ######################################################################################################################
     ######################################################################################################################
     t = DT.datetime.now()
-    # load the files now
-    cio.read_CMSF_all(path=fpath)
-    print('Loading Files Took {}'.format(DT.datetime.now() - t))
+    # load the files now, from the self.path location assigned during input file write, will load to class attributes
+    cmsfio.read_CMSF_all()
+    print('Loading Files Took {} seconds '.format((DT.datetime.now() - t).seconds))
+
     # i think the only change i have to make is to convert the velocities into the same coord system as the gages?
 
     # IMPORTANT NEW INFORMATION!!
@@ -657,78 +583,56 @@ def CMSFanalyze(startTime, inputDict):
     # the nodes in the .xy file appear to be the non -999 cellID's in the .tel file in REVERSE!  so higher cellID's
     # are on top - see testing in DLY_telFile that I did on 6/19/2018.  THE "nodeIndex" in the xy_dict is NOT THE SAME
     # as the cellID's in the tel file!!!!!!!!!!!!!!
-
-    # velocity info
-    cmsfWrite = {'aveE': cio.vel_dict['vx'].copy(), 'aveN': cio.vel_dict['vy'].copy(),
-                 'waterLevel': cio.eta_dict['wl'], # -999 is masked
-                 'durationRamp': cio.cmcards_dict['durationRamp']}
-
-    # time info
-    if cmsfWrite['durationRamp'] > 0:
-        d1F = d1 - DT.timedelta(hours=int(24*cmsfWrite['durationRamp']))
+    if cmsfio.hotStartFlag is False:
+        d1F = d1 - DT.timedelta(hours=int(24*cmsfio.durationRamp))  # convert days to hours
     else:
         d1F = d1
+    # velocity info
+    cmsfWrite = {'aveE': cmsfio.vel_dict['vx'].copy(), 'aveN': cmsfio.vel_dict['vy'].copy(),
+                 'waterLevel': cmsfio.eta_dict['wl'], # -999 is masked
+                 'coldStart': not cmsfio.hotStartFlag,   # want cold start not hot start, so take inverse
+                 'time': nc.date2num(np.array([d1F + DT.timedelta(0, x * 3600, 0) for x in cmsfio.vel_dict['time']]), 'seconds since 1970-01-01')}
 
     # tstep = inputDict['flow_time_step']  NO NO NO NO!  OUTPUTS HOURLY REGARDLESS OF TIMESTEP!
-    cmsfWrite['time'] = nc.date2num(np.array([d1F + DT.timedelta(0, x * 3600, 0) for x in cio.vel_dict['time']]), timeunits)
+    cmsfWrite = prepdata.modCMSFsolnDict(cmsfWrite, cmsfio.telnc_dict, simulationDuration)
 
-    # okay, I have a sneaking suspicion that sb will want to go the masked array route with the whole .tel file
-    # worth of nodes?  maybe?
-    cmsfWriteN = prepdata.modCMSFsolnDict(cmsfWrite, cio.telnc_dict, inputDict['duration'])
-    del cmsfWrite
-    cmsfWrite = cmsfWriteN
-    del cmsfWriteN
-
-    # now hand this to makenc_CMSFrun?
+    # now hand this to makenc_CMSFrun
     print('Writing simulation netCDF files.')
-    ofname = date_str + '.nc'  # you may need to come back to this to check on it.
-    TdsFldrBase = os.path.join(Thredds_Base, 'CMSF')
-    if not os.path.exists(TdsFldrBase):
-        os.makedirs(TdsFldrBase)  # make the directory for the thredds data output
-    ncgYaml = '/home/david/PycharmProjects/cmtb/yaml_files/CMSF/CMSFrun_global.yml'
-    ncvYaml = '/home/david/PycharmProjects/cmtb/yaml_files/CMSF/CMSFrun_var.yml'
-    makenc.makenc_CMSFrun(os.path.join(TdsFldrBase, ofname), cmsfWrite, ncgYaml, ncvYaml)
+    ofname = fileHandling.makeTDSfileStructure(os.path.join(Thredds_Base, model), flow_version_prefix, date_str, 'field')
 
-    # now make the plots off the cmsfWrite dictionary?
-    # create velocity magnitude dataset
-    cmsfWrite['vMag'] = np.sqrt(np.power(cmsfWrite['aveE'], 2) + np.power(cmsfWrite['aveN'], 2))
-
-    # i think that cmsfWrite gets modified during makenc_CMSFrun?  so I need to put depth back into the
-    # keys if it gets converted to elevation earlier?
-    if 'depth' not in cmsfWrite.keys():
-        cmsfWrite['depth'] = -1*cmsfWrite['elevation']
-
-    # mask all values where WATER LEVEL?! is -999?!?!?!?
-    maskInd = cmsfWrite['waterLevel'] == -999
-
-    newVx = np.ma.masked_where(maskInd, cmsfWrite['aveE'])
-    newVy = np.ma.masked_where(maskInd, cmsfWrite['aveN'])
-    newWL = np.ma.masked_where(maskInd, cmsfWrite['waterLevel'])
-    newvMag = np.ma.masked_where(maskInd, cmsfWrite['vMag'])
-    newDepth = np.ma.masked_where(cmsfWrite['depth'] == -999, cmsfWrite['depth'])
-    del cmsfWrite['waterLevel']
-    del cmsfWrite['aveE']
-    del cmsfWrite['aveN']
-    del cmsfWrite['vMag']
-    del cmsfWrite['depth']
-    cmsfWrite['vMag'] = newvMag
-    cmsfWrite['waterLevel'] = newWL
-    cmsfWrite['aveE'] = newVx
-    cmsfWrite['aveN'] = newVy
-    cmsfWrite['depth'] = newDepth
-
-    # tack on the xFRF and yFRF values since I DONT have them in the solution netcdf files anymore
-    cmsfWrite['xFRF'] = cio.telnc_dict['xFRF']
-    cmsfWrite['yFRF'] = cio.telnc_dict['yFRF']
+    # global yamls are version prefix specific
+    ncGlobalYaml = os.path.join('yaml_files', 'flowModels', model, flow_version_prefix, 'CMSFrun_global.yml')
+    ncVarYaml = os.path.join('yaml_files', 'flowModels', model, 'CMSFrun_var.yml')
+    makenc.makenc_CMSFrun(os.path.join(Thredds_Base, model, flow_version_prefix, ofname), cmsfWrite, ncGlobalYaml, ncVarYaml)
 
     ###################################################################################################################
     ###############################   Plotting  Below   ###############################################################
     ###################################################################################################################
-    # .gif's
-    """
+    # now make the plots off the cmsfWrite dictionary, create velocity magnitude dataset to plot
+    cmsfWrite['vMag'] = np.sqrt(np.power(cmsfWrite['aveE'], 2) + np.power(cmsfWrite['aveN'], 2))
+
+    # i think that cmsfWrite gets modified during makenc_CMSFrun?  so I need to put depth back into the
+    # keys if it gets converted to elevation earlier
+    if 'depth' not in cmsfWrite.keys():
+        cmsfWrite['depth'] = -1*cmsfWrite['elevation']
+
+    # mask all values where water level is -999
+    maskInd = cmsfWrite['waterLevel'] == -999
+
+    cmsfWrite['vMag'] = np.ma.masked_where(maskInd, cmsfWrite['vMag'])
+    cmsfWrite['waterLevel'] = np.ma.masked_where(maskInd, cmsfWrite['waterLevel'])
+    cmsfWrite['aveE'] = np.ma.masked_where(maskInd, cmsfWrite['aveE'])
+    cmsfWrite['aveN'] =  np.ma.masked_where(maskInd, cmsfWrite['aveN'])
+    cmsfWrite['depth'] = np.ma.masked_where(cmsfWrite['depth'] == -999, cmsfWrite['depth'])
+
+    # tack on the xFRF and yFRF values since I DONT have them in the solution netcdf files anymore
+    cmsfWrite['xFRF'] = cmsfio.telnc_dict['xFRF']
+    cmsfWrite['yFRF'] = cmsfio.telnc_dict['yFRF']
+
     # plotParams = [('WL', 'm', 'waterLevel'), ('depth', 'NAVD88 $[m]$', 'depth'), ('VelMag', 'm/s', 'vMag')]
     plotParams = [('WL', 'm', 'waterLevel'), ('VelMag', 'm/s', 'vMag')]
     if pFlag:
+        ########################## spatial plots ########################################
         for param in plotParams:
             print('    plotting %s...' % param[0])
             for ss in range(0, len(cmsfWrite['time'])):
@@ -747,70 +651,65 @@ def CMSFanalyze(startTime, inputDict):
                          'cbarLabel': param[1],
                          'gaugeLabels': True}
                 numStr = "%02d" %ss
-                fnameSuffix = 'figures/CMTB_CMSF_%s_%s_%s' % (flow_version_prefix, param[0], numStr)
-                noP.plotUnstructBathy(ofname=os.path.join(fpath, fnameSuffix), pDict=pDict)
+                fnameSuffix = 'figures/CMTB_CMSF_%s_%s_%s.png' % (flow_version_prefix, param[0], numStr)
+                oP.plotUnstructField(ofname=os.path.join(fpath, fnameSuffix), pDict=pDict)
 
-            # now make a gif for each one, then delete pictures
+            # now make a movie for each one, then delete pictures
             fList = sorted(glob.glob(fpath + '/figures/*%s*.png' % param[0]))
-            sb.makegif(fList, fpath + '/figures/CMTB_CMSF_%s_%s_%s.gif' % (flow_version_prefix, param[0], date_str))
-            [os.remove(ff) for ff in fList]
-    """
-    # stations
-    if pFlag:
-        stationList = ['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array', 'awac-6m', 'awac-4.5m', 'adop-3.5m',
-                       'xp200m', 'xp150m', 'xp125m']
+            sb.makeMovie(fpath + '/figures/CMTB_CMSF_%s_%s_%s.mp4' % (flow_version_prefix, param[0], date_str), fList)
+            sb.myTarMaker(os.path.join(fpath, 'figures', param[0]+'individuals'), fList, removeFiles=True)
+
+        ########################## station plots ########################################
+        go = getDataFRF.getObs(d1, d2=d1+DT.timedelta(hours=simulationDuration))
+        stationList = ['awac-11m', 'awac-6m', 'awac-4.5m', 'adop-3.5m']  # only list stations with current measurements
         exclude = set(string.punctuation)
         for station in stationList:
+            # plot velocity plots [only]
+            currents = go.getCurrents(station)
+            if currents is not None:
+                # find the closest node and pull that data
+                ind, dist = gridTools.findNearestUnstructNode(currents['xFRF'], currents['yFRF'], cmsfWrite)
+                matchedEpochTime, idxAvgObs, idxAvgMod = sb.timeMatch(currents['epochtime'], obs_data=None,
+                                                                      model_time=cmsfWrite['time'], model_data=None)
 
-            # velocity plots first
-            if 'awac' in station or 'adop' in station:
-
-                oDict = getPlotData.CMSF_velData(cmsfWrite, station)
-                if oDict is None:
-                    print('Velocity data missing for %s' %station)
-                    pass
-
-                else:
-                    if len(oDict['time']) <= 1:
-                        pass
-                    else:
-                        # ave E velocity
-                        path = fpath + '/figures/CMTB_CMSF_%s_%s_%s_aveE.png' % (flow_version_prefix, date_str, ''.join(ch for ch in station if ch not in exclude).strip())
-                        p_dict = {'time': oDict['time'],
-                                  'obs': oDict['aveEobs'],
-                                  'model': oDict['aveEmod'],
-                                  'var_name': '$\overline{U}$',
-                                  'units': 'm/s'}
-                        oP.obs_V_mod_TS(path, p_dict)
-                        # ave N velocity
-                        path = fpath + '/figures/CMTB_CMSF_%s_%s_%s_aveN.png' % (flow_version_prefix, date_str, ''.join(ch for ch in station if ch not in exclude).strip())
-                        p_dict = {'time': oDict['time'],
-                                  'obs': oDict['aveNobs'],
-                                  'model': oDict['aveNmod'],
-                                  'var_name': '$\overline{V}$',
-                                  'units': 'm/s'}
-                        oP.obs_V_mod_TS(path, p_dict)
+                if len(matchedEpochTime) > 1:
+                    # ave E velocity
+                    path = fpath + '/figures/CMTB_CMSF_%s_%s_%s_aveE.png' % (flow_version_prefix, date_str, ''.join(ch for ch in station if ch not in exclude).strip())
+                    p_dict = {'time': currents['time'][idxAvgObs],
+                              'obs': currents['aveU'][idxAvgObs],
+                              'model': cmsfWrite['aveE'][idxAvgMod, ind],
+                              'var_name': '$\overline{U}$',
+                              'units': 'm/s'}
+                    oP.obs_V_mod_TS(path, p_dict)
+                    # ave N velocity
+                    path = fpath + '/figures/CMTB_CMSF_%s_%s_%s_aveN.png' % (flow_version_prefix, date_str, ''.join(ch for ch in station if ch not in exclude).strip())
+                    p_dict = {'time': currents['time'][idxAvgObs],
+                              'obs': currents['aveV'][idxAvgObs],
+                              'model': cmsfWrite['aveN'][idxAvgMod, ind],
+                              'var_name': '$\overline{V}$',
+                              'units': 'm/s'}
+                    oP.obs_V_mod_TS(path, p_dict)
 
             # what stations have water level?
-            if 'waverider' not in station:
-
-                oDict = getPlotData.CMSF_wlData(cmsfWrite, station)
-                if oDict is None:
-                    print('Water level data missing for %s' % station)
-                    pass
-
-                else:
-                    if len(oDict['time']) <= 1:
-                        pass
-                    else:
-                        # water level
-                        path = fpath + '/figures/CMTB_CMSF_%s_%s_%s_WL.png' % (flow_version_prefix, date_str, ''.join(ch for ch in station if ch not in exclude).strip())
-                        p_dict = {'time': oDict['time'],
-                                  'obs': oDict['obsWL'],
-                                  'model': oDict['modWL'],
-                                  'var_name': '$WL (NAVD88)$',
-                                  'units': 'm'}
-                        oP.obs_V_mod_TS(path, p_dict)
+            # if 'waverider' not in station:
+            #
+            #     oDict = getPlotData.CMSF_wlData(cmsfWrite, station)
+            #     if oDict is None:
+            #         print('Water level data missing for %s' % station)
+            #         pass
+            #
+            #     else:
+            #         if len(oDict['time']) <= 1:
+            #             pass
+            #         else:
+            #             # water level
+            #             path = fpath + '/figures/CMTB_CMSF_%s_%s_%s_WL.png' % (flow_version_prefix, date_str, ''.join(ch for ch in station if ch not in exclude).strip())
+            #             p_dict = {'time': oDict['time'],
+            #                       'obs': oDict['obsWL'],
+            #                       'model': oDict['modWL'],
+            #                       'var_name': '$WL (NAVD88)$',
+            #                       'units': 'm'}
+            #             oP.obs_V_mod_TS(path, p_dict)
 
 
 

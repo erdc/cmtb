@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 from matplotlib import image, tri
 import matplotlib.dates as mdates
-import os
+import os, pandas
 from testbedutils.sblib import statsBryant
 
 
@@ -22,7 +22,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     :return: NONE
         will create figure
     """
-
+    pandas.plotting.register_matplotlib_converters()
     nlines = 15  # number of lines to span across Half planed spectra
     lw = 3  # this is the line width factor for showing the non shore perpendicular value
     assert raw[0].ndim == 2, 'first part of interp tuple should be 2 dimensional spectra'
@@ -45,10 +45,6 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     timeTS = Hs[1]  # time  series of Datetimes associated with Hs
     HsTs = Hs[2]  # total wave Height time series
 
-    # pltrawdWED = np.zeros([rawspec.shape[1], np.size(rawDirBin)])
-    # pltrotdWED = np.zeros([np.size(rotDirbin), np.size(rawDirBin)])
-    # pltintdWED = np.zeros([np.size(rotDirbin), np.size(rawDirbin)])
-
     # %%%% plotting loop %%%%%
     # for zz in range(0, raw.shape[0]):
     # prep formatting for plt
@@ -59,10 +55,8 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
 
 
     # getting proper colorbars and labels forthe contour plots
-    # cbar_min = np.min(rawspec['dWED']) # holding constant over entire run
-    # cbar_max = np.max(rawspec['dWED']) # holding constant over entire run
-    cbar_min = np.min(pltrawdWED)
-    cbar_max = np.max(pltrawdWED)
+    cbar_min = np.nanmin(pltrawdWED)
+    cbar_max = np.nanmax(pltrawdWED)
     levels = np.linspace(cbar_min, cbar_max, 35)  # the established levels to be plotted
     # levels = np.logspace(cbar_min, cbar_max**(1/cbar_max),num=35, endpoint=True, base=10)
     from matplotlib import colors
@@ -520,7 +514,7 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
     ax3 = plt.subplot2grid((2, 2), (1, 1), colspan=1)
     ax4 = ax3.twinx()
     ax3.axis('off')
-
+    ax4.axis('off')
     try:
         CHL_logo = image.imread(logo_path)
         ax4 = fig.add_axes([0.78, 0.02, 0.20, 0.20], anchor='SE', zorder=-1)
@@ -1777,3 +1771,4 @@ def plotUnstructField(ofname, pDict):
 
     # save time
     plt.savefig(ofname, dpi=300, bbox_inches='tight')
+    plt.close()
