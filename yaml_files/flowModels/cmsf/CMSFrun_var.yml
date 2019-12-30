@@ -1,6 +1,6 @@
 # stuff
 
-_variables: ['cellID', 'elevation', 'numberCells', 'aveE', 'aveN', 'time', 'waterLevel', 'durationRamp', 'surveyNumber', 'surveyTime']
+_variables: ['cellID', 'elevation', 'numberCells', 'aveE', 'aveN', 'time', 'waterLevel', 'surveyNumber', 'surveyTime']
 _attributes: ['notes']
 _dimensions: ['time', 'cellID', 'one']
 
