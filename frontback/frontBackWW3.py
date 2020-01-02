@@ -1,14 +1,13 @@
 import prepdata.prepDataLib
 import testbedutils.anglesLib
 from prepdata import inputOutput
-from prepdata.prepDataLib import PrepDataTools as STPD
+from prepdata.prepDataLib import PrepDataTools
 from getdatatestbed.getDataFRF import getDataTestBed
 import datetime as DT
 import os, glob, makenc
 from subprocess import check_output
 import netCDF4 as nc
 import numpy as np
-from getdatatestbed import getDataFRF
 import plotting.operationalPlots as oP
 from testbedutils import sblib as sb
 from testbedutils import waveLib as sbwave
@@ -40,22 +39,17 @@ def ww3simSetup(startTime, inputDict,allWind , allWL, allWave, gaugelocs=None):
     version_prefix = inputDict['version_prefix'].lower()
     model = inputDict['model'].lower()
     path_prefix = inputDict.get('path_prefix').lower()
-    TOD = 0  # hour of day simulation to start (UTC)
     rawspec = allWave
     rawwind = allWind
     rawWL = allWL
+    waveTimeList = [d1 ]
     # ______________________________________________________________________________
-    # define version parameters
-    simFnameBackground = inputDict.get('gridSIM', None)
-    backgroundDepFname = inputDict.get('gridDEP', None)
     # do versioning stuff here
-    if version_prefix.lower() in ['hp', 'untuned']:
-        full = False
-    else:
+    if model in ['ww3']:
         full = True
     # _______________________________________________________________________________
     # set times
-    d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(TOD / 24., 0, 0)
+    d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
     date_str = d1.strftime('%Y-%m-%dT%H%M%SZ')  # used to be endtime
     print("Model Time Start : %s  Model Time End:  %s" % (d1, d2))
@@ -67,24 +61,19 @@ def ww3simSetup(startTime, inputDict,allWind , allWL, allWave, gaugelocs=None):
     # __________________________________________________________________________________________________________________
     gdTB = getDataTestBed(d1, d2)        # initialize get data test bed (bathy)
     ww3io = inputOutput.ww3IO(os.path.join(path_prefix, date_str, date_str))
-    prepdata = STPD.PrepDataTools()
-    # _____________________WAVES____________________________
-    # print('_________________ Getting Wave Data _________________')
-    # rawspec = go.getWaveSpec(gaugenumber=0)
+    prepdata = PrepDataTools()
+    # _____________________WAVES, wind, WL ____________________________
     assert rawspec is not None, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
     # rotate and lower resolution of directional wave spectra
+    print('Smooth/interpolate wind and waterlevel before writing')
+    print('wind should be oceanographic')
     wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=date_str, plot=plotFlag, full=full, deltaangle=5,
-                                    outputPath=path_prefix, model=model, CMSinterp=50)  # 50 freq bands are max for model
-
-    ## _____________WINDS______________________
-    print('_________________ Getting Wind Data _________________')
-    windpacket = prepdata.prep_wind(rawwind, wavepacket['epochtime'])        # vector average, rotate winds, correct to 10m
-
-    ## ___________WATER LEVEL__________________
+                                    outputPath=path_prefix, model=model, waveTimeList=d)  # 50 freq bands are max for model
+    windpacket = prepdata.prep_wind(rawwind, wavepacket['epochtime'], model=model)        # vector average, rotate winds, correct to 10m
     WLpacket = prepdata.prep_WL(rawWL, wavepacket['epochtime'])   # scalar average WL
 
-    ### ____________ BATHY   _______________
-    bathy = gdTB.getBathyIntegratedTransect(method=1)  # , ForcedSurveyDate=ForcedSurveyDate)
+    # ____________ BATHY   _____________________________________________
+    bathy = gdTB.getBathyIntegratedTransect(method=1)
     gridNodes = ww3io.load_msh(inputDict['grid'])
     if plotFlag: bathyPlotFname = os.path.join(path_prefix, date_str, 'figures', date_str+'_bathy.png');
     else: bathyPlotFname=False
@@ -92,22 +81,35 @@ def ww3simSetup(startTime, inputDict,allWind , allWL, allWave, gaugelocs=None):
     # __________________________________________________________________________________________________________________
     # ____________________________ set model save points _______________________________________________________________
     ### ___________ Create observation locations ________________ # these are in Lon/Lat locations
+    print("TODO: get wave gauge locations")
+    sys.path.append('/home/spike/repos/TDSlocationGrabber')
+    from frfTDSdataCrawler import query
+    dataLocations = query(d1, d2, inputName='/home/spike/repos/TDSlocationGrabber/database.p', type = 'waves')
+    # get gauge nodes x/y new idea: put gauges into input/output instance for the model, then we can save it
+    for ii, gauge in dataLocations['gauge']:
+        savePointName = dataLocations['Sensor']
+        gaugelocs.append([dataLocations['lon'][ii], dataLocations['lat'][ii]], savePointName)
+
     ww3io.savePoints = gaugelocs
     # __________________________________________________________________________________________________________________
     # ____________________________ begin writing model Input ___________________________________________________________
     # __________________________________________________________________________________________________________________
-    print('_________________ writing output _________________')
-    print('need to write wind, WL, save points, steering file')
     ww3io.WL = WLpacket['avgWL']
-    ww3io.write_ww3_mesh(gridNodes=bathy)
-    ww3io.writeWW3_namelist()                                       # will write with defaults with no
+
+    print('_________________ writing output _________________')
+    print('need to write wind, WL, save points')
+    ww3io.writeWW3_grid()                                           # write grid file (defines geometry)
+    ww3io.writeWW3_mesh(gridNodes=bathy)
+    ww3io.writeWW3_namelist()                                       # will write with defaults with no input args
     specFname = ww3io.writeWW3_spec(wavepacket)                     # write individual spec file
-    specListFileName = ww3io.writeWW3_speclist(specFname)           # write list of individual files used as boundary
+    specListFileName = ww3io.writeWW3_speclist(specFname)           # write files used as spectral boundary
     ww3io.writeWW3_bouncfile(specListFilename=specListFileName)     # write boundary files
-    ww3io.writeWW3_grid()
+    ww3io.writeWW3_shel(d1, d2, windpacket, WLpacket,               # write shel file
+                        outputInterval=1800)
+
     return ww3io
 
-def ww3analyze(startTime, inputDict):
+def ww3analyze(startTime, inputDict, ww3io):
     """This runs the post process script for CMS wave
     will create plots and netcdf files at request
 
@@ -115,6 +117,9 @@ def ww3analyze(startTime, inputDict):
         inputDict (dict): this is an input dictionary that was generated with the
             keys from the project input yaml file
         startTime (str): input start time with datestring in format YYYY-mm-ddThh:mm:ssZ
+        ww3io(class): this is an initialized class from model pre-processing.  This holds specific metadata including
+            class objects as listed below:
+
 
     Returns:
         plots in the inputDict['workingDirectory'] location
@@ -123,7 +128,7 @@ def ww3analyze(startTime, inputDict):
     """
     # ___________________define Global Variables___________________________________
     pFlag = inputDict.get('pFlag', True)
-    model = inputDict.get('model')
+    model = inputDict.get('model', 'ww3')
     version_prefix = inputDict['version_prefix']
     path_prefix = inputDict.get('path_prefix', "{}".format(version_prefix))
     simulationDuration = inputDict['simulationDuration']
@@ -137,18 +142,14 @@ def ww3analyze(startTime, inputDict):
     datestring = d1.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
     fpath = os.path.join(path_prefix, datestring)
     # ____________________________________________________________________________
-    if version_prefix == 'HP':
-        full = False
-    elif version_prefix == 'UNTUNED':
-        full = False
+    if version_prefix == 'base':
+        full = True   # define full plane
     # _____________________________________________________________________________
-
-    print('\nBeggining of Analyze Script\nLooking for file in ' + fpath)
-    print('\nData Start: %s  Finish: %s' % (d1, d2))
+    print('\nBeginning of Analyze Script\nLooking for file in {}'.format(fpath))
+    print('\nData Start: {}  Finish: {}'.format(d1, d2))
     print('Analyzing simulation')
-    go = getDataFRF.getObs(d1, d2, server)  # setting up get data instance
+    # go = getDataFRF.getObs(d1, d2, server)  # setting up get data instance
     prepdata = STPD.PrepDataTools()  # initializing instance for rotation scheme
-    cio = cmsIO()  # =pathbase) looks for model output files in folder to analyze
     ######################################################################################################################
     ######################################################################################################################
     ##################################   Load Data Here / Massage Data Here   ############################################
@@ -156,6 +157,7 @@ def ww3analyze(startTime, inputDict):
     ######################################################################################################################
     t = DT.datetime.now()
     print('Loading files ')
+    ww3io.load_msh
     cio.ReadCMS_ALL(fpath)  # load all files
     stat_packet = cio.stat_packet  # unpack dictionaries from class instance
     obse_packet = cio.obse_Packet
@@ -163,7 +165,7 @@ def ww3analyze(startTime, inputDict):
     dep_pack['bathy'] = np.expand_dims(dep_pack['bathy'], axis=0)
     # convert dep_pack to proper dep pack with keys
     wave_pack = cio.wave_Packet
-    print('Loaded files in %s' % (DT.datetime.now() - t))
+    print('Loaded files in {:.1f}'.format((DT.datetime.now() - t).total_seconds()/60))
     # correct model outout angles from STWAVE(+CCW) to Geospatial (+CW)
     stat_packet['WaveDm'] = testbedutils.anglesLib.STWangle2geo(stat_packet['WaveDm'])
     # correct angles

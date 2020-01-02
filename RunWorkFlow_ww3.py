@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 import matplotlib
 matplotlib.use('Agg')
-import os, getopt, sys, shutil, glob, logging, yaml, re
+import os, getopt, sys, shutil, glob, logging, yaml, re, pickle
 import datetime as DT
 from subprocess import check_output
 import numpy as np
 from frontback import frontBackWW3
 from getdatatestbed.getDataFRF import getObs
 from testbedutils import fileHandling
-
 
 def Master_ww3_run(inputDict):
     """This function will run CMS with any version prefix given start, end, and timestep
@@ -34,20 +33,17 @@ def Master_ww3_run(inputDict):
     server = inputDict.get('THREDDS', 'CHL')
 
     # __________________pre-processing checks________________________________
-    fileHandling.checkVersionPrefix(version_prefix, model)
-
+    fileHandling.checkVersionPrefix(model, version_prefix)
     # __________________input directories________________________________
     codeDir = os.getcwd()  # location of code
     # check executable
     if inputDict['modelExecutable'].startswith(codeDir):  # change to relative path
         inputDict['modelExecutable'] = re.sub(codeDir, '', inputDict['modelExecutable'])
-    workingDirectory = os.path.join(workingDir, model.lower(),version_prefix)
-    inputDict['path_prefix'] =  workingDirectory
-
+    workingDirectory = os.path.join(workingDir, model.lower(), version_prefix)
+    inputDict['path_prefix'] = workingDirectory
     # ______________________ Logging  ____________________________
     # auto generated Log file using start_end time?
     LOG_FILENAME = fileHandling.logFileLogic(workingDirectory, version_prefix, startTime, endTime, log=False)
-
     # __________________get time list to loop over________________________________
     projectEnd = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ')
     projectStart = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
@@ -62,8 +58,8 @@ def Master_ww3_run(inputDict):
     fileHandling.displayStartInfo(projectStart, projectEnd, version_prefix, LOG_FILENAME, model)
 
     # ______________________________gather all data _____________________________
-    go = getObs(startTime, endTime, THREDDS=server)  # initialize get observation
-    rawspec = go.getWaveSpec(gaugenumber=0)
+    go = getObs(projectStart, projectEnd, THREDDS=server)  # initialize get observation
+    rawspec = go.getWaveSpec(gaugenumber='waverider-26m')
     rawWL = go.getWL()
     rawwind = go.getWind(gaugenumber=0)
 
@@ -72,59 +68,65 @@ def Master_ww3_run(inputDict):
     errors, errorDates, curdir = [], [], os.getcwd()
     for time in dateStringList:
         try:
-            print('Beginning Simulation %s' %DT.datetime.now())
+            print('Beginning Simulation {}'.format(DT.datetime.now()))
 
             if generateFlag == True:
-                gaugelocs = []
-                # get gauge nodes x/y new idea: put gauges into input/output instance for the model, then we can save it
-                for gauge in ww3io.waveGaugeList:
-                    pos = go.getWaveGaugeLoc(gauge)
-                    i, j = pos['lon'], pos['lat']
-                    gaugelocs.append([i, j])
 
-                ww3io = frontBackWW3.ww3simSetup(time, inputDict=inputDict, allWind=rawwind, allWL=rawWL, allWave=rawspec, gaugelocs=gaugelocs)
+                ww3io = frontBackWW3.ww3simSetup(time, inputDict=inputDict,
+                                                 allWind=rawwind, allWL=rawWL, allWave=rawspec)
                 datadir = workingDirectory + ''.join(time.split(':'))  # moving to the new simulation's folder
-
-            if runFlag == True: # run model
-                os.chdir(datadir) # changing locations to where input files should be made
+                pickleSaveName = os.path.join(inputDict['path_prefix'], inputDict['dateString'],
+                                                  inputDict['dateString'] + '_ww3io.pickle')
+            if runFlag == True:    # run model
+                os.chdir(datadir)  # changing locations to where input files should be made
                 print('Running {} Simulation'.format(model))
                 dt = DT.datetime.now()
-                _ = check_output(codeDir + '%s %s.sim' %(inputDict['modelExecutable'], ''.join(time.split(':'))), shell=True)
-
-                print('Simulation took %s ' % (DT.datetime.now() - dt))
+                runString = codeDir + '{} {}.sim'.format(inputDict['modelExecutable'], ''.join(time.split(':')))
+                _ = check_output(runString, shell=True)
+                ww3io.simulationWallTime = DT.datetime.now() - dt
+                print('Simulation took {:.1f} minutes'.format(ww3io.simulationWallTime.total_seconds()/60))
                 os.chdir(curdir)
-
+                with open(pickleSaveName, 'wb') as fid:
+                    pickle.dump(ww3io, fid, protocol=pickle.HIGHEST_PROTOCOL)
             if analyzeFlag == True:
-                print('**\nBegin Analyze Script %s ' % DT.datetime.now())
-                frontBackWW3.ww3analyze(time, inputDict=inputDict)
+                if generateFlag is False and runFlag is False:
+                    try:  # to load the pickle
+                        with open(pickleSaveName, 'rb') as fid:
+                            ww3io = pickle.load(fid)
+                    except (FileNotFoundError):
+                        print("couldn't load sim metadata pickle for post-processing: moving to next time")
+                        continue
+                frontBackWW3.ww3analyze(time, inputDict=inputDict, ww3io=ww3io)
 
             if pFlag == True and DT.date.today() == projectEnd:
                 # move files
                 moveFnames = glob.glob(curdir + 'cmtb*.png')
                 moveFnames.extend(glob.glob(curdir + 'cmtb*.gif'))
+                liveFileMoveToDirectory = '/mnt/gaia/cmtb'
                 for file in moveFnames:
-                    shutil.move(file,  '/mnt/gaia/cmtb')
-                    print('moved %s ' % file)
+                    shutil.move(file,  liveFileMoveToDirectory)
+                    print('moved {} to {} '.format(file, liveFileMoveToDirectory))
             print('------------------SUCCESSS-----------------------------------------')
 
         except Exception as e:
             print('<< ERROR >> HAPPENED IN THIS TIME STEP ')
             print(e)
-            logging.exception('\nERROR FOUND @ %s\n' %time, exc_info=True)
+            logging.exception('\nERROR FOUND @ {}\n'.format(time, exc_info=True))
             os.chdir(curdir)
 
 
 if __name__ == "__main__":
+    model = 'ww3'
     opts, args = getopt.getopt(sys.argv[1:], "h", ["help"])
     print('___________________\n________________\n___________________\n________________\n___________________\n________________\n')
-    print('USACE FRF Coastal Model Test Bed : CMS Wave')
+    print('USACE FRF Coastal Model Test Bed : {}'.format(model))
     # we are no longer allowing a default yaml file.
     # It will throw and error and tell the user where to go look for the example yaml
     try:
         # assume the user gave the path
         yamlLoc = args[0]
         with open(os.path.join(yamlLoc), 'r') as f:
-            inputDict = yaml.load(f)
+            inputDict = yaml.safe_load(f)
     except:
         raise IOError('Input YAML file required.  See yaml_files/TestBedExampleInputs/{}_Input_example for example yaml file.'.format(model))
 
