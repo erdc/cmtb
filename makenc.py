@@ -358,22 +358,25 @@ def makenc_Station(stat_data, globalyaml_fname, flagfname, ofname, stat_yaml_fna
     """This function will make netCDF files from the station output data from the
     Coastal Model Test Bed of STWAVE for the STATion files
 
-    :param stat_data:
-    :param globalyaml_fname:
-    :param flagfname:
-    :param ofname:
-    :param griddata:
-    :param stat_yaml_fname:
+    Args
+        stat_data (dict): input data dictionary with keys that match stat_yaml_fname
+        globalyaml_fname: yaml file name that conatins global meta data
+        flagfname: flag filename
+        ofname: output filename
+        stat_yaml_fname: variable meta data file name
 
-    :return: a nc file with station data in it
+    Returns
+        a nc file with station data in it
     """
      # import global yaml data
     globalatts = import_template_file(globalyaml_fname)
     # import variable data and meta
     stat_var_atts = import_template_file(stat_yaml_fname)
-    # import flag data
-    flags = readflags(flagfname)['allflags']
-    stat_data['flags'] = flags # this is a library of flags
+    # import flag data  240 records for waves in, but only 96 hours of simulation save time
+    print('load only the ones from length of the rest of the data ')
+    # shorten flags in the event of a cold start
+    flags = readflags(flagfname)['allflags'][-len(stat_data['time']):]
+    stat_data['flags'] = flags
     globalatts['grid_dx'] = stat_data['DX']
     globalatts['grid_dy'] = stat_data['DY']
     globalatts['n_cell_y'] = stat_data['NJ']

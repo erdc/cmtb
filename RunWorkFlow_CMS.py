@@ -152,7 +152,7 @@ def Master_CMS_run(inputDict):
                     with open(cmsFpickleSaveFname, 'rb') as fid:
                         cmsfio = pickle.load(fid)
                 except (FileNotFoundError):
-                    print("couldn't open pickle, couldn't being file post-processing: moving to next time")
+                    print("couldn't open sim metadata pickle to begin file post-processing: moving to next time")
                     continue  # loop to next time
 
             if analyzeFlag == True:

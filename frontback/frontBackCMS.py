@@ -710,20 +710,3 @@ def CMSFanalyze(inputDict, cmsfio):
             #                       'var_name': '$WL (NAVD88)$',
             #                       'units': 'm'}
             #             oP.obs_V_mod_TS(path, p_dict)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
