@@ -174,7 +174,7 @@ def CMSsimSetup(startTime, inputDict):
         print('need to write wind, WL, save points, steering file')
         ww3io.WL = WLpacket['avgWL']
         ww3io.writeWW3_spec(wavepacket)
-        ww3io.write_ww3_mesh(gridNodes=bathy)
+        ww3io.writeWW3_mesh(gridNodes=bathy)
 
 
 def CMSanalyze(startTime, inputDict):
