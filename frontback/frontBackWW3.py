@@ -16,7 +16,7 @@ from testbedutils import geoprocess as gp
 from testbedutils import fileHandling
 
 
-def ww3simSetup(startTime, inputDict,allWind , allWL, allWave, gaugelocs=None):
+def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
     """This Function is the master call for the  data preparation for the Coastal Model
     Test Bed (CMTB) for ww3
 
@@ -34,7 +34,7 @@ def ww3simSetup(startTime, inputDict,allWind , allWL, allWave, gaugelocs=None):
 
     """
     # begin by setting up input parameters
-    timerun = int(inputDict.get('simulationDuration', 24))
+    simulationDuration = int(inputDict.get('simulationDuration', 24))
     plotFlag = inputDict.get('plotFlag', True)
     version_prefix = inputDict['version_prefix'].lower()
     model = inputDict['model'].lower()
@@ -42,7 +42,6 @@ def ww3simSetup(startTime, inputDict,allWind , allWL, allWave, gaugelocs=None):
     rawspec = allWave
     rawwind = allWind
     rawWL = allWL
-    waveTimeList = [d1 ]
     # ______________________________________________________________________________
     # do versioning stuff here
     if model in ['ww3']:
@@ -50,32 +49,35 @@ def ww3simSetup(startTime, inputDict,allWind , allWL, allWave, gaugelocs=None):
     # _______________________________________________________________________________
     # set times
     d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
-    d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
-    date_str = d1.strftime('%Y-%m-%dT%H%M%SZ')  # used to be endtime
+    d2 = d1 + DT.timedelta(0, simulationDuration * 3600, 0)
+    dateString = d1.strftime('%Y-%m-%dT%H%M%SZ')  # used to be endtime
     print("Model Time Start : %s  Model Time End:  %s" % (d1, d2))
-
+    waveTimeList = [d1]
+    dt_DT = np.median(np.diff(allWave['time']))
+    for i in range(int(np.ceil((d2-d1).total_seconds()/dt_DT.total_seconds()))-1):
+        waveTimeList.append(waveTimeList[-1] + dt_DT)
     # __________________Make Diretories_____________________________________________
-    fileHandling.makeCMTBfileStructure(path_prefix, date_str)
+    fileHandling.makeCMTBfileStructure(path_prefix, dateString)
     # __________________________________________________________________________________________________________________
     # ____________________________ begin model data gathering __________________________________________________________
     # __________________________________________________________________________________________________________________
     gdTB = getDataTestBed(d1, d2)        # initialize get data test bed (bathy)
-    ww3io = inputOutput.ww3IO(os.path.join(path_prefix, date_str, date_str))
+    ww3io = inputOutput.ww3IO(os.path.join(path_prefix, dateString, dateString))
     prepdata = PrepDataTools()
     # _____________________WAVES, wind, WL ____________________________
     assert rawspec is not None, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
     # rotate and lower resolution of directional wave spectra
     print('Smooth/interpolate wind and waterlevel before writing')
     print('wind should be oceanographic')
-    wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=date_str, plot=plotFlag, full=full, deltaangle=5,
-                                    outputPath=path_prefix, model=model, waveTimeList=d)  # 50 freq bands are max for model
+    wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=dateString, plot=plotFlag, full=full, deltaangle=5,
+                                    outputPath=path_prefix, model=model, waveTimeList=waveTimeList)  # 50 freq bands are max for model
     windpacket = prepdata.prep_wind(rawwind, wavepacket['epochtime'], model=model)        # vector average, rotate winds, correct to 10m
     WLpacket = prepdata.prep_WL(rawWL, wavepacket['epochtime'])   # scalar average WL
 
     # ____________ BATHY   _____________________________________________
     bathy = gdTB.getBathyIntegratedTransect(method=1)
     gridNodes = ww3io.load_msh(inputDict['grid'])
-    if plotFlag: bathyPlotFname = os.path.join(path_prefix, date_str, 'figures', date_str+'_bathy.png');
+    if plotFlag: bathyPlotFname = os.path.join(path_prefix, dateString, 'figures', dateString+'_bathy.png');
     else: bathyPlotFname=False
     bathy = prepdata.prep_Bathy(bathy, gridNodes, unstructured=True, plotFname=bathyPlotFname)
     # __________________________________________________________________________________________________________________
