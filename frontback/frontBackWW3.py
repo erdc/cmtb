@@ -1,32 +1,24 @@
-"""
-This script holds the master function for the simulation Setup
-for the CMS wave/Flow setup
-"""
 import prepdata.prepDataLib
 import testbedutils.anglesLib
 from prepdata import inputOutput
-from prepdata.prepDataLib import PrepDataTools as STPD
+from prepdata.prepDataLib import PrepDataTools
 from getdatatestbed.getDataFRF import getDataTestBed
-from getdatatestbed.getDataFRF import getObs
 import datetime as DT
-import os, glob
+import os, glob, makenc
 from subprocess import check_output
 import netCDF4 as nc
 import numpy as np
-import makenc
-from prepdata import prepDataLib as STPD
-from prepdata.inputOutput import cmsIO, stwaveIO
-from getdatatestbed import getDataFRF
 import plotting.operationalPlots as oP
 from testbedutils import sblib as sb
 from testbedutils import waveLib as sbwave
 from plotting.operationalPlots import obs_V_mod_TS
 from testbedutils import geoprocess as gp
+from testbedutils import fileHandling
 
 
-def CMSsimSetup(startTime, inputDict):
+def ww3simSetup(startTime, inputDict,allWind , allWL, allWave, gaugelocs=None):
     """This Function is the master call for the  data preparation for the Coastal Model
-    Test Bed (CMTB) and the CMS wave/FLow model
+    Test Bed (CMTB) for ww3
 
     Designed for unstructured grids (wave)
 
@@ -36,148 +28,88 @@ def CMSsimSetup(startTime, inputDict):
     Args:
         startTime (str): this is a string of format YYYY-mm-ddTHH:MM:SSZ (or YYYY-mm-dd) in UTC time
         inputDict (dict): this is a dictionary that is read from the yaml read function
+        allWind(dict): from get data with all wind from entire project set
+        allWL(dict): from get data with all waterlevel from entire project set
+        allWave(dict): from get data with all wave from entire project set
 
     """
     # begin by setting up input parameters
-
     timerun = int(inputDict.get('simulationDuration', 24))
     plotFlag = inputDict.get('plotFlag', True)
     version_prefix = inputDict['version_prefix'].lower()
-    server = inputDict.get('THREDDS', 'CHL')
     model = inputDict['model'].lower()
     path_prefix = inputDict.get('path_prefix').lower()
-    TOD = 0  # hour of day simulation to start (UTC)
-
+    rawspec = allWave
+    rawwind = allWind
+    rawWL = allWL
+    waveTimeList = [d1 ]
     # ______________________________________________________________________________
-    # define version parameters
-    versionlist = ['hp', 'untuned', 'base']
-    assert version_prefix.lower() in versionlist, 'Please check your version Prefix'
-    simFnameBackground = inputDict.get('gridSIM', None)
-    backgroundDepFname = inputDict.get('gridDEP', None)
     # do versioning stuff here
-    if version_prefix.lower() in ['hp', 'untuned']:
-        full = False
-    else:
+    if model in ['ww3']:
         full = True
-        pass
     # _______________________________________________________________________________
     # set times
-    try:
-        d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(TOD / 24., 0, 0)
-        d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
-        date_str = d1.strftime('%Y-%m-%dT%H%M%SZ')  # used to be endtime
-
-    except ValueError:
-        assert len(startTime) == 10, 'Your Time does not fit convention, check T/Z and input format'
-        d1 = DT.datetime.strptime(startTime, '%Y-%m-%d') + DT.timedelta(TOD / 24., 0, 0)
-        d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
-        date_str = d1.strftime('%Y-%m-%d')  # used to be endtime
-        assert int(timerun) >= 24, 'Running Simulations with less than 24 Hours of simulation time require end ' \
-                                   'Time format in type: %Y-%m-%dT%H:%M:%SZ'
-    # __________________Make Diretories_____________________________________________
-    if not os.path.exists(os.path.join(path_prefix, date_str)):                    # if it doesn't exist
-        os.makedirs(os.path.join(path_prefix, date_str))                           # make the directory
-    if not os.path.exists(os.path.join(path_prefix, date_str, 'figures')):
-        os.makedirs(os.path.join(path_prefix, date_str, "figures"))
-
+    d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
+    d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
+    date_str = d1.strftime('%Y-%m-%dT%H%M%SZ')  # used to be endtime
     print("Model Time Start : %s  Model Time End:  %s" % (d1, d2))
-    print("OPERATIONAL files will be place in {0} folder".format(os.path.join(path_prefix, date_str)))
+
+    # __________________Make Diretories_____________________________________________
+    fileHandling.makeCMTBfileStructure(path_prefix, date_str)
     # __________________________________________________________________________________________________________________
     # ____________________________ begin model data gathering __________________________________________________________
     # __________________________________________________________________________________________________________________
     gdTB = getDataTestBed(d1, d2)        # initialize get data test bed (bathy)
-    go = getObs(d1, d2, THREDDS=server)  # initialize get observation
-    prepdata = STPD.PrepDataTools()
-    ## _____________________WAVES____________________________
-    print('_________________ Getting Wave Data _________________')
-    rawspec = go.getWaveSpec(gaugenumber=0)
+    ww3io = inputOutput.ww3IO(os.path.join(path_prefix, date_str, date_str))
+    prepdata = PrepDataTools()
+    # _____________________WAVES, wind, WL ____________________________
     assert rawspec is not None, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
     # rotate and lower resolution of directional wave spectra
+    print('Smooth/interpolate wind and waterlevel before writing')
+    print('wind should be oceanographic')
     wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=date_str, plot=plotFlag, full=full, deltaangle=5,
-                                    outputPath=path_prefix, model=model, CMSinterp=50)  # 50 freq bands are max for model
-    print("  - number of wave records %d with %d interpolated points" % (
-    np.shape(wavepacket['spec2d'])[0], wavepacket['flag'].sum()))
+                                    outputPath=path_prefix, model=model, waveTimeList=d)  # 50 freq bands are max for model
+    windpacket = prepdata.prep_wind(rawwind, wavepacket['epochtime'], model=model)        # vector average, rotate winds, correct to 10m
+    WLpacket = prepdata.prep_WL(rawWL, wavepacket['epochtime'])   # scalar average WL
 
-    ## _____________WINDS______________________
-    print('_________________ Getting Wind Data _________________')
-    try:
-        rawwind = go.getWind(gaugenumber=0)                                      # get wind data
-        windpacket = prepdata.prep_wind(rawwind, wavepacket['epochtime'])        # vector average, rotate winds, correct to 10m
-        print('  -- number of wind records {} with {} interpolated points'.format(np.size(windpacket['time']), sum(windpacket['flag'])))
-    except (RuntimeError, TypeError):
-        windpacket = None
-        print('     NO WIND ON RECORD')
-
-    ## ___________WATER LEVEL__________________
-    print('_________________ Getting Water Level Data _________________')
-    try:
-        rawWL = go.getWL()                                            # get water level data
-        WLpacket = prepdata.prep_WL(rawWL, wavepacket['epochtime'])   # scalar average WL
-        print('  -- number of WL records %d, with %d interpolated points' % (
-            np.size(WLpacket['time']), sum(WLpacket['flag'])))
-    except (RuntimeError, TypeError):
-        WLpacket = None
-    ### ____________ Get bathy grid from thredds _______________
-    print('_________________ Getting Bathymetry Data _________________')
-    bathy = gdTB.getBathyIntegratedTransect(method=1)  # , ForcedSurveyDate=ForcedSurveyDate)
-    if model.lower() in ['cms']:
-        bathy = prepdata.prep_CMSbathy(bathy, simFnameBackground, backgroundGrid=backgroundDepFname)
-    elif model.lower() in ['ww3']:
-        ww3io = inputOutput.ww3IO(os.path.join(path_prefix, date_str, date_str))
-        gridNodes = ww3io.load_msh(inputDict['grid'])
-        if plotFlag: bathyPlotFname = os.path.join(path_prefix, date_str, 'figures', date_str+'_bathy.png');
-        else: bathyPlotFname=False
-        bathy = prepdata.prep_Bathy(bathy, gridNodes, unstructured=True, plotFname=bathyPlotFname)
+    # ____________ BATHY   _____________________________________________
+    bathy = gdTB.getBathyIntegratedTransect(method=1)
+    gridNodes = ww3io.load_msh(inputDict['grid'])
+    if plotFlag: bathyPlotFname = os.path.join(path_prefix, date_str, 'figures', date_str+'_bathy.png');
+    else: bathyPlotFname=False
+    bathy = prepdata.prep_Bathy(bathy, gridNodes, unstructured=True, plotFname=bathyPlotFname)
     # __________________________________________________________________________________________________________________
     # ____________________________ set model save points _______________________________________________________________
-    # __________________________________________________________________________________________________________________
-    ### ___________ Create observation locations ________________ # these are cell i/j locations
-    gaugelocs = []
-    #get gauge nodes x/y
-    for gauge in go.waveGaugeList:
-        pos = go.getWaveGaugeLoc(gauge)
-        if model in ['cms']:  # model operates in local coordinates
-            coord = gp.FRFcoord(pos['lon'], pos['lat'], coordType='LL')
-            i = np.abs(coord['xFRF'] - bathy['xFRF'][::-1]).argmin()
-            j = np.abs(coord['yFRF'] - bathy['yFRF'][::-1]).argmin()
-        elif model in ['ww3']:
-            i, j = pos['lon'], pos['lat']
-        gaugelocs.append([i,j])
+    ### ___________ Create observation locations ________________ # these are in Lon/Lat locations
+    print("TODO: get wave gauge locations")
+    sys.path.append('/home/spike/repos/TDSlocationGrabber')
+    from frfTDSdataCrawler import query
+    dataLocations = query(d1, d2, inputName='/home/spike/repos/TDSlocationGrabber/database.p', type = 'waves')
+    # get gauge nodes x/y new idea: put gauges into input/output instance for the model, then we can save it
+    for ii, gauge in dataLocations['gauge']:
+        savePointName = dataLocations['Sensor']
+        gaugelocs.append([dataLocations['lon'][ii], dataLocations['lat'][ii]], savePointName)
+
+    ww3io.savePoints = gaugelocs
     # __________________________________________________________________________________________________________________
     # ____________________________ begin writing model Input ___________________________________________________________
     # __________________________________________________________________________________________________________________
+    ww3io.WL = WLpacket['avgWL']
+
     print('_________________ writing output _________________')
+    print('need to write wind, WL, save points')
+    ww3io.writeWW3_grid()                                           # write grid file (defines geometry)
+    ww3io.writeWW3_mesh(gridNodes=bathy)
+    ww3io.writeWW3_namelist()                                       # will write with defaults with no input args
+    specFname = ww3io.writeWW3_spec(wavepacket)                     # write individual spec file
+    specListFileName = ww3io.writeWW3_speclist(specFname)           # write files used as spectral boundary
+    ww3io.writeWW3_bouncfile(specListFilename=specListFileName)     # write boundary files
+    ww3io.writeWW3_shel(d1, d2, windpacket, WLpacket,               # write shel file
+                        outputInterval=1800)
 
-    if model.lower() in ['cms']:
-        ## begin output
-        cmsio = inputOutput.cmsIO()  # initializing the I/o Script writer
-        stdFname = os.path.join(path_prefix, date_str, date_str + '.std')  # creating file names now
-        simFnameOut = os.path.join(path_prefix, date_str, date_str + '.sim')
-        specFname = os.path.join(path_prefix, date_str, date_str + '.eng')
-        bathyFname = os.path.join(path_prefix, date_str, date_str + '.dep')
+    return ww3io
 
-        gridOrigin = (bathy['x0'], bathy['y0'])
-
-        cmsio.writeCMS_std(fname=stdFname, gaugeLocs=gaugelocs)
-        cmsio.writeCMS_sim(simFnameOut, date_str, gridOrigin)
-        cmsio.writeCMS_spec(specFname, wavePacket=wavepacket, wlPacket=WLpacket, windPacket=windpacket)
-        cmsio.writeCMS_dep(bathyFname, depPacket=bathy)
-        inputOutput.write_flags(date_str, path_prefix, wavepacket, windpacket, WLpacket, curpacket=None)
-        # remove old output files so they're not appended, cms defaults to appending output files
-        try:
-            os.remove(os.path.join(path_prefix, date_str, cmsio.waveFname))
-            os.remove(os.path.join(path_prefix, date_str, cmsio.selhtFname))
-            os.remove(os.path.join(path_prefix + date_str, cmsio.obseFname))
-        except OSError:  # there are no files to delete
-            pass
-    elif model.lower() in ['ww3']:
-        print('need to write wind, WL, save points, steering file')
-        ww3io.WL = WLpacket['avgWL']
-        ww3io.writeWW3_spec(wavepacket)
-        ww3io.writeWW3_mesh(gridNodes=bathy)
-
-
-def CMSanalyze(startTime, inputDict):
+def ww3analyze(startTime, inputDict, ww3io):
     """This runs the post process script for CMS wave
     will create plots and netcdf files at request
 
@@ -185,17 +117,20 @@ def CMSanalyze(startTime, inputDict):
         inputDict (dict): this is an input dictionary that was generated with the
             keys from the project input yaml file
         startTime (str): input start time with datestring in format YYYY-mm-ddThh:mm:ssZ
+        ww3io(class): this is an initialized class from model pre-processing.  This holds specific metadata including
+            class objects as listed below:
 
-    :return:
+
+    Returns:
         plots in the inputDict['workingDirectory'] location
         netCDF files to the inputDict['netCDFdir'] directory
 
     """
     # ___________________define Global Variables___________________________________
     pFlag = inputDict.get('pFlag', True)
-    model = inputDict.get('model')
+    model = inputDict.get('model', 'ww3')
     version_prefix = inputDict['version_prefix']
-    path_prefix = inputDict.get('path_prefix', "/%s/".format(version_prefix))
+    path_prefix = inputDict.get('path_prefix', "{}".format(version_prefix))
     simulationDuration = inputDict['simulationDuration']
     Thredds_Base = inputDict.get('netCDFdir', '/home/{}/thredds_data/'.format(check_output('whoami', shell=True)[:-1]))
     server = inputDict.get('THREDDS', 'CHL')
@@ -207,18 +142,14 @@ def CMSanalyze(startTime, inputDict):
     datestring = d1.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
     fpath = os.path.join(path_prefix, datestring)
     # ____________________________________________________________________________
-    if version_prefix == 'HP':
-        full = False
-    elif version_prefix == 'UNTUNED':
-        full = False
+    if version_prefix == 'base':
+        full = True   # define full plane
     # _____________________________________________________________________________
-
-    print('\nBeggining of Analyze Script\nLooking for file in ' + fpath)
-    print('\nData Start: %s  Finish: %s' % (d1, d2))
+    print('\nBeginning of Analyze Script\nLooking for file in {}'.format(fpath))
+    print('\nData Start: {}  Finish: {}'.format(d1, d2))
     print('Analyzing simulation')
-    go = getDataFRF.getObs(d1, d2, server)  # setting up get data instance
+    # go = getDataFRF.getObs(d1, d2, server)  # setting up get data instance
     prepdata = STPD.PrepDataTools()  # initializing instance for rotation scheme
-    cio = cmsIO()  # =pathbase) looks for model output files in folder to analyze
     ######################################################################################################################
     ######################################################################################################################
     ##################################   Load Data Here / Massage Data Here   ############################################
@@ -226,6 +157,7 @@ def CMSanalyze(startTime, inputDict):
     ######################################################################################################################
     t = DT.datetime.now()
     print('Loading files ')
+    ww3io.load_msh
     cio.ReadCMS_ALL(fpath)  # load all files
     stat_packet = cio.stat_packet  # unpack dictionaries from class instance
     obse_packet = cio.obse_Packet
@@ -233,18 +165,11 @@ def CMSanalyze(startTime, inputDict):
     dep_pack['bathy'] = np.expand_dims(dep_pack['bathy'], axis=0)
     # convert dep_pack to proper dep pack with keys
     wave_pack = cio.wave_Packet
-    print('Loaded files in %s' % (DT.datetime.now() - t))
+    print('Loaded files in {:.1f}'.format((DT.datetime.now() - t).total_seconds()/60))
     # correct model outout angles from STWAVE(+CCW) to Geospatial (+CW)
     stat_packet['WaveDm'] = testbedutils.anglesLib.STWangle2geo(stat_packet['WaveDm'])
     # correct angles
     stat_packet['WaveDm'] = testbedutils.anglesLib.angle_correct(stat_packet['WaveDm'])
-
-    # Load Spatial Data sets for plotting
-    # wavefreqbin = np.array([0.04, 0.0475, 0.055, 0.0625, 0.07, 0.0775, 0.085, 0.0925, 0.1, 0.1075, 0.115, 0.1225, 0.13, 0.1375,
-    #               0.145, 0.1525, 0.16, 0.1675, 0.175, 0.1825, 0.19, 0.1975, 0.205, 0.2125, 0.22, 0.2275, 0.235, 0.2425, 0.25,
-    #               0.2575, 0.2645, 0.2725, 0.28, 0.2875, 0.2945, 0.3025, 0.31, 0.3175, 0.3245, 0.3325, 0.34, 0.3475, 0.3545,
-    #               0.3625, 0.37, 0.3775, 0.3845, 0.3925, 0.4, 0.4075, 0.4145, 0.4225, 0.43, 0.4375, 0.4445, 0.4525, 0.46, 0.4675,
-    #               0.475, 0.4825, 0.49, 0.4975])
 
     obse_packet['ncSpec'] = np.ones(
         (obse_packet['spec'].shape[0], obse_packet['spec'].shape[1], obse_packet['spec'].shape[2], 72)) * 1e-6
