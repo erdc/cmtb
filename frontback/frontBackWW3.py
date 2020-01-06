@@ -1,10 +1,10 @@
-import prepdata.prepDataLib
+"""Pre and post processing associated with ww3 model runs."""
 import testbedutils.anglesLib
 from prepdata import inputOutput
 from prepdata.prepDataLib import PrepDataTools
 from getdatatestbed.getDataFRF import getDataTestBed
 import datetime as DT
-import os, glob, makenc
+import os, glob, makenc, sys
 from subprocess import check_output
 import netCDF4 as nc
 import numpy as np
@@ -15,10 +15,9 @@ from plotting.operationalPlots import obs_V_mod_TS
 from testbedutils import geoprocess as gp
 from testbedutils import fileHandling
 
-
 def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
     """This Function is the master call for the  data preparation for the Coastal Model
-    Test Bed (CMTB) for ww3
+    Test Bed (CMTB) for ww3.
 
     Designed for unstructured grids (wave)
 
@@ -52,10 +51,6 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
     d2 = d1 + DT.timedelta(0, simulationDuration * 3600, 0)
     dateString = d1.strftime('%Y-%m-%dT%H%M%SZ')  # used to be endtime
     print("Model Time Start : %s  Model Time End:  %s" % (d1, d2))
-    waveTimeList = [d1]
-    dt_DT = np.median(np.diff(allWave['time']))
-    for i in range(int(np.ceil((d2-d1).total_seconds()/dt_DT.total_seconds()))-1):
-        waveTimeList.append(waveTimeList[-1] + dt_DT)
     # __________________Make Diretories_____________________________________________
     fileHandling.makeCMTBfileStructure(path_prefix, dateString)
     # __________________________________________________________________________________________________________________
@@ -67,12 +62,12 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
     # _____________________WAVES, wind, WL ____________________________
     assert rawspec is not None, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
     # rotate and lower resolution of directional wave spectra
-    print('Smooth/interpolate wind and waterlevel before writing')
-    print('wind should be oceanographic')
+    _, waveTimeList, wlTimeList, _, windTimeList = prepdata.createDifferentTimeLists(d1, d2, rawspec, rawWL, rawWind=rawwind)
     wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=dateString, plot=plotFlag, full=full, deltaangle=5,
-                                    outputPath=path_prefix, model=model, waveTimeList=waveTimeList)  # 50 freq bands are max for model
-    windpacket = prepdata.prep_wind(rawwind, wavepacket['epochtime'], model=model)        # vector average, rotate winds, correct to 10m
-    WLpacket = prepdata.prep_WL(rawWL, wavepacket['epochtime'])   # scalar average WL
+                                    outputPath=path_prefix, model=model, waveTimeList=waveTimeList)
+    # use generated time lists for these to provide accurate temporal values
+    windpacket = prepdata.prep_wind(rawwind, windTimeList, model=model)      # vector average, rotate winds, correct to 10m
+    WLpacket = prepdata.prep_WL(rawWL, wlTimeList)                           # scalar average WL
 
     # ____________ BATHY   _____________________________________________
     bathy = gdTB.getBathyIntegratedTransect(method=1)
@@ -86,12 +81,12 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
     print("TODO: get wave gauge locations")
     sys.path.append('/home/spike/repos/TDSlocationGrabber')
     from frfTDSdataCrawler import query
-    dataLocations = query(d1, d2, inputName='/home/spike/repos/TDSlocationGrabber/database.p', type = 'waves')
-    # get gauge nodes x/y new idea: put gauges into input/output instance for the model, then we can save it
-    for ii, gauge in dataLocations['gauge']:
-        savePointName = dataLocations['Sensor']
-        gaugelocs.append([dataLocations['lon'][ii], dataLocations['lat'][ii]], savePointName)
-
+    # dataLocations = query(d1, d2, inputName='/home/spike/repos/TDSlocationGrabber/database', type='waves')
+    # # get gauge nodes x/y new idea: put gauges into input/output instance for the model, then we can save it
+    # for ii, gauge in dataLocations['gauge']:
+    #     savePointName = dataLocations['Sensor']
+    #     gaugelocs.append([dataLocations['lon'][ii], dataLocations['lat'][ii]], savePointName)
+    gaugelocs = [(36.1, -71.1, 'awac'), (36.2, -71.2, 'awac2')]
     ww3io.savePoints = gaugelocs
     # __________________________________________________________________________________________________________________
     # ____________________________ begin writing model Input ___________________________________________________________
@@ -100,11 +95,12 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
 
     print('_________________ writing output _________________')
     print('need to write wind, WL, save points')
-    ww3io.writeWW3_grid()                                           # write grid file (defines geometry)
-    ww3io.writeWW3_mesh(gridNodes=bathy)
-    ww3io.writeWW3_namelist()                                       # will write with defaults with no input args
+    ww3io.writeWW3_grid(grid_inbindFname=inputDict['grid'].split('.')[0]+'.inbnd') # write grid file (defines geometry)
+    # ww3io.writeWW3_mesh(gridNodes=bathy)                            # write gmesh file
+    # ww3io.writeWW3_namelist()                                       # will write with defaults with no input args
     specFname = ww3io.writeWW3_spec(wavepacket)                     # write individual spec file
-    specListFileName = ww3io.writeWW3_speclist(specFname)           # write files used as spectral boundary
+    specListFileName = ww3io.writeWW3_speclist(ofname=specFname)           #
+    # write files used as spectral boundary
     ww3io.writeWW3_bouncfile(specListFilename=specListFileName)     # write boundary files
     ww3io.writeWW3_shel(d1, d2, windpacket, WLpacket,               # write shel file
                         outputInterval=1800)
@@ -151,7 +147,7 @@ def ww3analyze(startTime, inputDict, ww3io):
     print('\nData Start: {}  Finish: {}'.format(d1, d2))
     print('Analyzing simulation')
     # go = getDataFRF.getObs(d1, d2, server)  # setting up get data instance
-    prepdata = STPD.PrepDataTools()  # initializing instance for rotation scheme
+    prepdata = PrepDataTools()  # initializing instance for rotation scheme
     ######################################################################################################################
     ######################################################################################################################
     ##################################   Load Data Here / Massage Data Here   ############################################

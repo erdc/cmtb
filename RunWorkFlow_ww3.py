@@ -28,7 +28,7 @@ def Master_ww3_run(inputDict):
     generateFlag = inputDict['generateFlag']
     runFlag = inputDict['runFlag']
     analyzeFlag = inputDict['analyzeFlag']
-    pFlag = inputDict['pFlag']
+    pFlag = inputDict['plotFlag']
     model = inputDict.get('model', 'ww3')
     server = inputDict.get('THREDDS', 'CHL')
 

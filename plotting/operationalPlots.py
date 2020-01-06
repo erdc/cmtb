@@ -60,8 +60,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     pltrawdWED = rawdwed  # [zz, :, :]
     pltrotdWED = rot_dWED  # [zz, :, :]
     pltintdWED = interp_dWED  # [zz, :, :]
-    # now set the interpd dwed based oon full or half plane
-
+    # now set the interpd dwed based on full or half plane
 
     # getting proper colorbars and labels forthe contour plots
     # cbar_min = np.min(rawspec['dWED']) # holding constant over entire run
@@ -73,12 +72,15 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     from matplotlib import colors
     norm = colors.LogNorm()  # mc.BoundaryNorm(levels, 256)  # color palate for contourplots
 
+    from pandas.plotting import register_matplotlib_converters
+    register_matplotlib_converters()
     # generating plot to compare input data
     fig = plt.figure(figsize=(12, 8.), dpi=80)
     fig.suptitle('Input Spectra to Wave Model at %s' % time,
                  fontsize='14', fontweight='bold', y=.975)
     # subplot 0 - wave height tracer
-    sub0 = fig.add_subplot(2, 1, 1)
+    # sub0 = fig.add_subplot(2, 1, 1)
+    sub0 = plt.subplot2grid((4, 3), (0, 0), colspan=3, rowspan=2)
     sub0.plot(timeTS, HsTs, 'b-')
     sub0.plot(time, HsInd, 'r*', markersize=10)
 
@@ -86,7 +88,8 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     sub0.set_xlabel('time')
 
     # subplot 1 - measured spectra
-    sub1 = fig.add_subplot(2, 3, 4)
+    # sub1 = fig.add_subplot(2, 3, 4)
+    sub1 = plt.subplot2grid((4,3), (2,0), rowspan=2, colspan=1)
     sub1.set_title('Measured Spectra', y=1.05)
     aaa = sub1.contourf(rawFreqBin, rawDirBin, list(zip(*pltrawdWED)),
                         vmin=cbar_min, vmax=cbar_max, levels=levels, norm=norm)
@@ -105,7 +108,8 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     aaaa = plt.colorbar(aaa, format='%.1f')
     aaaa.set_label('$m^2/hz/rad$', rotation=90)
     # subplot 2
-    sub2 = fig.add_subplot(2, 3, 5)
+    # sub2 = fig.add_subplot(2, 3, 5)
+    sub2 = plt.subplot2grid((4,3), (2,1), rowspan=2)
     sub2.set_title('Inverted Direction &\nShore Normal Sepectra', y=1.05)
     if full == False:
         bounds = [90, 270]
@@ -123,7 +127,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     bbbb = plt.colorbar(bbb, format='%.1f')
     bbbb.set_label('$m^2/hz/rad$', rotation=90)
     # subplot 3
-    sub3 = fig.add_subplot(2, 3, 6)
+    sub3 = plt.subplot2grid((4,3), (2,2), rowspan=2)
     sub3.set_title('Centered Input Spectra', y=1.05)
     ccc = sub3.contourf(interpFreqBin, interpDirBin, list(zip(*pltintdWED)),
                         vmin=cbar_min, vmax=cbar_max, levels=levels, norm=norm)
