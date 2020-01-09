@@ -50,60 +50,65 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
     d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     d2 = d1 + DT.timedelta(0, simulationDuration * 3600, 0)
     dateString = d1.strftime('%Y-%m-%dT%H%M%SZ')  # used to be endtime
+    
     print("Model Time Start : %s  Model Time End:  %s" % (d1, d2))
+    
     # __________________Make Diretories_____________________________________________
     fileHandling.makeCMTBfileStructure(path_prefix, dateString)
-    # __________________________________________________________________________________________________________________
+
     # ____________________________ begin model data gathering __________________________________________________________
-    # __________________________________________________________________________________________________________________
     gdTB = getDataTestBed(d1, d2)        # initialize get data test bed (bathy)
-    ww3io = inputOutput.ww3IO(os.path.join(path_prefix, dateString, dateString))
+    ww3io = inputOutput.ww3IO(path_prefix=path_prefix, fileNameBase=dateString)
     prepdata = PrepDataTools()
+
     # _____________________WAVES, wind, WL ____________________________
     assert rawspec is not None, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
     # rotate and lower resolution of directional wave spectra
-    _, waveTimeList, wlTimeList, _, windTimeList = prepdata.createDifferentTimeLists(d1, d2, rawspec, rawWL, rawWind=rawwind)
+    _, waveTimeList, wlTimeList, _, windTimeList = prepdata.createDifferentTimeLists(d1, d2, rawspec, rawWL,
+                                                                                     rawWind=rawwind)
     wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=dateString, plot=plotFlag, full=full, deltaangle=5,
                                     outputPath=path_prefix, model=model, waveTimeList=waveTimeList)
     # use generated time lists for these to provide accurate temporal values
-    windpacket = prepdata.prep_wind(rawwind, windTimeList, model=model)      # vector average, rotate winds, correct to 10m
-    WLpacket = prepdata.prep_WL(rawWL, wlTimeList)                           # scalar average WL
+    windpacket = prepdata.prep_wind(rawwind, windTimeList, model=model)  # vector average, rotate winds, correct to 10m
+    WLpacket = prepdata.prep_WL(rawWL, wlTimeList)                       # scalar average WL
 
     # ____________ BATHY   _____________________________________________
     bathy = gdTB.getBathyIntegratedTransect(method=1)
-    gridNodes = ww3io.load_msh(inputDict['grid'])
+    _ = ww3io.load_msh(inputDict['grid'])
+    gridNodes = sb.Bunch({'points':ww3io.points})   # we will remove this when meshio is working as expected
+    
     if plotFlag: bathyPlotFname = os.path.join(path_prefix, dateString, 'figures', dateString+'_bathy.png');
     else: bathyPlotFname=False
     bathy = prepdata.prep_Bathy(bathy, gridNodes, unstructured=True, plotFname=bathyPlotFname)
-    # __________________________________________________________________________________________________________________
+    
     # ____________________________ set model save points _______________________________________________________________
-    ### ___________ Create observation locations ________________ # these are in Lon/Lat locations
+    # _________________________ Create observation locations ___________________________________________________________
     print("TODO: get wave gauge locations")
     sys.path.append('/home/spike/repos/TDSlocationGrabber')
     from frfTDSdataCrawler import query
-    # dataLocations = query(d1, d2, inputName='/home/spike/repos/TDSlocationGrabber/database', type='waves')
+    dataLocations = query(d1, d2, inputName='/home/spike/repos/TDSlocationGrabber/database', type='waves')
     # # get gauge nodes x/y new idea: put gauges into input/output instance for the model, then we can save it
     # for ii, gauge in dataLocations['gauge']:
     #     savePointName = dataLocations['Sensor']
     #     gaugelocs.append([dataLocations['lon'][ii], dataLocations['lat'][ii]], savePointName)
     gaugelocs = [(36.1, -71.1, 'awac'), (36.2, -71.2, 'awac2')]
     ww3io.savePoints = gaugelocs
-    # __________________________________________________________________________________________________________________
+
     # ____________________________ begin writing model Input ___________________________________________________________
-    # __________________________________________________________________________________________________________________
     ww3io.WL = WLpacket['avgWL']
 
     print('_________________ writing output _________________')
     print('need to write wind, WL, save points')
+    specFname = ww3io.writeWW3_spec(wavepacket)                       # write individual spec file
     ww3io.writeWW3_grid(grid_inbindFname=inputDict['grid'].split('.')[0]+'.inbnd') # write grid file (defines geometry)
     # ww3io.writeWW3_mesh(gridNodes=bathy)                            # write gmesh file
     # ww3io.writeWW3_namelist()                                       # will write with defaults with no input args
-    specFname = ww3io.writeWW3_spec(wavepacket)                     # write individual spec file
-    specListFileName = ww3io.writeWW3_speclist(ofname=specFname)           #
+    specListFileName = ww3io.writeWW3_speclist(ofname=specFname)         #
     # write files used as spectral boundary
-    ww3io.writeWW3_bouncfile(specListFilename=specListFileName)     # write boundary files
-    ww3io.writeWW3_shel(d1, d2, windpacket, WLpacket,               # write shel file
+    ww3io.writeWW3_bouncfile(specListFilename=specListFileName)       # write boundary files
+    ww3io.writeWW3_shel(d1, d2, windpacket, WLpacket,                 # write shel file
                         outputInterval=1800)
+    ww3io.write_msh(points=bathy.points, cell_data=ww3io.cell_data)
 
     return ww3io
 

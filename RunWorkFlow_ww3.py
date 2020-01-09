@@ -71,12 +71,11 @@ def Master_ww3_run(inputDict):
             print('Beginning Simulation {}'.format(DT.datetime.now()))
 
             if generateFlag == True:
-
                 ww3io = frontBackWW3.ww3simSetup(time, inputDict=inputDict,
                                                  allWind=rawwind, allWL=rawWL, allWave=rawspec)
                 datadir = workingDirectory + ''.join(time.split(':'))  # moving to the new simulation's folder
-                pickleSaveName = os.path.join(inputDict['path_prefix'], inputDict['dateString'],
-                                                  inputDict['dateString'] + '_ww3io.pickle')
+                pickleSaveName = os.path.join(ww3io.path_prefix + '_ww3io.pickle')
+
             if runFlag == True:    # run model
                 os.chdir(datadir)  # changing locations to where input files should be made
                 print('Running {} Simulation'.format(model))
@@ -88,6 +87,7 @@ def Master_ww3_run(inputDict):
                 os.chdir(curdir)
                 with open(pickleSaveName, 'wb') as fid:
                     pickle.dump(ww3io, fid, protocol=pickle.HIGHEST_PROTOCOL)
+
             if analyzeFlag == True:
                 if generateFlag is False and runFlag is False:
                     try:  # to load the pickle
