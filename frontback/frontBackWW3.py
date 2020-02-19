@@ -88,17 +88,15 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
     from frfTDSdataCrawler import query
     dataLocations = query(d1, d2, inputName='/home/spike/repos/TDSlocationGrabber/database', type='waves')
     # # get gauge nodes x/y new idea: put gauges into input/output instance for the model, then we can save it
-    # for ii, gauge in dataLocations['gauge']:
-    #     savePointName = dataLocations['Sensor']
-    #     gaugelocs.append([dataLocations['lon'][ii], dataLocations['lat'][ii]], savePointName)
-    gaugelocs = [(36.1, -71.1, 'awac'), (36.2, -71.2, 'awac2')]
+    gaugelocs = []
+    for ii, gauge in enumerate(dataLocations['Sensor']):
+         gaugelocs.append([dataLocations['Lon'][ii], dataLocations['Lat'][ii], gauge])
     ww3io.savePoints = gaugelocs
 
     # ____________________________ begin writing model Input ___________________________________________________________
     ww3io.WL = WLpacket['avgWL']
 
     print('_________________ writing output _________________')
-    print('need to write wind, WL, save points')
     specFname = ww3io.writeWW3_spec(wavepacket)                       # write individual spec file
     ww3io.writeWW3_grid(grid_inbindFname=inputDict['grid'].split('.')[0]+'.inbnd') # write grid file (defines geometry)
     # ww3io.writeWW3_mesh(gridNodes=bathy)                            # write gmesh file

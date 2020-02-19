@@ -73,13 +73,14 @@ def Master_ww3_run(inputDict):
             if generateFlag == True:
                 ww3io = frontBackWW3.ww3simSetup(time, inputDict=inputDict,
                                                  allWind=rawwind, allWL=rawWL, allWave=rawspec)
-                datadir = workingDirectory + ''.join(time.split(':'))  # moving to the new simulation's folder
+                datadir = os.path.join(workingDirectory, ''.join(time.split(':')))  # moving to the new simulation's
+                                                                                     # folder
                 pickleSaveName = os.path.join(ww3io.path_prefix + '_ww3io.pickle')
 
             if runFlag == True:    # run model
                 os.chdir(datadir)  # changing locations to where input files should be made
-                print('Running {} Simulation'.format(model))
                 dt = DT.datetime.now()
+                print('Running {} Simulation starting at {}'.format(model, dt))
                 runString = codeDir + '{} {}.sim'.format(inputDict['modelExecutable'], ''.join(time.split(':')))
                 _ = check_output(runString, shell=True)
                 ww3io.simulationWallTime = DT.datetime.now() - dt
