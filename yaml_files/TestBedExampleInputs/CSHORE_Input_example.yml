@@ -6,8 +6,8 @@ bathyLoc: 'integrated_bathy' # bathymetry source. OPTIONAL, defaults to integrat
 ########################
 #simulations parameters#
 ########################
-startTime: '2015-11-17T00:00:00Z'   # project start time, REQUIRED
-endTime: '2015-12-31T00:00:00Z'     # project end time, REQUIRED
+start_time: '2015-10-01T00:00:00Z'   # project start time, REQUIRED
+end_time: '2015-11-13T00:00:00Z'     # project end time, REQUIRED
 version_prefix: 'MOBILE_RESET'        # which version do we want today, REQUIRED
 profileNumber: 960 # alongshore position of your cross-shore transect for the model, in m yFRF - OPTIONAL: default is 960
 simulationDuration: 24     # duration in hours - size of individual simulations - OPTIONAL: default is 24
@@ -17,7 +17,7 @@ simulationDuration: 24     # duration in hours - size of individual simulations 
 modelExecutable: 'cmtb/bin/cshore.out'     # path to the model   REQUIRED
 workingDirectory: '/data'      # REQUIRED - this is the location where the input and output text files are saved.
 netCDFdir: '/thredds_data'   # parent directory for where the netCDF files go. OPTIONAL: will default to home/[whoami]/thredds_data
-logfileLoc:  'cmtb/data'                # location where we will be storing the logfiles.  will default to workingDir if not specified. OPTIONAL
+logfileLoc:  '/cmtb/data'                # location where we will be storing the logfiles.  will default to workingDir if not specified. OPTIONAL
 #########################
 # testbed run control   #
 #########################

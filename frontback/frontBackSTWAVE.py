@@ -50,7 +50,7 @@ def STsimSetup(startTime, inputDict):
     if inputDict['workingDirectory'].endswith(inputDict['version_prefix']):
         path_prefix = inputDict['workingDirectory']
     else:
-        path_prefix = os.path.join(inputDict['workingDirectory'],inputDict['version_prefix'] )
+        path_prefix = os.path.join(inputDict['workingDirectory'], inputDict['version_prefix'])
     if 'THREDDS' in inputDict:
         server = inputDict['THREDDS']
     else:
@@ -75,13 +75,16 @@ def STsimSetup(startTime, inputDict):
     # ______________________________________________________________________________
     # define version parameters
     if version_prefix == 'FP':
-        print 'FP = Full plane Chosen'
+        print('FP = Full plane Chosen')
         full = True # full plane
-    elif version_prefix in ['HP', 'CBHP']:
-        print 'HP = Half plane Chosen'
+    elif version_prefix == 'HP':
+        print('HP = Half plane Chosen')
+        full = False  # half plane
+    elif version_prefix == 'CBHP':
+        print('HP = Half plane Chosen')
         full = False  # half plane
     elif version_prefix in ['CB', 'CBThresh', 'CBT1', 'CBT2']:
-        print 'CB = cBathy Run chosen'
+        print('CB = cBathy Run chosen')
         background_grid_nested = inputDict['gridDEP_nested'].replace('5', '10') # make this dummy proof
         assert startTime[10] == 'T', 'End time for simulation runs must be in the format YYYY-MM-DDThh:mm:ssZ'
         full = False # cbathy simulations run in half plane
@@ -107,13 +110,14 @@ def STsimSetup(startTime, inputDict):
     if not os.path.exists(os.path.join(path_prefix ,date_str, "figures/")):
         os.makedirs(os.path.join(path_prefix, date_str, "figures/"))
 
-    print "Model Time Start : %s  Model Time End:  %s" % (d1, d2)
-    print u"files will be place in {0} folder".format(os.path.join(path_prefix, date_str))
+    print("Model Time Start : %s  Model Time End:  %s" % (d1, d2))
+    print("files will be place in {0} folder".format(os.path.join(path_prefix, date_str)))
+
     ###################################################################################################################
     #######################   Begin Gathering Data      ###############################################################
     ###################################################################################################################
     ## _____________WAVES____________________________
-    print "_________________\nGathering Wave Data"
+    print("_________________\nGathering Wave Data")
     # retrieve waves
     go = getDataFRF.getObs(d1, d2, THREDDS=server)
     try:
@@ -125,17 +129,17 @@ def STsimSetup(startTime, inputDict):
         background_grid_parent = os.path.join(os.path.split(inputDict['gridDEP_parent'])[0], 'Regional_17mGrid_50m.dep')
 
     if 'time' not in rawspec:
-        print "\n++++\nThere's STILL No Wave data between %s and %s \n++++\n" % (d1, d2)
+        print("\n++++\nThere's STILL No Wave data between %s and %s \n++++\n" % (d1, d2))
         return -1, -1 ## abort runs
     # assert 'time' in rawspec, "\n++++\nThere's STILL No Wave data between %s and %s \n++++\n" % (d1, d2)
     prepdata = STPD.PrepDataTools()
-    # rotate and lower resolution of directional wave spectra
+    # rotate and lower resolution of directionalWaveGaugeList wave spectra
 
     wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=date_str, plot=plotFlag, full=full, outputPath=path_prefix)
-    print "number of wave records %d with %d interpolated points" % (np.shape(wavepacket['spec2d'])[0], sum(wavepacket['flag']))
+    print("number of wave records %d with %d interpolated points" % (np.shape(wavepacket['spec2d'])[0], sum(wavepacket['flag'])))
     # ____________ BATHY ______________________
 
-    print '\n____________________\nGetting Bathymetric Data\n'
+    print('\n____________________\nGetting Bathymetric Data\n')
     stio = inputOutput.stwaveIO('')  # initializing io here so grid text can be written out
     # load grids to interp to STwAVE
     gtb = getDataFRF.getDataTestBed(d1, d2)  # this should be relocated to operational servers
@@ -158,31 +162,31 @@ def STsimSetup(startTime, inputDict):
         bathy = gtb.getBathyIntegratedTransect(method=1, ForcedSurveyDate=ForcedSurveyDate, cBKF_T=True)
         gridName='version_{}_SurveyDate_{}'.format(version_prefix, bathy['time'].strftime('%Y-%m-%dT%H%M%SZ'))
 
-    print 'Sim start: %s\nSim End: %s\nSim bathy chosen: %s' % (d1, d2, bathy['time'])
+    print('Sim start: %s\nSim End: %s\nSim bathy chosen: %s' % (d1, d2, bathy['time']))
     NestedBathy = prepdata.prep_Bathy(bathy, gridNodesNested, gridName=gridName, positiveDown=True)  # prep the grid to match the STWAVE domain in example grid file
 
     ## _____________WINDS______________________
-    print '_________________\nGetting Wind Data'
+    print('_________________\nGetting Wind Data')
     try:
         rawwind = go.getWind(gaugenumber=0)
         # average and rotate winds
         windpacket = prepdata.prep_wind(rawwind, wavepacket['epochtime'], maxdeadrecord=6)
         # wind height correction
-        print 'number of wind records %d with %d interpolated points' % (
-            np.size(windpacket['time']), sum(windpacket['flag']))
+        print('number of wind records %d with %d interpolated points' % (
+            np.size(windpacket['time']), sum(windpacket['flag'])))
     except (RuntimeError, TypeError):
         windpacket = None
-        print ' NO WIND ON RECORD'
+        print(' NO WIND ON RECORD')
 
     ## ___________WATER LEVEL__________________
-    print '_________________\nGetting Water Level Data'
+    print('_________________\nGetting Water Level Data')
     try:
         # get water level data
         rawWL = go.getWL()
         # average WL
         WLpacket = prepdata.prep_WL(rawWL, wavepacket['epochtime'])
-        print 'number of WL records %d, with %d interpolated points' % (
-                np.size(WLpacket['time']), sum(WLpacket['flag']))
+        print('number of WL records %d, with %d interpolated points' % (
+                np.size(WLpacket['time']), sum(WLpacket['flag'])))
     except (RuntimeError, TypeError):
         WLpacket = None
 
@@ -192,13 +196,13 @@ def STsimSetup(startTime, inputDict):
 
     # ##################################################################
     # check data do you have any problems
-    print 'Running Data Check\n+++++++++++++++++++++++++'
+    print('Running Data Check\n+++++++++++++++++++++++++')
     prepdata.data_check(wavepacket, windpacket, WLpacket, curpacket)
     ##___________________________________________________________________________
     ##  Get sensor locations and add to sim file start
     loc_dict = go.get_sensor_locations(datafile=FRFgaugelocsFile, window_days=14)
     statloc =  []
-    for gauge in loc_dict.keys():
+    for gauge in list(loc_dict.keys()):
         coords = loc_dict[gauge]
         try:
             statloc.append([coords['spE'], coords['spN']])
@@ -235,7 +239,7 @@ def STsimSetup(startTime, inputDict):
     #######################   Begin Writing Files   ###################################################################
     ###################################################################################################################
     # Last thing to do ... write files file
-    print 'WRITING simulation Files'
+    print('WRITING simulation Files')
     stio.write_dep(ofnameDep, NestedBathy)
     # now copy the outer domain to the local directory
     inputOutput.write_flags(date_str, path_prefix, wavepacket, windpacket, WLpacket, curpacket, gridFlag=False)
@@ -298,8 +302,8 @@ def STanalyze(startTime, inputDict):
     datestring = startTime.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
     fpath = os.path.join(path_prefix, datestring)
     fldrArch = os.path.join(model, version_prefix)
-    print('\nBeggining of Analyze Script\nLooking for file in {}'.format(fpath))
-    print('\nData Start: {}  Finish: {}'.format(startTime, endTime))
+    print(('\nBeggining of Analyze Script\nLooking for file in {}'.format(fpath)))
+    print(('\nData Start: {}  Finish: {}'.format(startTime, endTime)))
 
     go = getDataFRF.getObs(startTime, endTime, THREDDS=server)  # setting up get data instance
     prepdata = STPD.PrepDataTools()  # initializing instance for rotation scheme
@@ -362,7 +366,7 @@ def STanalyze(startTime, inputDict):
  ######################################################################################################################
  ######################################################################################################################
     # load Files
-    print '  ..begin loading spatial files ....'
+    print('  ..begin loading spatial files ....')
     rad_nest = stio.genLoad('rad', nested=True)
     break_nest = stio.genLoad('break', nested=True)
     dep_pack = prepdata.GetOriginalGridFromSTWAVE(stio.simfname[0], stio.depfname[0])
@@ -377,10 +381,10 @@ def STanalyze(startTime, inputDict):
     # wave_nest2 = stio.genLoad('wave', nested=True)
 
 
-    print 'Files loaded, in %s ' %(DT.datetime.now() - d)
+    print('Files loaded, in %s ' %(DT.datetime.now() - d))
 
     if plotFlag == True:
-        print "   BEGIN PLOTTING "
+        print("   BEGIN PLOTTING ")
         d = DT.datetime.now()
         plotFnameRegional = 'figures/CMTB_waveModels_STWAVE_%s_Regional-' % version_prefix
         plotFnameLocal = 'figures/CMTB_waveModels_STWAVE_%s_Local-' % version_prefix
@@ -519,7 +523,7 @@ def STanalyze(startTime, inputDict):
         # regDm = sorted(glob.glob(fpath + '/figures/*Regional-Dm*.png'))
         # sb.makegif(regDm, fpath+ plotFnameRegional + 'Dm_%s.gif' %(datestring))
         # [os.remove(ff) for ff in regDm]
-        print '-- Spatial plots were made in %s ' %(DT.datetime.now() - d)
+        print('-- Spatial plots were made in %s ' %(DT.datetime.now() - d))
 
     # ################################
     # Make NETCDF files              #
@@ -562,12 +566,12 @@ def STanalyze(startTime, inputDict):
             fill = np.ones((wave_pack['Hs_field'].shape[0], NJ, NI)) * fill_value
             # replace all the field values with the filled, value to the same dim
             # start with wave_pack
-            for var in wave_pack.keys():
+            for var in list(wave_pack.keys()):
                 if var.split('_')[-1].lower() == 'field':
                     fill[:, :, slice(0, wave_pack[var].shape[2])] = wave_pack[var]
                     wave_pack[var] = fill
             # fill dep_pack
-            for var in dep_pack.keys():
+            for var in list(dep_pack.keys()):
                 if var.split('_')[-1].lower() == 'bathy':
                     fill[:, :, slice(0, dep_pack[var].shape[2])] = dep_pack[var]
                     dep_pack[var] = fill
@@ -749,24 +753,24 @@ def STanalyze(startTime, inputDict):
             makenc.makenc_Station(stat_dataNest, globalyaml_fname=globalyaml_fname_station, flagfname=flagfname,
                                     ofname=outFileName, stat_yaml_fname=stat_yaml_fname)
 
-    print "netCDF file's created for %s " %startTime
+    print("netCDF file's created for %s " %startTime)
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     ## COLLECT  ALL data (process, rotate, time pair and make comparison plots)
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     if plotFlag == True and np.size(stat_packet['time']) > 1:
         from testbedutils import waveLib as sbwave
-        print '  Plotting Time Series Data '
+        print('  Plotting Time Series Data ')
         stationList = ['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array', 'awac-6m', 'awac-4.5m', 'adop-3.5m', 'xp200m', 'xp150m', 'xp125m']
         for gg, station in enumerate(stationList):
-            print 'working on %s' %station
+            print('working on %s' %station)
             # go get comparison data
             w = go.getWaveSpec(station)
             if 'time' in w:  # if there's data (not only location)
-                if station in go.directional:
-                    if full == False and station in go.directional:
+                if station in go.directionalWaveGaugeList:
+                    if full == False and station in go.directionalWaveGaugeList:
                         w['dWED'], w['wavedirbin'] = sbwave.HPchop_spec(w['dWED'], w['wavedirbin'], angadj=angadj)
                     obsStats = sbwave.waveStat(w['dWED'], w['wavefreqbin'], w['wavedirbin'])
-                else: # calc non directional stats
+                else: # calc non directionalWaveGaugeList stats
                     obsStats = sbwave.stats1D(w['fspec'], w['wavefreqbin'])
                 if station in ['waverider-17m', 'awac-11m', 'waverider-26m']:
                     modStats = sbwave.waveStat(obse_packet['ncSpec'][:, gg, :, :], obse_packet['Frequencies'], obse_packet['ncDirs'])  # compute model stats here
@@ -779,7 +783,7 @@ def STanalyze(startTime, inputDict):
                                                 nc.date2num(stat_packet['time'][:], 'seconds since 1970-01-01'),
                                                 np.arange(len(stat_packet['time']))) # time match
                 # don't plot if theres only 1 dot on the plot... save time
-                if station in go.directional:
+                if station in go.directionalWaveGaugeList:
                     plotList = ['Hm0', 'Tm', 'sprdF', 'sprdD', 'Tp', 'Dm']
                 else:
                     plotList = ['Hm0', 'Tm', 'sprdF', 'Tp']
@@ -805,7 +809,7 @@ def STanalyze(startTime, inputDict):
                                                                                                     station,
                                                                                                     param,
                                                                                                     datestring))
-                        print 'plotting ' + ofname
+                        print('plotting ' + ofname)
                         dataDict = {'time': nc.num2date(time, 'seconds since 1970-01-01'),
                                     'obs': obsStats[param][obsi.astype(np.int)],
                                     'model': modStats[param][modi.astype(np.int)],
@@ -825,8 +829,8 @@ def STanalyze(startTime, inputDict):
                                 assert stats['RMSE'] < RMSE, 'RMSE test on spectral boundary energy failed'
                                 assert np.abs(stats['bias']) < bias, 'bias test on spectral boundary energy failed'
                             except:
-                                print '!!!!!!!!!!FAILED BOUNDARY!!!!!!!!'
-                                print 'deleting data from thredds!'
+                                print('!!!!!!!!!!FAILED BOUNDARY!!!!!!!!')
+                                print('deleting data from thredds!')
                                 # os.remove(fieldOfname)
                                 os.remove(outFileName)
                                 raise RuntimeError('The Model Is not validating its offshore boundary condition')

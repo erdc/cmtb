@@ -71,7 +71,7 @@ def Master_CMS_run(inputDict):
     if workingDir[-1] == '/':
         outDataBase = workingDir + 'CMS/' + version_prefix + '/'  #codeDir + '/%s_CSHORE_data/' % version_prefix
     else:
-        outDataBase = workingDir + '/CMS/' + version_prefix +'/'
+        outDataBase = os.path.join(workingDir, 'CMS/' , version_prefix +'/')
 
     inputDict['path_prefix'] = outDataBase
     TOD = 0  # 0=start simulations at 0000
@@ -171,11 +171,6 @@ def Master_CMS_run(inputDict):
         try:
             print('**\nBegin ')
             print('Beginning Simulation %s' %DT.datetime.now())
-
-            # toggle my coldStart flags
-            inputDict['csFlag'] = csFlag[cnt]
-            cnt = cnt + 1
-
             if generateFlag == True:
                 CMSsimSetup(time, inputDict=inputDict)
                 datadir = outDataBase + ''.join(time.split(':'))  # moving to the new simulation's folder
@@ -206,11 +201,7 @@ def Master_CMS_run(inputDict):
 
             if analyzeFlag == True:
                 print('**\nBegin Analyze Script %s ' % DT.datetime.now())
-                if waveFlag:
-                    CMSanalyze(time, inputDict=inputDict)
-                if flowFlag:
-                    CMSFanalyze(time, inputDict=inputDict)
-
+                CMSanalyze(time, inputDict=inputDict)
 
             if pFlag == True and DT.date.today() == projectEnd:
                 # move files
@@ -219,6 +210,9 @@ def Master_CMS_run(inputDict):
                 for file in moveFnames:
                     shutil.move(file,  '/mnt/gaia/cmtb')
                     print('moved %s ' % file)
+
+            print('------------------SUCCESSS-----------------------------------------')
+
         except Exception as e:
             print('<< ERROR >> HAPPENED IN THIS TIME STEP ')
             print(e)
@@ -229,8 +223,6 @@ def Master_CMS_run(inputDict):
 if __name__ == "__main__":
     opts, args = getopt.getopt(sys.argv[1:], "h", ["help"])
     print('___________________\n________________\n___________________\n________________\n___________________\n________________\n')
-    print('USACE FRF Coastal Model Test Bed : CMS Wave and Flow')
-
     # we are no longer allowing a default yaml file.
     # It will throw and error and tell the user where to go look for the example yaml
     try:

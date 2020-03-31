@@ -116,6 +116,75 @@ def pltFRFgrid(xyzDict, save=False):
     #              cmap='coolwarm', levels=levels, norm=norm)
     plt.pcolor(x, y, z, vmin=z.min(), vmax=z.max())
 
+
+def halfPlanePolarPlot(spectra, frequencies, directions, lims=[-18, 162], **kwargs):
+    """ creates single polar plot for spectra.  generally Half-planed
+
+    Args:
+        spectra (array): 2D array only
+        frequencies (array): 1 d array of corresponding frequencies to spectra
+        directions(array): directions associated with spectra
+        lims (list): default is half plane for Duck (incident energy only), will NOT truncate spectra
+            set to None if looking to plot whole 360 polar plot
+
+    Keyword Args:
+        'contour_levels'(list): a list of contour levels to color
+        'figsize' (tup): a tuple of figure size eg. (12, 10)
+        'fname' (str): file path save name
+
+    Returns:
+        Axis object: if you want to further modify the plot
+
+    """
+    # begin by checking inputs
+    assert np.array(spectra).ndim == 2, 'spectra needs to be 2 dimensional'
+    assert np.array(spectra).shape[0] == np.array(frequencies).shape[
+        0], 'spectra should be shaped by freq then direction'
+    assert np.array(spectra).shape[1] == np.array(directions).shape[
+        0], 'spectra should be shaped by freq then direction'
+    # pre-processing spectra
+    Edarray = np.asarray(spectra, dtype=object)  # make spectra an array (if not already )
+    Ednew = np.append(spectra, spectra[:, 0:1], axis=1)  # add extra directional band to get it to wrap
+    Dmean_rad = np.deg2rad(np.append(directions, directions[0]))  # convert input directions to radian
+    ## set Color-scale
+    if 'contour_levels' in kwargs:  # manually set contours
+        contour_levels = kwargs['contour_levels']
+    else:  # automatically set contours
+        Edmax = float(np.max(spectra))  # take max for colorbars
+        contourNumber = 50  # set default number of contour levels
+        minlevel = Edmax / contourNumber  # calculate min level
+        maxlevel = Edmax  # calculate max level
+        step = (maxlevel - minlevel) / contourNumber  # associated step
+        contour_levels = np.arange(minlevel, maxlevel, step)  # create list/array of contour levels for plot
+    if 'figsize' in kwargs:
+        figSize = kwargs['figsize']
+    else:
+        figSize = (11, 11)
+    ########################################################################
+    fig = plt.figure(figsize=figSize)  # create figure
+    thetas = Dmean_rad[:]  # in radian NOT DEGREES
+
+    ax = plt.subplot(111, polar=True)  # create polar axis object
+    ax.set_theta_direction(-1)  # set to counter clock-wise plot
+    ax.set_theta_zero_location("N")  # set zero as up
+    colorax = ax.contourf(thetas, frequencies, Ednew, contour_levels)  # make plot
+
+    ## Set titles and colorbar
+    plt.suptitle('Polar Spectrum ', fontsize=22, y=0.95, x=0.45)
+    cbar = fig.colorbar(colorax)
+    cbar.set_label('Energy Density ($m^2/Hz/deg$)', rotation=270, fontsize=16)
+    cbar.ax.get_yaxis().labelpad = 30
+
+    #     degrange = range(0,360,30)
+    #     lines, labels = plt.thetagrids(degrange, labels=None, frac = 1.07)
+    if lims is not None:
+        ax.set_thetalim(np.deg2rad(lims))
+    if 'fname' in kwargs:
+        plt.savefig(kwargs['fname']);
+        plt.close()
+
+    return ax
+
 def plot2DcontourSpec(spec2D, freqBin, dirBin, fname, pathCHLlogo=None, **kwargs):
 
     """
@@ -533,16 +602,15 @@ def plotTS(plotpacket1, plotpacket2, plotpacket3):
     plt.close()
 
 # these are all the ones that were formerly in gridTools!
-def plotBathyInterp(ofname, dataDict, title):
-    """
-    This is a quick plot of the bathy interp, Not sure if its used in any work flow or was part of a quality check
+def plotBathyInterp(ofname2, dataDict, title):
+    """This is a quick plot of the bathy interp, Not sure if its used in any work flow or was part of a quality check
     This can probably be moved to a plotting library maybe be a more generic
 
     designed to QA newly inserted bathy into background
 
-    :param ofname: file output name
-
-    :param dataDict: a dictionary with keys:
+    Args:
+      ofname2: file output name
+      dataDict: a dictionary with keys:
         'newXfrf'  new x coords (1d)
         'newYfrf'  new y coords (1d)
         'newZfrf'  new Z values (2D of shape newXfrf, newYfrf)
@@ -552,8 +620,6 @@ def plotBathyInterp(ofname, dataDict, title):
         'modelGridY 1 d array of model domain
 
 
-    :param title:  Plot title
-    :return:
     """
 
     newXfrf = dataDict['newXfrf']
@@ -600,7 +666,7 @@ def plotBathyInterp(ofname, dataDict, title):
     cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
     cbar = fig.colorbar(ax1contOld, cax=cbar_ax)
     cbar.set_label('Elevation NAVD 88[m]')
-    plt.savefig(ofname)
+    plt.savefig(ofname2)
     plt.close(fig)
 
 def CreateGridPlotinFRF(outi, outj, spacings, fname):
@@ -629,469 +695,154 @@ def CreateGridPlotinFRF(outi, outj, spacings, fname):
     plt.savefig(fname)
     plt.close()
 
-# these are some new ones I made for the .tel file
-def plotUnstructBathy(ofname, pDict):
+def plot_scatterAndQQ(fname, time,  model, observations, **kwargs):
     """
-    This is a function to plot unstructured grid bathymetry data.
-    It uses the matplotlib.tri package to triangulate your points onto a grid,
-    then the tricontourf function to actually plot it.  The triangulation is a Delaunay triangulation
+    This will make a time-series, a binned scatter plot and a QQ plot for models and observations
 
-    :param ofname: complete filepath where the output will be stored, including extension!!!!!
-    :param pDict:
-        Keys:
-        ptitle - plot title
-        x - x-positions
-        y - y-positions
-        z - this can be any value that you want a 2D colorf plot of, but for our applications mainly depth or elevation
-        xLabel - label for x-axis
-        yLabel - label for y-axis
-        cbarLabel - label for the color bar
-        cbarMin - minumum value to show on colorbar
-        cbarMax - maximum value to show on colorbar
-        cbarColor - type of colorbar you want to use
-        ncLev - number of contour "levels" you want to have.
-                defaults to 100 to make it look like a continuous colorbar
-        xbounds - (xmin, xmax) for your plot
-        ybounds - (ymin, ymax) for your plot
-    :return:
-        saved contourf plot
+    Args:
+        fname (str): save filename
+        time (list): datetime objects matched to model and observations
+        model (list): plottable values from the model (plotted on the y axis)
+        observations (list): plottable values from the observations (plotted on the x axis)
+
+    Keyword Args:
+        ** title (str): the title for the plot
+        ** units (str): used as axis label (not implemented)
+
     """
+    ### imports
+    from statsmodels.graphics import gofplots
+    from testbedutils import sblib as sb
 
-    # check for dictionary keys
-    assert 'x' in pDict.keys(), "Error: x must be specified"
-    assert 'y' in pDict.keys(), "Error: y must be specified"
-    assert 'z' in pDict.keys(), "Error: z must be specified"
-
-    # make assumptions if optional keys are blank
-    if 'xLabel' not in pDict.keys():
-        pDict['xLabel'] = 'x'
-    if 'yLabel' not in pDict.keys():
-        pDict['yLabel'] = 'y'
-    if 'cbarLabel' not in pDict.keys():
-        pDict['cbarLabel'] = 'z'
-    if 'cbarMin' not in pDict.keys():
-        pDict['cbarMin'] = np.nanmin(pDict['z'])
-    if 'cbarMax' not in pDict.keys():
-        pDict['cbarMax'] = np.nanmax(pDict['z'])
-    if 'cbarColor' not in pDict.keys():
-        pDict['cbarColor'] = 'RdYlBu'
-    if 'ncLev' not in pDict.keys():
-        pDict['ncLev'] = 100
-    if 'xbounds' not in pDict.keys():
-        pDict['xbounds'] = (np.min(pDict['x']), np.max(pDict['x']))
-    if 'ybounds' not in pDict.keys():
-        pDict['ybounds'] = (np.min(pDict['y']), np.max(pDict['y']))
-
-    z = pDict['z'].copy()
-    # NOTE - if pDict['z'] is a masked array, this script will MODIFY the mask!!!!!
-    maskFlag = False
-    if np.ma.is_masked(z):
-        maskInd = np.ma.getmask(z).copy()
-        maskFlag = True
-
-    # if I have colorbar ranges, force the data to be within the min/max bounds
-    z[z < pDict['cbarMin']] = pDict['cbarMin']
-    z[z > pDict['cbarMax']] = pDict['cbarMax']
-
-    # figure out how to force my colorbar ticks through zero
-    if pDict['cbarMin'] > 0 or pDict['cbarMax'] < 0:
-        v = np.linspace(pDict['cbarMin'], pDict['cbarMax'], 11, endpoint=True)
+    if 'title' in kwargs:
+        title = kwargs['title']
     else:
-        # first guess at spacing
-        s1 = (pDict['cbarMax'] - pDict['cbarMin'])/float(11)
-        cnt = 0
-        if s1 > 1:
-            while s1 > 1:
-                cnt = cnt + 1
-                s1 = s1/float(10)
-        elif s1 < 0.1:
-            while s1 < 0.1:
-                cnt = cnt -1
-                s1 = s1 * float(10)
-        else:
-            pass
-        # round to nearest quarter
-        s1n = round(s1 * 4)/4
-        if s1n == 0:
-            s1n = round(s1, 1)
+        title = 'Observations and model comparisons'
+    if 'units' in kwargs:
+        units = kwargs['units']
+    else:
+        units=None
+    ###########
+    # calculate statistics
+    if np.ma.isMaskedArray(model) and model.mask.any():
+        raise NotImplementedError('These are not fixed, check binned_xshoreSkillStat_generic for ideas')
+    else:
+        model=np.array(model)
+    if np.ma.isMaskedArray(observations) and observations.mask.any():
+        raise NotImplementedError ('These are not fixed, check binned_xshoreSkillStat_generic for ideas')
+    else:
+        observations = np.array(observations)
+    stats_dict = sb.statsBryant(observations, model)
 
-        # get it to the same decimal place it was before
-        s1n = s1n*10**cnt
+    ## generate string for plot
+    statString1 =  "Statistics\n\nModel to Observations:\n\nBias: {0:.2f}\nRMSE: {1:.2f}\n".format(stats_dict['bias'], stats_dict['RMSE'])
+    statString2 = "Scatter Index: {0:.2f}\nSymmetric Slope: {1:.2f}\n".format(stats_dict['scatterIndex'], stats_dict['symSlope'])
+    statString3 = "$R^2$: {0:.2f}\nsample Count: {1}".format(stats_dict['corr']**2, len(stats_dict['residuals']))
+    statString = statString1 + statString2 + statString3
+    #############################################
+    #  # # prep for plot
+    nbins = 100
+    H, xedges, yedges = np.histogram2d(observations, model, bins=nbins)
+    H = np.rot90(H)
+    H = np.flipud(H)
+    # Mask zeros
+    Hmasked = np.ma.masked_where(H==0,H)
+    # find data lims
+    ax1max = np.ceil(max(xedges.max(), yedges.max()))
+    ax1min = np.floor(min(xedges.min(), yedges.min()))
 
-        # build stuff out of it....
-        rL = np.arange(0, pDict['cbarMax'], s1n)
-        lL = -1*np.arange(s1n, abs(pDict['cbarMin']), s1n)
-        v = np.concatenate([lL, rL])
+    ########## make plot ########################
+    fig = plt.figure(figsize=(12,7))
+    fig.suptitle(title)
 
+    ax0 = plt.subplot2grid((2,3),(0,0), colspan=3)
+    ax0.plot(time, model, 'b.', label='model')
+    ax0.plot(time, observations, 'r.', ms=1, label='observation')
+    ax0.legend()
 
-    # perform triangulation
-    triang = tri.Triangulation(pDict['x'], pDict['y'])
+    ax1 = plt.subplot2grid((2,3),(1,0))
+    ax1.plot([ax1min, ax1max], [ax1min, ax1max], 'k--', lw=1)
+    ax1.set_ylim([ax1min, ax1max])
+    ax1.set_xlim([ax1min, ax1max])
+    histo = ax1.pcolormesh(xedges, yedges, Hmasked)
+    cbar = plt.colorbar(histo)
+    cbar.ax.set_ylabel('Counts')
+    ax1.set_xlabel('observations')
+    ax1.set_ylabel('model')
 
-    # do we re-apply the mask here?  does tricontourf work with masked arrays?
-    if maskFlag:
-        z = np.array(z)
-        z[maskInd] = pDict['cbarMax'] + (pDict['cbarMax'] - pDict['cbarMin'])
+    ax2 = plt.subplot2grid((2,3),(1,1), sharey=ax1)
+    gofplots.qqplot_2samples(model, observations,  xlabel='observations', ylabel='model', line='45', ax=ax2)
 
-    # generate the plot.
-    axisAspect = (pDict['ybounds'][1] - pDict['ybounds'][0])/float(pDict['xbounds'][1] - pDict['xbounds'][0])
-    plt.figure()
-    plt.ylim([pDict['ybounds'][0], pDict['ybounds'][1]])
-    plt.xlim([pDict['xbounds'][0], pDict['xbounds'][1]])
-    plt.gca().set_aspect(axisAspect)
-    clev = np.arange(pDict['cbarMin'], pDict['cbarMax'], (pDict['cbarMax'] - pDict['cbarMin'])/float(pDict['ncLev']))
-    plt.tricontourf(triang, z, clev, cmap=plt.get_cmap(pDict['cbarColor']))
-    plt.clim(pDict['cbarMin'], pDict['cbarMax'])
-    cb1 = plt.colorbar(orientation='vertical', ticks=v)
-    cb1.set_label(pDict['cbarLabel'], fontsize=12)
-    if 'U' in pDict.keys() and 'V' in pDict.keys():
+    ax3 = plt.subplot2grid((2,3), (1,2))
+    ax3.text(0, 0, statString, fontsize=12 )
+    ax3.set_axis_off()
 
-        # lets interpolate this onto a uniform grid?
-        # build new grid
-        stepsize = 250
-        xP = []
-        yP = []
-        for x in range(pDict['xbounds'][0], pDict['xbounds'][1], stepsize):
-            for y in range(pDict['ybounds'][0], pDict['ybounds'][1], stepsize):
-                xP.append(x)
-                yP.append(y)
-        # do the interpolation
-        points = (pDict['x'], pDict['y'])
-        values = pDict['U']
-        # do the interpolation
-        uP = griddata(points, values, (xP, yP), method='linear')
-        values = pDict['V']
-        # do the interpolation
-        vP = griddata(points, values, (xP, yP), method='linear')
+    plt.tight_layout(rect=[0, 0, 1, .95])
+    plt.savefig(fname); plt.close()
 
-        # plot quiver vectors
-        if 'scaleP' in pDict.keys():
-            Q = plt.quiver(xP, yP, uP, vP, scale=pDict['scaleP'])
-        else:
-            Q = plt.quiver(xP, yP, uP, vP)
-        vMag = np.sqrt(np.power(uP, 2) + np.power(vP, 2))
-        # what should the scale be?
-        if 'scaleV' in pDict.keys():
-            scaleV = round(pDict['scaleV'], 1)
-        else:
-            scaleV = round(np.nanmax(vMag), 1)
-        plt.quiverkey(Q, pDict['xbounds'][0] + 0.05*(pDict['xbounds'][1] - pDict['xbounds'][0]), pDict['ybounds'][1] + 0.02*(pDict['ybounds'][1] - pDict['ybounds'][0]), scaleV, '%s $m/s$'%scaleV, linewidth=1, labelpos='E', coordinates='data')
+def halfPlanePolarPlot(spectra, frequencies, directions, lims=[-18, 162], **kwargs):
+    """ creates single polar plot for spectra, taken in part from CDIP
 
-    # DLY Note 12/19/2018 - the labeling of gauges is not flexible as currently constructed.  suggest switching to
-    # different markers and legend.  as is the text will overlap without significant tinkering
-    if 'gaugeLabels' in pDict.keys():
-        if pDict['gaugeLabels']:
+    Args:
+        spectra (array): 2D array only
+        frequencies (array): 1 d array of corresponding frequencies to spectra
+        directions(array): directions associated with spectra
+        lims (list): default is half plane for Duck (incident energy only), will NOT truncate spectra
+            set to None if looking to plot whole 360 polar plot
 
-            gaugeNames = ['FRF Pier', '26m Waverider', '17m Waverider', '11m AWAC', '8m Array', '6m AWAC', '4.5m AWAC', '3.5m Aquadopp', '200m Paros', '150m Paros', '125m Paros']
-            gaugeX = [[0, 580], 16100, 3710, 1302, 825, 606, 400, 306, 200, 150, 125]
-            gaugeY = [[516, 516], 4375, 1303, 933, 915, 937, 939, 940, 940, 940, 950]
+    Keyword Args:
+        'contour_levels'(list): a list of contour levels to color
+        'figsize' (tup): a tuple of figure size eg. (12, 10)
+        'fname' (str): file path save name
+    Returns:
+        Axis object
 
-            # gauge label time!
-            parosFlag = False
-            for ii in range(0, len(gaugeNames)):
-
-                if gaugeNames[ii] == 'FRF Pier':
-                    plt.plot(gaugeX[ii], gaugeY[ii], 'k-', linewidth=5)
-                    plt.text(gaugeX[ii][1], gaugeY[ii][1]-150, gaugeNames[ii], fontsize=8, va='bottom', ha='right',
-                             color='black', rotation=0)
-
-                elif 'Paros' in gaugeNames[ii]:
-                    if gaugeX[ii] > pDict['xbounds'][0] and gaugeX[ii] < pDict['xbounds'][1] and gaugeY[ii] > pDict['ybounds'][0] and gaugeY[ii] < pDict['ybounds'][1]:
-                        plt.plot(gaugeX[ii], gaugeY[ii], 'or')
-                        parosFlag = True
-                elif gaugeNames[ii] == '3.5m Aquadopp':
-                    if gaugeX[ii] > pDict['xbounds'][0] and gaugeX[ii] < pDict['xbounds'][1] and gaugeY[ii] > pDict['ybounds'][0] and gaugeY[ii] < pDict['ybounds'][1]:
-                        plt.plot(gaugeX[ii], gaugeY[ii], 'or')
-                        plt.text(gaugeX[ii]-25, gaugeY[ii], gaugeNames[ii], fontsize=6, va='bottom', rotation=90, color='black')
-                else:
-                    if gaugeX[ii] > pDict['xbounds'][0] and gaugeX[ii] < pDict['xbounds'][1] and gaugeY[ii] > pDict['ybounds'][0] and gaugeY[ii] < pDict['ybounds'][1]:
-                        plt.plot(gaugeX[ii], gaugeY[ii], 'or')
-                        plt.text(gaugeX[ii], gaugeY[ii], gaugeNames[ii], fontsize=6, va='bottom', rotation=90, color='black')
-            if parosFlag:
-                plt.text(gaugeX[-1]-65, gaugeY[-1]-225, '125m, 150m,\n200 m Paros', fontsize=6, va='bottom', rotation=90, color='black')
-
-
-
-
-
-    # set some other labels
-    plt.ylabel(pDict['yLabel'], fontsize=12)
-    plt.xlabel(pDict['xLabel'], fontsize=12)
-    if 'ptitle' in pDict.keys():
-        plt.title(pDict['ptitle'], fontsize=16)
-
-    # save time
-    plt.savefig(ofname, dpi=300, bbox_inches='tight')
-
-def bathyEdgeHist(ofname, pDict, prox=None):
     """
-    Okay the point of this function is to take in some bathy data, pull out all the values along the edges of the
-    new surface and plot them to see how far off they are from the original surface.
-    if you hand it only 1 surface it will assume that it is a DIFFERENCED surface!!!!
-    :param ofname: complete filepath where the output will be stored, including extension!!!!!
-    :param pDict:
-        Keys:
-        ptitle - plot title
-        x - x-positions
-        y - y-positions
-        hUnits - units of the x and y positions (m or ft)
-        z1 - this can be any value that you want to compare, but for our applications mainly depth or elevation
-        z2 - this can be any value that you want to compare, but for our applications mainly depth or elevation
-        zUnits - units of the z stuff (m or ft)
-        xHistLabel - label for hist x-axis
-        yHistLabel - label for hist y-axis
-        xcLabel - label for x-axis
-        ycLabel - label for y-axis
-        cbarLabel - label for the color bar
-        cbarMin - minumum value to show on colorbar
-        cbarMax - maximum value to show on colorbar
-        cbarColor - type of colorbar you want to use
-        ncLev - number of contour "levels" you want to have.
-                defaults to 100 to make it look like a continuous colorbar
-
-    :return:
-        histogram plot of the differences (z1 - z2) in the EDGES of the surface!!!!
-    """
-    # check for dictionary keys
-    assert 'x' in pDict.keys(), "Error: x must be specified"
-    assert 'y' in pDict.keys(), "Error: y must be specified"
-    assert 'z1' in pDict.keys(), "Error: z1 must be specified"
-
-    # make assumptions if optional keys are blank
-    if 'xHistLabel' not in pDict.keys():
-        pDict['xHistLabel'] = 'bins'
-    if 'yHistLabel' not in pDict.keys():
-        pDict['yHistLabel'] = 'Number'
-    if 'xcLabel' not in pDict.keys():
-        pDict['xcLabel'] = 'x'
-    if 'ycLabel' not in pDict.keys():
-        pDict['ycLabel'] = 'y'
-    if 'cbarLabel' not in pDict.keys():
-        pDict['cbarLabel'] = 'z'
-    if 'cbarColor' not in pDict.keys():
-        pDict['cbarColor'] = 'RdYlBu'
-    if 'ncLev' not in pDict.keys():
-        pDict['ncLev'] = 100
-    if 'hUnits' not in pDict.keys():
-        pDict['hUnits'] = 'm'
-    if 'zUnits' not in pDict.keys():
-        pDict['zUnits'] = 'm'
-
-    # get differenced surface
-    if 'z2' in pDict.keys():
-        assert np.shape(pDict['z2']) == np.shape(pDict['z1']), 'Error: z2 and z1 must be same shape.'
-        dz = pDict['z1'] - pDict['z2']
+    # begin by checking inputs
+    assert np.array(spectra).ndim == 2, 'spectra needs to be 2 dimensional'
+    assert np.array(spectra).shape[0] == np.array(frequencies).shape[
+        0], 'spectra should be shaped by freq then direction'
+    assert np.array(spectra).shape[1] == np.array(directions).shape[
+        0], 'spectra should be shaped by freq then direction'
+    # pre-processing spectra
+    Edarray = np.asarray(spectra, dtype=object)  # make spectra an array (if not already )
+    Ednew = np.append(spectra, spectra[:, 0:1], axis=1)  # add extra directionalWaveGaugeList band to get it to wrap
+    Dmean_rad = np.deg2rad(np.append(directions, directions[0]))  # convert input directions to radian
+    ## set Color-scale
+    if 'contour_levels' in kwargs:  # manually set contours
+        contour_levels = kwargs['contour_levels']
+    else:  # automatically set contours
+        Edmax = float(np.max(spectra))  # take max for colorbars
+        contourNumber = 50  # set default number of contour levels
+        minlevel = Edmax / contourNumber  # calculate min level
+        maxlevel = Edmax  # calculate max level
+        step = (maxlevel - minlevel) / contourNumber  # associated step
+        contour_levels = np.arange(minlevel, maxlevel, step)  # create list/array of contour levels for plot
+    if 'figsize' in kwargs:
+        figSize = kwargs['figsize']
     else:
-        dz = pDict['z1']
+        figSize = (11, 11)
+    ########################################################################
+    fig = plt.figure(figsize=figSize)  # create figure
+    thetas = Dmean_rad[:]  # in radian NOT DEGREES
 
-    # check shape of everything.
-    dz_sz = np.shape(dz)
-    if len(dz_sz) > 1:
-        # you have a 2D grid, check the sizes of x and y
-        dz_v = dz.reshape((1, dz.shape[0] * dz.shape[1]))[0]
-        if dz_sz == np.shape(pDict['x']) and dz_sz == np.shape(pDict['y']):
-            # reshape into list of points
-            x_v = pDict['x'].reshape((1, pDict['x'].shape[0] * pDict['x'].shape[1]))[0]
-            y_v = pDict['y'].reshape((1, pDict['y'].shape[0] * pDict['y'].shape[1]))[0]
-        else:
-            # turn x and y points into meshgrid
-            tx, ty = np.meshgrid(pDict['x'], pDict['y'])
-            # reshape into list of points
-            x_v = tx.reshape((1, tx.shape[0] * tx.shape[1]))[0]
-            y_v = ty.reshape((1, ty.shape[0] * ty.shape[1]))[0]
-    else:
-        # you already have lists of points
-        dz_v = dz
-        x_v = pDict['x']
-        y_v = pDict['y']
+    ax = plt.subplot(111, polar=True)  # create polar axis object
+    ax.set_theta_direction(-1)  # set to counter clock-wise plot
+    ax.set_theta_zero_location("N")  # set zero as up
+    colorax = ax.contourf(thetas, frequencies, Ednew, contour_levels)  # make plot
 
-    if 'cbarMin' not in pDict.keys():
-        pDict['cbarMin'] = np.nanmin(dz_v)
-    if 'cbarMax' not in pDict.keys():
-        pDict['cbarMax'] = np.nanmax(dz_v)
+    ## Set titles and colorbar
+    plt.suptitle('Polar Spectrum ', fontsize=22, y=0.95, x=0.45)
+    cbar = fig.colorbar(colorax)
+    cbar.set_label('Energy Density ($m^2/Hz/deg$)', rotation=270, fontsize=16)
+    cbar.ax.get_yaxis().labelpad = 30
 
-    # now that I have a list of all points, I need to find the edges
-    points = np.column_stack((x_v, y_v))
-    hull = ConvexHull(points)
-    hullPts = points[hull.vertices, :]
-    # repeat the first point at the end so the below code checks the line between the last point and the first as well
-    hullPts2 = np.concatenate((hullPts, [hullPts[0,:]]), axis=0)
+    #     degrange = range(0,360,30)
+    #     lines, labels = plt.thetagrids(degrange, labels=None, frac = 1.07)
+    if lims is not None:
+        ax.set_thetalim(np.deg2rad(lims))
+    if 'fname' in kwargs:
+        plt.savefig(kwargs['fname']);
+        plt.close()
 
-    # how far from the edges are each of these points?
-    hullDist = []
-    for j in range(0, np.shape(points)[0]):
-        dists = []
-        p = points[j, :]
-        for i in range(len(hullPts2) - 1):
-            dists.append(sb.dist(hullPts2[i][0], hullPts2[i][1], hullPts2[i + 1][0], hullPts2[i + 1][1], p[0], p[1]))
-        hullDist.append(min(dists))
-
-    # show me the points within prox m of the edge
-    if prox is None:
-        # compute average nearest neighbor distance and use that
-        kdt = scipy.spatial.cKDTree(points)
-        k = 1  # number of nearest neighbors
-        dists, neighs = kdt.query(points, k + 1)
-        prox = np.mean(dists[:, 1])
-    else:
-        pass
-    ind = np.array(hullDist) <= prox
-    edgePts = points[ind, :]
-    edgeDiffs = dz_v[ind]
-
-    # make a histogram and a contourf plot of the original surface with the hull bounds and edge points overlaid
-    # in a panel to the right - this is going to be a cool figure.
-
-    # show time
-    # check to see the x vs y extents of my data.  If x is >> y you are better off with a horizontal plot
-    yR = max(y_v) - min(y_v)
-    xR = max(x_v) - min(x_v)
-    if xR >= 1.5*yR:
-        sp1 = 211
-        sp2 = 223
-        sp3 = 224
-    else:
-        sp1 = 121
-        sp2 = 222
-        sp3 = 224
-
-    # if I have colorbar ranges, force the data to be within the min/max bounds
-    dz_v[dz_v < pDict['cbarMin']] = pDict['cbarMin']
-    dz_v[dz_v > pDict['cbarMax']] = pDict['cbarMax']
-
-    # figure out how to force my colorbar ticks through zero
-    cbpts = 5
-    if pDict['cbarMin'] > 0 or pDict['cbarMax'] < 0:
-        v = np.linspace(pDict['cbarMin'], pDict['cbarMax'], cbpts, endpoint=True)
-    else:
-        # first guess at spacing
-        s1 = (pDict['cbarMax'] - pDict['cbarMin']) / float(cbpts)
-        cnt = 0
-        if s1 > 1:
-            while s1 > 1:
-                cnt = cnt + 1
-                s1 = s1 / float(10)
-        elif s1 < 0.1:
-            while s1 < 0.1:
-                cnt = cnt - 1
-                s1 = s1 * float(10)
-        else:
-            pass
-        # round to nearest quarter
-        s1n = round(s1 * 4) / 4
-        if s1n == 0:
-            s1n = round(s1, 1)
-
-        # get it to the same decimal place it was before
-        s1n = s1n * 10 ** cnt
-
-        # build stuff out of it....
-        rL = np.arange(0, pDict['cbarMax'], s1n)
-        lL = -1 * np.arange(s1n, abs(pDict['cbarMin']), s1n)
-        v = np.concatenate([lL, rL])
-
-    # perform triangulation
-    triang = tri.Triangulation(x_v, y_v)
-
-
-    # figure time?
-    fig = plt.figure(figsize=(10, 10))
-    if 'ptitle' in pDict.keys():
-        fig.suptitle(pDict['ptitle'], fontsize=18, fontweight='bold', verticalalignment='top')
-
-    # colour contour plot...
-    ax1 = plt.subplot(sp1)
-    ax1.set_aspect('equal')
-    clev = np.arange(dz_v.min(), dz_v.max(), 1 / float(pDict['ncLev']))
-    tmp = ax1.tricontourf(triang, dz_v, clev, cmap=plt.get_cmap(pDict['cbarColor']))
-    cb1 = plt.colorbar(tmp, orientation='horizontal', ticks=v)
-    # set some other labels
-    ax1.set_ylabel(pDict['ycLabel'], fontsize=12)
-    ax1.set_xlabel(pDict['xcLabel'], fontsize=12)
-    # overlay the hull points
-    ax1.plot(hullPts2[:, 0], hullPts2[:, 1], 'k--')
-    # overlay the "edge points"
-    ax1.scatter(edgePts[:, 0], edgePts[:, 1], c=edgeDiffs, marker='o', zorder=1, cmap=pDict['cbarColor'])
-    # ax1.scatter(edgePts[:, 0], edgePts[:, 1], c='r', marker='o', zorder=1)
-
-    # doctor up the x-ticks
-    M = 4
-    xticks = ticker.MaxNLocator(M)
-    ax1.xaxis.set_major_locator(xticks)
-
-    # edge depth histogram...
-    ax2 = plt.subplot(sp2)
-    # want an average of 10 in each bin
-    nbins = int(round(len(edgeDiffs)/float(10)))
-    if nbins < 5:
-        nbins = int(5)
-    n, bins, patches = ax2.hist(edgeDiffs, nbins, facecolor='green', alpha=0.75)
-    ax2.grid(True, linestyle='dotted')
-    # set some other labels
-    ax2.set_ylabel(pDict['yHistLabel'], fontsize=12)
-    ax2.set_xlabel(pDict['xHistLabel'], fontsize=12)
-
-    # some basic stats about this plot
-    header_str = 'STATISTICS:'
-    # edge threshold
-    edgeThresh_str = '\n edge threshold $=%s$ $%s$' % ("{0:.2f}".format(prox), pDict['hUnits'])
-    # how many edge points
-    edgeNum_str = '\n number of edge points $=%s$' % (str(len(edgeDiffs)))
-    # average and std of the depth difference
-    meanDiff_str = '\n mean difference $=%s$ $%s$' % ("{0:.2f}".format(np.mean(edgeDiffs)), pDict['zUnits'])
-    sDev_str = '\n s.dev of difference $=%s$ $%s$' % ("{0:.2f}".format(np.std(edgeDiffs)), pDict['zUnits'])
-    plot_str = edgeThresh_str + edgeNum_str + meanDiff_str + sDev_str
-    ax3 = plt.subplot(sp3)
-    ax3.axis('off')
-    ax3.text(0.01, 0.99, header_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=18,
-             fontweight='bold')
-    ax3.text(0.01, 0.95, plot_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=16)
-
-    fig.subplots_adjust(wspace=0.4, hspace=0.1)
-    fig.tight_layout(pad=1, h_pad=2.5, w_pad=1, rect=[0.0, 0.0, 1.0, 0.925])
-    # save this?
-    plt.savefig(ofname, dpi=300)
-
-# cool anotation functions
-def get_text_positions(x_data, y_data, txt_width, txt_height):
-    a = zip(y_data, x_data)
-    text_positions = y_data.copy()
-    for index, (y, x) in enumerate(a):
-        local_text_positions = [i for i in a if i[0] > (y - txt_height)
-                            and (abs(i[1] - x) < txt_width * 2) and i != (y,x)]
-        if local_text_positions:
-            sorted_ltp = sorted(local_text_positions)
-            if abs(sorted_ltp[0][0] - y) < txt_height: #True == collision
-                differ = np.diff(sorted_ltp, axis=0)
-                a[index] = (sorted_ltp[-1][0] + txt_height, a[index][1])
-                text_positions[index] = sorted_ltp[-1][0] + txt_height
-                for k, (j, m) in enumerate(differ):
-                    #j is the vertical distance between words
-                    if j > txt_height * 2: #if True then room to fit a word in
-                        a[index] = (sorted_ltp[k][0] + txt_height, a[index][1])
-                        text_positions[index] = sorted_ltp[k][0] + txt_height
-                        break
-    return text_positions
-
-def text_plotter(x_data, y_data, text_positions, axis,txt_width,txt_height):
-    for x,y,t in zip(x_data, y_data, text_positions):
-        axis.text(x - txt_width, 1.01*t, '%d'%int(y),rotation=0, color='blue')
-        if y != t:
-            axis.arrow(x, t,0,y-t, color='red',alpha=0.3, width=txt_width*0.1,
-                       head_width=txt_width, head_length=txt_height*0.5,
-                       zorder=0,length_includes_head=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    return ax

@@ -220,8 +220,7 @@ def write_data_to_nc(ncfile, template_vars, data_dict, write_vars='_variables'):
 
             except Exception as e:
                 num_errors += 1
-                error_str += 'ERROR WRITING VARIABLE: ' + var + ' - ' + str(e) + '\n'
-                print(error_str)
+                print(('ERROR WRITING VARIABLE: {} - {} \n'.format(var, str(e))))
 
     return num_errors, error_str
 
@@ -598,7 +597,7 @@ def makenc_CSHORErun(ofname, dataDict, globalYaml, varYaml):
     array8m_loc = 914
 
     # creating dimensions of data
-    new_s = np.shape(range(-50, array8m_loc+1))[0]
+    new_s = np.shape(list(range(-50, array8m_loc+1)))[0]
     new_t = np.shape(dataDict['waveHs'])[0]
     xFRF = fid.createDimension('xFRF', new_s)
     time = fid.createDimension('time', new_t)
@@ -607,12 +606,13 @@ def makenc_CSHORErun(ofname, dataDict, globalYaml, varYaml):
 
     # if np.shape(range(-50, array8m_loc + 1))[0] == np.shape(dataDict['xFRF'])[0]:
 
-    if np.shape(range(-50, array8m_loc+1))[0] == np.shape(dataDict['xFRF']):
+
+    if np.shape(list(range(-50, array8m_loc+1)))[0] == np.shape(dataDict['xFRF']):
         # the model grid is the same as the netCDF grid, so do nothing
         dataDict_n = dataDict
-        pass
+        
     else:
-        dataDict_n = {'xFRF': np.flipud(np.array(range(-50, array8m_loc+1)) + 0.0),
+        dataDict_n = {'xFRF': np.flipud(np.array(list(range(-50, array8m_loc+1))) + 0.0),
                       'time': dataDict['time'],
                       'aveE': np.full((new_t, new_s), fill_value=np.nan),
                       'stdE': np.full((new_t, new_s), fill_value=np.nan),

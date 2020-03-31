@@ -175,12 +175,12 @@ def getStats(startTime, endTime, model, prefix, station, go, gm):
     wo = go.getWaveSpec(station)
     if 'time' not in wo:
         return None, None, None, None, None, None
-    if station in go.directional: # directional spectra
+    if station in go.directional: # directionalWaveGaugeList spectra
         if prefix is not 'FP': # half plane
             wo['dWED'], wo['wavedirbin'] = sbwave.HPchop_spec(wo['dWED'], 
             wo['wavedirbin'], angadj=angadj)
         obsStats = sbwave.waveStat(wo['dWED'], wo['wavefreqbin'], wo['wavedirbin'])
-    else: # non-directional
+    else: # non-directionalWaveGaugeList
         obsStats = sbwave.stats1D(wo['fspec'], wo['wavefreqbin'])
     # Get model results
     with warnings.catch_warnings(record=True) as w:

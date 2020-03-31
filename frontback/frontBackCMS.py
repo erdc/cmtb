@@ -42,10 +42,7 @@ def CMSsimSetup(startTime, inputDict):
 
     """
     # begin by setting up input parameters
-    if 'timerun' in inputDict:
-        timerun = inputDict['timerun']
-    else:
-        timerun = 24
+    timerun = inputDict.get('simulationDuration', 24)
     if 'pFlag' in inputDict:
         pFlag = inputDict['pFlag']
     else:
@@ -85,67 +82,23 @@ def CMSsimSetup(startTime, inputDict):
 
     # ______________________________________________________________________________
     # define version parameters
-    if waveFlag:
-        simFnameBackground = inputDict['gridSIM'] #''/home/spike/cmtb/gridsCMS/CMS-Wave-FRF.sim'
-        backgroundDepFname = inputDict['gridDEP'] # ''/home/spike/cmtb/gridsCMS/CMS-Wave-FRF.dep'
-        # do versioning stuff here
-        if wave_version_prefix == 'HP':
-            full = False
-        elif wave_version_prefix == 'UNTUNED':
-            full = False
-        else:
-            pass
-    if flowFlag:
-        # do some stuff with flow here
-        t = 1
-    if morphFlag:
-        # do some stuff with morph here
-        t = 1
+    versionlist = ['HP', 'UNTUNED']
+    assert version_prefix in versionlist, 'Please check your version Prefix'
+    simFnameBackground = inputDict['gridSIM']  # ''/home/spike/cmtb/gridsCMS/CMS-Wave-FRF.sim'
+    backgroundDepFname = inputDict['gridDEP']  # ''/home/spike/cmtb/gridsCMS/CMS-Wave-FRF.dep'
+    # do versioning stuff here
+    if version_prefix == 'HP':
+        full = False
+    elif version_prefix == 'UNTUNED':
+        full = False
+
 
     # _______________________________________________________________________________
     # set times
-    if inputDict['csFlag'] == 1:
-        durationRamp = 1 # this is the ramp duration in days
-    else:
-        durationRamp = 0
+    d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(TOD / 24., 0, 0)
+    d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
+    date_str = d1.strftime('%Y-%m-%dT%H%M%SZ')  # used to be endtime
 
-    try:
-        d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(TOD / 24., 0, 0)
-        d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
-        date_str = d1.strftime('%Y-%m-%dT%H%M%SZ')  # used to be endtime
-        if inputDict['csFlag'] == 1:
-            d1F = d1 - DT.timedelta(hours=int(24*durationRamp))
-        else:
-            # new plan - if not coldstart, then we need to look up the hotstart file from the previous run and
-            # see how far back we need to pull data for to write the boundary condition file
-            dP = d1 - DT.timedelta(0, timerun * 3600, 0)
-            date_strP = dP.strftime('%Y-%m-%dT%H%M%SZ')
-            HSpath = os.path.join(path_prefix + date_strP, 'ASCII_HotStart')
-            # load hot-start files
-            cmsfio = inputOutput.cmsfIO()
-            cmsfio.read_CMSF_etaDict(HSpath)
-            durationMod = int(cmsfio.eta_dict['time'])
-            d1F = d1 - DT.timedelta(hours=durationMod)
-    except ValueError:
-        assert len(startTime) == 10, 'Your Time does not fit convention, check T/Z and input format'
-        d1 = DT.datetime.strptime(startTime, '%Y-%m-%d') + DT.timedelta(TOD / 24., 0, 0)
-        d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
-        date_str = d1.strftime('%Y-%m-%d')  # used to be endtime
-        if inputDict['csFlag'] == 1:
-            d1F = d1 - DT.timedelta(hours=int(24*durationRamp))
-        else:
-            # new plan - if not coldstart, then we need to look up the hotstart file from the previous run and
-            # see how far back we need to pull data for to write the boundary condition file
-            dP = d1 - DT.timedelta(0, timerun * 3600, 0)
-            date_strP = dP.strftime('%Y-%m-%dT%H%M%SZ')
-            HSpath = os.path.join(path_prefix + date_strP, 'ASCII_HotStart')
-            # load hot-start files
-            cmsfio = inputOutput.cmsfIO()
-            cmsfio.read_CMSF_etaDict(HSpath)
-            durationMod = int(cmsfio.eta_dict['time'])
-            d1F = d1 - DT.timedelta(hours=durationMod)
-        assert int(timerun) >= 24, 'Running Simulations with less than 24 Hours of simulation time require end ' \
-                                   'Time format in type: %Y-%m-%dT%H:%M:%SZ'
     if type(timerun) == str:
         timerun = int(timerun)
 
@@ -158,26 +111,21 @@ def CMSsimSetup(startTime, inputDict):
 
     print("Model Time Start : %s  Model Time End:  %s" % (d1, d2))
     print(u"OPERATIONAL files will be place in {0} folder".format(path_prefix + date_str))
-
-    ### ____________ Get bathy grid from thredds ________________
-    gdTB = getDataTestBed(d1, d2)
-    #bathy = gdTB.getGridCMS(method='historical')
-    bathy = gdTB.getBathyIntegratedTransect(method=1) #, ForcedSurveyDate=ForcedSurveyDate)
-
+    print("OPERATIONAL files will be place in {0} folder".format(path_prefix + date_str))
     # ______________________________________________________________________________
     # begin model data gathering
-    go = getObs(d1F, d2, THREDDS='FRF')  # initialize get observation
-    # create all my time lists
-    waveTs = inputDict['wave_time_step']
-    flowTs = inputDict['flow_time_step']
-    morphTs = inputDict['morph_time_step']
-    TS_list = [waveTs, flowTs, morphTs]
-    mTS = min(TS_list)
-    timeList = [d1F + DT.timedelta(minutes=mTS*x) for x in range(0, int((1440/float(mTS))*(d2-d1F).days + (d2-d1F).seconds/float(60*mTS)))]
-    waveTimeList = [d1 + DT.timedelta(minutes=waveTs*x) for x in range(0, int((1440/float(waveTs))*(d2-d1).days + (d2-d1).seconds/float(60*waveTs)))]
-    flowTimeList = [d1F + DT.timedelta(minutes=flowTs * x) for x in range(0, int((1440 / float(flowTs)) * (d2 - d1F).days + (d2 - d1F).seconds / float(60 * flowTs)))]
-    morphTimeList = [d1 + DT.timedelta(minutes=morphTs * x) for x in range(0, int((1440 / float(morphTs)) * (d2 - d1).days + (d2 - d1).seconds / float(60 * morphTs)))]
+    ## _____________WAVES____________________________
+    go = getObs(d1, d2, THREDDS=server)  # initialize get observation
+    print('_________________\nGetting Wave Data')
+    rawspec = go.getWaveSpec(gaugenumber=0)
+    assert rawspec is not None, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
+
     prepdata = STPD.PrepDataTools()
+    # rotate and lower resolution of directionalWaveGaugeList wave spectra
+    wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=date_str, plot=pFlag, full=full,
+                                    outputPath=path_prefix, CMSinterp=50)  # 50 freq bands are max for model
+    print("number of wave records %d with %d interpolated points" % (
+    np.shape(wavepacket['spec2d'])[0], wavepacket['flag'].sum()))
 
     if waveFlag:
         ## _____________WAVES____________________________
@@ -196,7 +144,9 @@ def CMSsimSetup(startTime, inputDict):
         # average and rotate winds
         windpacket = prepdata.prep_wind(rawwind, timeList)
         # wind height correction
-        print('number of wind records %d with %d interpolated points' % (np.size(windpacket['time']), sum(windpacket['flag'])))
+        print('number of wind records %d with %d interpolated points' % (
+            np.size(windpacket['time']), sum(windpacket['flag'])))
+
     except (RuntimeError, TypeError):
         windpacket = None
         print(' NO WIND ON RECORD')
@@ -207,10 +157,48 @@ def CMSsimSetup(startTime, inputDict):
         # get water level data
         rawWL = go.getWL()
         # average WL
-        WLpacket = prepdata.prep_WL(rawWL, timeList)
-        print('number of WL records %d, with %d interpolated points' % (np.size(WLpacket['time']), sum(WLpacket['flag'])))
+        WLpacket = prepdata.prep_WL(rawWL, wavepacket['epochtime'])
+        print('number of WL records %d, with %d interpolated points' % (
+            np.size(WLpacket['time']), sum(WLpacket['flag'])))
     except (RuntimeError, TypeError):
         WLpacket = None
+    ### ____________ Get bathy grid from thredds ________________
+    gdTB = getDataTestBed(d1, d2)
+    # bathy = gdTB.getGridCMS(method='historical')
+    bathy = gdTB.getBathyIntegratedTransect(method=1)  # , ForcedSurveyDate=ForcedSurveyDate)
+    bathy = prepdata.prep_CMSbathy(bathy, simFnameBackground, backgroundGrid=backgroundDepFname)
+    ### ___________ Create observation locations ________________ # these are cell i/j locations
+    gaugelocs = []
+    #get gauge nodes x/y
+    for gauge in go.waveGaugeList:
+        pos = go.getWaveGaugeLoc(gauge)
+        coord = gp.FRFcoord(pos['lon'], pos['lat'], coordType='LL')
+        i = np.abs(coord['xFRF'] - bathy['xFRF'][::-1]).argmin()
+        j = np.abs(coord['yFRF'] - bathy['yFRF'][::-1]).argmin()
+        gaugelocs.append([i,j])
+
+    ## begin output
+    cmsio = inputOutput.cmsIO()  # initializing the I/o Script writer
+    stdFname = os.path.join(path_prefix, date_str, date_str + '.std')  # creating file names now
+    simFnameOut = os.path.join(path_prefix, date_str, date_str + '.sim')
+    specFname = os.path.join(path_prefix, date_str, date_str + '.eng')
+    bathyFname = os.path.join(path_prefix, date_str, date_str + '.dep')
+
+    gridOrigin = (bathy['x0'], bathy['y0'])
+
+    cmsio.writeCMS_std(fname=stdFname, gaugeLocs=gaugelocs)
+    cmsio.writeCMS_sim(simFnameOut, date_str, gridOrigin)
+    cmsio.writeCMS_spec(specFname, wavePacket=wavepacket, wlPacket=WLpacket, windPacket=windpacket)
+    cmsio.writeCMS_dep(bathyFname, depPacket=bathy)
+    inputOutput.write_flags(date_str, path_prefix, wavepacket, windpacket, WLpacket, curpacket=None)
+
+    # remove old output files so they're not appended, cms defaults to appending output files
+    try:
+        os.remove(os.path.join(path_prefix, date_str, cmsio.waveFname))
+        os.remove(os.path.join(path_prefix, date_str, cmsio.selhtFname))
+        os.remove(os.path.join(path_prefix + date_str, cmsio.obseFname))
+    except OSError:  # there are no files to delete
+        pass
 
     # write the files I need for the different parts of CMS i am running
     if waveFlag:
@@ -465,7 +453,7 @@ def CMSanalyze(startTime, inputDict):
     print('\nBeggining of Analyze Script\nLooking for file in ' + fpath)
     print('\nData Start: %s  Finish: %s' % (d1, d2))
     print('Analyzing simulation')
-    go = getDataFRF.getObs(d1, d2)  # setting up get data instance
+    go = getDataFRF.getObs(d1, d2, server)  # setting up get data instance
     prepdata = STPD.PrepDataTools()  # initializing instance for rotation scheme
     cio = cmsIO()  # =pathbase) looks for model output files in folder to analyze
 
@@ -474,7 +462,7 @@ def CMSanalyze(startTime, inputDict):
     ##################################   Load Data Here / Massage Data Here   ############################################
     ######################################################################################################################
     ######################################################################################################################
-    t=DT.datetime.now()
+    t = DT.datetime.now()
     print('Loading files ')
     cio.ReadCMS_ALL(fpath)  # load all files
     stat_packet = cio.stat_packet  # unpack dictionaries from class instance
@@ -573,7 +561,7 @@ def CMSanalyze(startTime, inputDict):
     plotParams = [('waveHs', 'm'), ('bathymetry', 'NAVD88 $[m]$'), ('waveTp', 's'), ('waveDm', 'degTn')]
     if pFlag == True:
         for param in plotParams:
-            print('    plotting %s...' %param[0])
+            print('    plotting %s...' % param[0])
             spatialPlotPack = {'title': 'Regional Grid: %s' % param[0],
                                'xlabel': 'Longshore distance [m]',
                                'ylabel': 'Cross-shore distance [m]',
@@ -676,24 +664,22 @@ def CMSanalyze(startTime, inputDict):
                                             np.arange(len(stat_packet['time'])))  # time match
 
             for param in modStats:  # loop through each bulk statistic
-                print('    plotting %s: %s' %(station, param))
-                if param in ['Tp', 'Tm10']:
-                    units = 's'
-                    title = '%s period' % param
-                elif param in ['Hm0']:
-                    units = 'm'
-                    title = 'Wave Height %s ' % param
-                elif param in ['Dm',  'Dp']:
-                    units = 'degrees'
-                    title = 'Direction %s' % param
-                # elif param in ['sprdF', 'sprdD']:
-                #     units = ''
-                #     title = 'Spread %s ' % param
+                if len(time) > 1 and param in ['Hm0', 'Tm', 'sprdF', 'sprdD', 'Tp', 'Dm']:
+                    print('    plotting %s: %s' % (station, param))
+                    if param in ['Tp', 'Tm10']:
+                        units = 's'
+                        title = '%s period' % param
+                    elif param in ['Hm0']:
+                        units = 'm'
+                        title = 'Wave Height %s ' % param
+                    elif param in ['Dm', 'Dp']:
+                        units = 'degrees'
+                        title = 'Direction %s' % param
+                    elif param in ['sprdF', 'sprdD']:
+                        units = '_.'
+                        title = 'Spread %s ' % param
 
-                # now run plots
-                if param in ['meta','Tm', 'sprdF', 'VecAvgMeanDir','Tave', 'Dmp','sprdD']:
-                    pass
-                else:
+                    # now run plots
                     p_dict = {'time': nc.num2date(time, 'seconds since 1970-01-01'),
                               'obs': obsStats[param][obsi.astype(int)],
                               'model': modStats[param][modi.astype(int)],
