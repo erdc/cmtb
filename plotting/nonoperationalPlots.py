@@ -1,18 +1,110 @@
 import matplotlib.colors as mc
 from matplotlib.ticker import NullFormatter, MaxNLocator
-from testbedutils import waveLib, sblib
+from testbedutils import waveLib
 from matplotlib import pyplot as plt
 import numpy as np
+import matplotlib.tri as tri
+from scipy.spatial import ConvexHull
+import testbedutils.sblib as sb
+import scipy.spatial
+from matplotlib import ticker
+import matplotlib.cm as cm
+from scipy.interpolate import griddata
+from numpy.random import *
+
+
+# these are all the ones that were formerly in plotFunctions.py
+def gradient_fill(x, y, fill_color=None, ax=None, zfunc=False, **kwargs):
+    """
+    This is a function that plots a gradient fill found here
+    http://stackoverflow.com/questions/29321835/is-it-possible
+    -to-get-color-gradients-under-curve-in-matplotlb?noredirect=1&lq=1
+    :param x:
+    :param y:
+    :param fill_color:
+    :param ax:  The axis from the plot
+    :param zfunc:
+    :param kwargs:
+    :return:
+    """
+
+    from matplotlib.patches import Polygon
+    import matplotlib.colors as mcolors
+    import matplotlib.patches as patches
+    from PIL import Image
+    from PIL import ImageDraw
+    from PIL import ImageFilter
+
+    def zfunc(x, y, fill_color='k', alpha=1.0):
+        scale = 10
+        x = (x * scale).astype(int)
+        y = (y * scale).astype(int)
+        xmin, xmax, ymin, ymax = x.min(), x.max(), y.min(), y.max()
+
+        w, h = xmax - xmin, ymax - ymin
+        z = np.empty((h, w, 4), dtype=float)
+        rgb = mcolors.colorConverter.to_rgb(fill_color)
+        z[:, :, :3] = rgb
+
+        # Build a z-alpha array which is 1 near the line and 0 at the bottom.
+        img = Image.new('L', (w, h), 0)
+        draw = ImageDraw.Draw(img)
+        xy = (np.column_stack([x, y]))
+        xy -= xmin, ymin
+        # Draw a blurred line using PIL
+        draw.line(map(tuple, xy.tolist()), fill=255, width=15)
+        img = img.filter(ImageFilter.GaussianBlur(radius=100))
+        # Convert the PIL image to an array
+        zalpha = np.asarray(img).astype(float)
+        zalpha *= alpha / zalpha.max()
+        # make the alphas melt to zero at the bottom
+        n = zalpha.shape[0] // 4
+        zalpha[:n] *= np.linspace(0, 1, n)[:, None]
+        z[:, :, -1] = zalpha
+        return z
+
+    if ax is None:
+        ax = plt.gca()
+
+    line, = ax.plot(x, y, **kwargs)
+    if fill_color is None:
+        fill_color = line.get_color()
+
+    zorder = line.get_zorder()
+    alpha = line.get_alpha()
+    alpha = 1.0 if alpha is None else alpha
+
+    h, w = 100, 1
+    # do shading here
+    if np.mean(np.diff(y)) >= 5:  # this should be directional plot
+        z = np.empty((w, h, 4), dtype=float)
+        rgb = mcolors.colorConverter.to_rgb(fill_color)
+        z[:, :, :3] = rgb
+        z[:, :, -1] = np.linspace(0, alpha, h)[:, None].T
+    else:  # normal run (shade top to bottom
+        z = np.empty((h, w, 4), dtype=float)
+        rgb = mcolors.colorConverter.to_rgb(fill_color)
+        z[:, :, :3] = rgb
+        z[:, :, -1] = np.linspace(0, alpha, h)[:, None]
+
+    xmin, xmax, ymin, ymax = x.min(), x.max(), y.min(), y.max()
+    im = ax.imshow(z, aspect='auto', extent=[xmin, xmax, ymin, ymax],
+                   origin='lower', zorder=zorder)
+
+    xy = np.column_stack([x, y])
+    xy = np.vstack([[xmin, ymin], xy, [xmax, ymin], [xmin, ymin]])
+    clip_path = patches.Polygon(xy, facecolor='none', edgecolor='none', closed=True)
+    ax.add_patch(clip_path)
+    im.set_clip_path(clip_path)
+    ax.autoscale(True)
+    return line, im
 
 def pltFRFgrid(xyzDict, save=False):
-    """This function plots a dictionary of values with keys x, y, z
+    """
+    This function plots a dictionary of values with keys x, y, z
 
-    Args:
-      save: return: (Default value = False)
-      xyzDict: 
-
-    Returns:
-
+    :param save:
+    :return:
     """
     x = xyzDict['x']
     y = xyzDict['y']
@@ -94,22 +186,18 @@ def halfPlanePolarPlot(spectra, frequencies, directions, lims=[-18, 162], **kwar
     return ax
 
 def plot2DcontourSpec(spec2D, freqBin, dirBin, fname, pathCHLlogo=None, **kwargs):
-    """This function plots a 2d spectra showing the 1d direction and 1d frequency spectra on both sides of a 2
-        dimensional spectra. idea and base functionwas taken from the below website
 
-    References:
-        http://www.astrobetter.com/blog/2014/02/10/visualization-fun-with-python-2d-histogram-with-1d-histograms-on-axes/
+    """
+    This function plots a 2d spectra showing the 1d direction and 1d frequency spectra on both sides, idea and base function
+    was taken from the below website from
+    http://www.astrobetter.com/blog/2014/02/10/visualization-fun-with-python-2d-histogram-with-1d-histograms-on-axes/
+    :param fname: outpufile name
+    :param spec2D: 2 dimensional spectrum (single)
+    :param freqBin: associated freuqncy bins
+    :param dirBin: associated direction bins
+    :param pathCHLlogo: defaults to None, but will put a logo at the top right if path is given
 
-    Args:
-      fname: outpufile name
-      spec2D: 2 dimensional spectrum (single)
-      freqBin: associated freuqncy bins
-      dirBin: associated direction bins
-      pathCHLlogo: defaults to None, but will put a logo at the top right if path is given
-      **kwargs: 
-
-    Returns:
-      saves a plot to the fname location
+    :return: saves a plot to the fname location
 
     """
     # convert spectra from m2/rad to m2/hz
@@ -234,22 +322,9 @@ def plot2DcontourSpec(spec2D, freqBin, dirBin, fname, pathCHLlogo=None, **kwargs
 
     plt.close()
 
-def pltspec(dirbin, freqbin, spec, name, bounds=[161.8, 341.8], nlines=15, show=True, **kwargs):
-    """this plots a single spectra in a single plot
-
-    Args:
-      dirbin:  direction bins
-      freqbin: frequency bins
-      spec: 2d wave Energy Spectra (or similar)
-      name: title for plot
-      bounds:  bounds for strike through lines (Default value = [161.8 341.8]):
-      nlines:  number of lines to use to strike through (Default value = 15)
-      show (bool): true or false to display (Default value = True)
-
-    Keyword Args:
-        fname: file name to save
-    Returns:
-
+def pltspec(dirbin, freqbin, spec, name, bounds=[161.8, 341.8], nlines=15, show=1):
+    """
+    this plots a single spectra
     """
 
     diff = (bounds[1] - bounds[0]) / nlines
@@ -267,109 +342,55 @@ def pltspec(dirbin, freqbin, spec, name, bounds=[161.8, 341.8], nlines=15, show=
     plt.xlim(0.04, 0.5)
     aaaa = plt.colorbar(aaa)
     aaaa.set_label('$m^2/hz/rad$', rotation=90)
-    if 'fname' in kwargs:
-        plt.savefig(kwargs['fname'])
-    if show == True:
+    if show == 1:
         plt.show()
-    plt.close()
 
-def plot121(ofname, plotpacket1, plotpacket2, plotpacket3, **kwargs):
-    """this is a plot function that will plot 2 dataList and plot them 1-1 as a means
+def plot121(plotpacket1, plotpacket2, plotpacket3):
+    """
+    this is a plot fuction that will plot 2 dataList and plot them 1-1 as a means
     for comparison
-    
     the first plot package is usually wave HS
-    the second plot packages is usually wave Tp
+    the second plot packages is ually wave Tp
     the thrid plot package is usually wave direction
 
-    Args:
-      plotpacket1: dictionary with the following keys
-         obs: observations
-         mod: model values
-         title: label for subplot title (default = '')
-      plotpacket1: dictionary with the following keys
-        obs: observations
-        mod: model values
-        title: label for subplot title (default = '')
-      plotpacket1: dictionary with the following keys
-        obs: observations
-        mod: model values
-        title: label for subplot title (default = '')
-      ofname: output file name
-
-    Keyword Args:
-        watermark (bool): True/False will put a watermark over the plot (default = True)
-        stats (bool): True/False - will calculate stats for each of the comparison plots (default = False)
-
-    Returns:
-      3 dictionaries with associated comparison statistics from each plotpacket in
-
     """
-    if 'stats' in kwargs:
-        stats = kwargs['stats']
-    else:
-        stats = False
-    if 'watermark' in kwargs:
-        watermark= kwargs['watermark']
-    else:
-        watermark = True
-    if 'pier' in kwargs:
-        pier = kwargs['pier']
-    else:
-        pier = False
     # assigning a figure name from plot packet 1
-    if 'title' in kwargs:
-        figtitle = kwargs['title']
-    else:
-        figtitle = ''
-
+    try:
+        fname = plotpacket1['fname']
+        if fname[-4] != '.png' or fname[-4] != '.jpg':
+            fname = fname + '.png'
+    except KeyError:
+        fname = 'default.png'
+    path = plotpacket1['path']
+    figtitle = plotpacket1['figtitle']
     # data for first subplot (wave height)
-    xdata1 = np.array(plotpacket1['obs'])
-    ydata1 = np.array(plotpacket1['mod'])
+    xdata1 = np.array(plotpacket1['xdata'])
+    ydata1 = np.array(plotpacket1['ydata'])
     linestring1 = '.b'  # plotpacket1['linestring']
-    if 'title' in plotpacket1:
-        title1 = plotpacket1['title']
-    else:
-        title1 = ''
-    xlabel1 = 'observations'
-    ylabel1 = 'model'
+    title1 = plotpacket1['title']
+    xlabel1 = plotpacket1['xlabel']
+    ylabel1 = plotpacket1['ylabel']
     max1 = max(np.max(ydata1), np.max(xdata1)) * 1.15
-    ####################################
     # data for 2nd subplot (period)
-    xdata2 = np.array(plotpacket2['obs'])
-    ydata2 = np.array(plotpacket2['mod'])
+    xdata2 = np.array(plotpacket2['xdata'])
+    ydata2 = np.array(plotpacket2['ydata'])
     linestring2 = '.b'
-    if 'title' in plotpacket2:
-        title2 = plotpacket2['title']
-    else:
-        title2 = ''
-    xlabel2 = 'observations'
-    ylabel2 = 'model'
+    title2 = plotpacket2['title']
+    xlabel2 = plotpacket2['xlabel']
+    ylabel2 = plotpacket2['ylabel']
     max2 = max(np.max(ydata2), np.max(xdata2)) * 1.15
-    ####################################
-    # data for 2nd subplot (period)
+
     # data for 3rd subplot
-    xdata3 = np.array(plotpacket3['obs'])
-    ydata3 = np.array(plotpacket3['mod'])
+    xdata3 = np.array(plotpacket3['xdata'])
+    ydata3 = np.array(plotpacket3['ydata'])
     linestring3 = '.b'
-    if 'title' in plotpacket3:
-        title3 = plotpacket3['title']
-    else:
-        title3 = ''
-    xlabel3 = 'observations'
-    ylabel3 = 'model'
+    title3 = plotpacket3['title']
+    xlabel3 = plotpacket3['xlabel']
+    ylabel3 = plotpacket3['ylabel']
     max3 = max(np.max(ydata3), np.max(xdata3)) * 1.15
     min3 = min(np.min(ydata3), np.min(xdata3)) * .85
-    # calc stats
-    if stats:
-        statPacket1 = sblib.statsBryant(xdata1, ydata1)
-        statString1 = 'Bias={:.2f}\nRMSE={:.2f}\n$r^2$={:.2f}\nn={}'.format(statPacket1['bias'], statPacket1['RMSE'], statPacket1['r2'], np.size(statPacket1['residuals']))
-        statPacket2 = sblib.statsBryant(xdata2, ydata2)
-        statString2 = 'Bias={:.2f}\nRMSE={:.2f}\n$r^2$={:.2f}\nn={}'.format(statPacket2['bias'], statPacket2['RMSE'], statPacket2['r2'], np.size(statPacket2['residuals']))
-        statPacket3 = sblib.statsBryant(xdata3, ydata3)
-        statString3 = 'Bias={:.2f}\nRMSE={:.2f}\n$r^2$={:.2f}\nn={}'.format(statPacket3['bias'], statPacket3['RMSE'], statPacket3['r2'], np.size(statPacket3['residuals']))
 
     # plotting
-    yloc = 7.5/10.
     # 1st subplot ____
     one2one = plt.figure(figsize=(12, 4), dpi=80)
     sub1 = plt.subplot(1, 3, 1)
@@ -388,17 +409,14 @@ def plot121(ofname, plotpacket1, plotpacket2, plotpacket3, **kwargs):
                   color='gray', ha='center', va='center', alpha=0.5)
         plt.xlim(0, 1)
         plt.ylim(0, 1)
-    else:  # no errors, will plot
-        line1, = sub1.plot(xdata1, ydata1, linestring1)
+    else:
+        line1, = plt.plot(xdata1, ydata1, linestring1)
         plt.plot([0, max1], [0, max1], 'k-', linewidth=1)
         plt.xlim((0, max1))
         plt.ylim((0, max1))
-        if stats and watermark:
-            plt.text(max1 / 10, max1 * yloc, statString1)
-
-    plt.xlabel(xlabel1, fontsize=12)
-    plt.ylabel(ylabel1, fontsize=12)
-    sub1.set_title(title1, fontsize=12)
+    plt.xlabel(xlabel1)
+    plt.ylabel(ylabel1)
+    sub1.set_title(title1)
     #  ____ 2nd subplot ____
     sub2 = plt.subplot(1, 3, 2)
     if (xdata2 == 0).all() and (ydata2 == 0).all():
@@ -418,18 +436,14 @@ def plot121(ofname, plotpacket1, plotpacket2, plotpacket3, **kwargs):
         plt.ylim(0, 1)
     else:
         line2, = plt.plot(xdata2, ydata2, linestring2)
-        if watermark == True:
-            sub2.text(max2 / 2, max2 / 2, 'Research Product', fontsize=20,
+        sub2.text(max2 / 2, max2 / 2, 'Research Product', fontsize=20,
                   color='gray', ha='center', va='top', alpha=0.5)
         plt.plot([0, max2], [0, max2], 'k-', linewidth=1)
         plt.xlim((0, max2))
         plt.ylim((0, max2))
-        if stats and watermark:
-            plt.text(max2 / 10, max2 * yloc, statString2)
-
-    plt.xlabel(xlabel2, fontsize=12)
-    plt.ylabel(ylabel2, fontsize=12)
-    sub2.set_title(figtitle + '\n' + title2, fontsize=12)
+    plt.xlabel(xlabel2)
+    plt.ylabel(ylabel2)
+    sub2.set_title(figtitle + '\n' + title2)
     # ____3rd subplot ___
     sub3 = plt.subplot(1, 3, 3)
     if (xdata3 == 0).all() and (ydata3 == 0).all():
@@ -451,154 +465,79 @@ def plot121(ofname, plotpacket1, plotpacket2, plotpacket3, **kwargs):
         line3 = plt.plot(xdata3, ydata3, linestring3)
         #            plt.plot([min3,max3],[min3,max3], 'k-', linewidth = 1)
         plt.plot([0, 360], [0, 360], 'k-', linewidth=1)
+
+        # plt.xlim(0, 360)
+        # plt.ylim(0, 360)
         plt.xlim(min3, max3)
         plt.ylim(min3, max3)
-        if stats and watermark:
-            plt.text((max3-min3)/10 + min3,  (max3-min3) * yloc + min3, statString3)
-        if pier == True:
-            plt.plot([0, 71], [71, 71], 'k--', label='Shore Normal')
-            plt.plot([71, 71], [0, 71], 'k--')
-    plt.xlabel(xlabel3, fontsize=12)
-    plt.ylabel(ylabel3, fontsize=12)
-    sub3.set_title(title3, fontsize=12)
+
+    plt.xlabel(xlabel3)
+    plt.ylabel(ylabel3)
+    sub3.set_title(title3)
     # saving and closing plot
     plt.tight_layout()
-    plt.savefig(ofname)
+    plt.savefig(path + fname)
     plt.close()
 
-    # return data if it's calculated
-    if stats:
-        return statPacket1, statPacket2, statPacket3
-
-def plotTS(ofname, plotpacket1, plotpacket2, plotpacket3, **kwargs):
-    """this is a function that plots 3 time series comparison data
-    could be used for example to plot wave height, mean period, mean direction on the same plot
-    often paired with plot121 and statistics
-
-    Args:
-      ofname: plot file name out
-      plotpacket1: a dictionary containing data to be plotted in first subplot
-        'time_obs': x value for 1st overplot, plotted in red (generally obs
-
-        'obs':  yvalue for 1st over plot, plotted in red (generally obs)
-
-        'label_obs': legend label for 1st overplot
-
-        'time_mod': x value for 2nd overplot, plotted in blue (generally model)
-
-        'mod': y value for 2nd overplot, plotted in blue (generally model)
-
-        'label_mod': legend label for 2nd overplot
-
-        'TS_ylabel': y label for the whole plot
-
-      plotpacket2: a dictionary containing data to be plotted in 2nd subplot
-        'time_obs': x value for 1st overplot, plotted in red (generally obs
-
-        'obs':  yvalue for 1st over plot, plotted in red (generally obs)
-
-        'label_obs': legend label for 1st overplot
-
-        'time_mod': x value for 2nd overplot, plotted in blue (generally model)
-
-        'mod': y value for 2nd overplot, plotted in blue (generally model)
-
-        'label_mod': legend label for 2nd overplot
-
-        'TS_ylabel': y label for the whole plot
-
-      plotpacket3: a dictionary containing data to be plotted in third subplot
-        'time_obs': x value for 1st overplot, plotted in red (generally obs
-
-        'obs':  yvalue for 1st over plot, plotted in red (generally obs)
-
-        'label_obs': legend label for 1st overplot
-
-        'time_mod': x value for 2nd overplot, plotted in blue (generally model)
-
-        'mod': y value for 2nd overplot, plotted in blue (generally model)
-
-        'label_mod': legend label for 2nd overplot
-
-        'ylabel': y label for the whole plot
-    
-    Keyword Args:
-        'title' (str):  will title the plot (centered) with the attached string
-
-    Returns:
-      plot located at ofname
-
+def plotTS(plotpacket1, plotpacket2, plotpacket3):
+    """
+    this is a function that plots 3 timeseries comparison data
+    title, path and file name are defined in plotpacket1
     """
     # DEFINE plot variables
-
-    if 'watermark' in kwargs:
-        watermark= kwargs['watermark']
-    else:
-        watermark = True
-    if 'pier' in kwargs:
-        pier = kwargs['pier']
-    else:
-        pier = True
-    #########################################3
     # first plot packet
-    xdata1 = np.array(plotpacket1['time_obs'])
-    ydata1 = np.array(plotpacket1['obs'])
-    xdata11 = np.array(plotpacket1['time_mod'])
-    ydata11 = np.array(plotpacket1['mod'])
-    label1 = plotpacket1['label_obs']  # first legend label
-    label11 = plotpacket1['label_mod']  # second legend label
-    if 'title' in kwargs:
-        title = kwargs['title']
-    else:
-        title = ''
+    xdata1 = np.array(plotpacket1['xdata1'])
+    ydata1 = np.array(plotpacket1['ydata1'])
+    xdata11 = np.array(plotpacket1['xdata2'])
+    ydata11 = np.array(plotpacket1['ydata2'])
+    label1 = plotpacket1['label1']  # first legend label
+    label11 = plotpacket1['label2']  # second legend label
+    title = plotpacket1['title']
     ylabel1 = plotpacket1['ylabel']
-    fname = ofname
-    ###########################################
+    path = plotpacket1['path']
+    fname = plotpacket1['fname']
     # 2nd plot packet
-    xdata2 = np.array(plotpacket2['time_obs'])
-    ydata2 = np.array(plotpacket2['obs'])
-    xdata22 = np.array(plotpacket2['time_mod'])
-    ydata22 = np.array(plotpacket2['mod'])
+    xdata2 = np.array(plotpacket2['xdata1'])
+    ydata2 = np.array(plotpacket2['ydata1'])
+    xdata22 = np.array(plotpacket2['xdata2'])
+    ydata22 = np.array(plotpacket2['ydata2'])
     ylabel2 = plotpacket2['ylabel']
     ymax2 = max(np.max(ydata2), np.max(ydata22)) * 1.15
     ymin2 = min(np.min(ydata2), np.min(ydata22)) * .85
-    if watermark:
-        try:
-            xx = len(xdata2) / 2  # find the middle index for word placement
-            xmid = xdata2[xx]
-        except TypeError:
-            xmid = 0.5
-    ###########################################
+    try:
+        xx = len(xdata2) / 2  # find the middle index for word placement
+        xmid = xdata2[xx]
+
+    except TypeError:
+        xmid = 0.5
     # 3rd plotpacket
-    xdata3 = np.array(plotpacket3['time_obs'])
-    ydata3 = np.array(plotpacket3['obs'])
-    xdata33 = np.array(plotpacket3['time_mod'])
-    ydata33 = np.array(plotpacket3['mod'])
+    xdata3 = np.array(plotpacket3['xdata1'])
+    ydata3 = np.array(plotpacket3['ydata1'])
+    xdata33 = np.array(plotpacket3['xdata2'])
+    ydata33 = np.array(plotpacket3['ydata2'])
     ylabel3 = plotpacket3['ylabel']
     ymin3 = max(np.max(ydata3), np.max(ydata33))
     ymax3 = min(np.min(ydata3), np.min(ydata33))
-    ############################################
-    # make plot
+
     # plot the defined variables
     ts = plt.figure(figsize=(12, 6), dpi=80)
     # subplot 1
     sub1 = plt.subplot(3, 1, 1)
     if (xdata1 == 0).all() and (xdata11 == 0).all():
-        if watermark:
-            sub1.text(0.5, 0.5, 'NO data', fontsize=20,
-                      color='gray', ha='center', va='center', alpha=0.5)
-            plt.xlim(0, 1)
-            plt.ylim(0, 1)
+        sub1.text(0.5, 0.5, 'NO data', fontsize=20,
+                  color='gray', ha='center', va='center', alpha=0.5)
+        plt.xlim(0, 1)
+        plt.ylim(0, 1)
     elif (xdata1 == 0).all():
-        if watermark:
-            sub1.text(0.5, 0.5, 'NO OBSERVATIOIN data', fontsize=20,
-                      color='gray', ha='center', va='center', alpha=0.5)
-            plt.plot(xdata11, ydata11, 'b', label=label11)
+        sub1.text(0.5, 0.5, 'NO OBSERVATIOIN data', fontsize=20,
+                  color='gray', ha='center', va='center', alpha=0.5)
+        plt.plot(xdata11, ydata11, 'b', label=label11)
 
     elif (xdata11 == 0).all():
         sub1.text(0.5, 0.5, 'NO MODEL data', fontsize=20,
                   color='gray', ha='center', va='center', alpha=0.5)
         plt.plot(xdata1, ydata1, '.r', label=label1)
+
     else:
         plt.plot(xdata1, ydata1, '.r', label=label1)
         plt.plot(xdata11, ydata11, 'b', label=label11)
@@ -625,8 +564,8 @@ def plotTS(ofname, plotpacket1, plotpacket2, plotpacket3, **kwargs):
                   color='gray', ha='center', va='center', alpha=0.5)
         plt.plot(xdata2, ydata2, '.r')
     else:
-        if watermark == True:
-            sub2.text(xmid, (ymax2 + ymin2) / 2, 'Research Product', fontsize=20,
+
+        sub2.text(xmid, (ymax2 + ymin2) / 2, 'Research Product', fontsize=20,
                   color='gray', ha='center', va='center', alpha=0.5)
         plt.plot(xdata2, ydata2, '.r')
         plt.plot(xdata22, ydata22, 'b')
@@ -648,25 +587,25 @@ def plotTS(ofname, plotpacket1, plotpacket2, plotpacket3, **kwargs):
         sub3.text(0.5, 180, 'NO MODEL data', fontsize=20,
                   color='gray', ha='center', va='center', alpha=0.5)
         plt.plot(xdata1, ydata2, '.r')
+
     else:
+
         plt.plot(xdata3, ydata3, '.r')
         plt.plot(xdata33, ydata33, 'b')
-        if pier == True:
-            plt.plot([xdata3[0], xdata3[-1]], [71,71],'k-', label='Shore Normal')
     # plt.ylim(0, 360)
 
     plt.ylabel(ylabel3)
     plt.gcf().autofmt_xdate()
     ts.tight_layout()
 
-    ts.savefig(fname)
+    ts.savefig(path + fname)
     plt.close()
 
 # these are all the ones that were formerly in gridTools!
 def plotBathyInterp(ofname2, dataDict, title):
     """This is a quick plot of the bathy interp, Not sure if its used in any work flow or was part of a quality check
     This can probably be moved to a plotting library maybe be a more generic
-    
+
     designed to QA newly inserted bathy into background
 
     Args:
@@ -679,9 +618,7 @@ def plotBathyInterp(ofname2, dataDict, title):
         'goodOldBathy'
         'modelGridX' 1 d array of model domain
         'modelGridY 1 d array of model domain
-      title: Plot title
 
-    Returns:
 
     """
 
@@ -733,25 +670,15 @@ def plotBathyInterp(ofname2, dataDict, title):
     plt.close(fig)
 
 def CreateGridPlotinFRF(outi, outj, spacings, fname):
-    """This function creates a plot of bathymetry grid.  The axis labels assume FRF coordinates
+    """
+    This function creates a plot of bathymetry grid.  The axis labels assume FRF coordinates
 
-    Args:
-      outi: a 2 by x array of grid nodes with the locations of interest in [:, 0]
-      outj: a 2 by y array of grid nodes with the locations of interest in [:, 1]
-      spacings (dict): a dictionary with keys
-       'dx': the (constant) grid spacing in x
-
-       'dy': the (constant) grid spacing in y
-
-       'ni': the number of cells in x
-
-       'nj': the number of cells in y
-
-      fname: file name output
-
-    Returns:
-      a plot with file name fname
-
+    :param outi:  a 2 by x array of grid nodes with the locations of interest in [:, 0]
+    :param outj:  a 2 by y array of grid nodes with the locations of interest in [:, 1]
+    :param spacings: a dictionary with keys dx/dy and ni/nj
+            where dx dy are the (constant) grid spacing in x and y
+            where ni/nj are the number of cells in x and y
+    :return: a plot with file name fname
     """
     from matplotlib import pyplot as plt
 
@@ -807,9 +734,7 @@ def plot_scatterAndQQ(fname, time,  model, observations, **kwargs):
         observations = np.array(observations)
     stats_dict = sb.statsBryant(observations, model)
 
-
-
-    ## generrate string for plot
+    ## generate string for plot
     statString1 =  "Statistics\n\nModel to Observations:\n\nBias: {0:.2f}\nRMSE: {1:.2f}\n".format(stats_dict['bias'], stats_dict['RMSE'])
     statString2 = "Scatter Index: {0:.2f}\nSymmetric Slope: {1:.2f}\n".format(stats_dict['scatterIndex'], stats_dict['symSlope'])
     statString3 = "$R^2$: {0:.2f}\nsample Count: {1}".format(stats_dict['corr']**2, len(stats_dict['residuals']))
@@ -853,7 +778,6 @@ def plot_scatterAndQQ(fname, time,  model, observations, **kwargs):
     ax3.set_axis_off()
 
     plt.tight_layout(rect=[0, 0, 1, .95])
-    # fname = "/home/spike/repos/myresearch/STWAVE_Analysis/figures_Explore/Performance_{}_{}_{}_{}.png".format(gauge, returnParameter, binParameter, waveBins[bb])
     plt.savefig(fname); plt.close()
 
 def halfPlanePolarPlot(spectra, frequencies, directions, lims=[-18, 162], **kwargs):

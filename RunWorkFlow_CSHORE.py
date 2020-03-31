@@ -49,6 +49,7 @@ def master_CSHORE_run(inputDict):
     analyzeFlag = inputDict['analyzeFlag']
     sorceCodePATH = inputDict['modelExecutable']
     model = 'CSHORE'
+
     # version check
     prefixList = np.array(['FIXED', 'MOBILE', 'MOBILE_RESET'])
     assert (version_prefix == prefixList).any(), "Please enter a valid version prefix\n Prefix assigned = %s must be in List %s" % (version_prefix, prefixList)

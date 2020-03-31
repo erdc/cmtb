@@ -1,0 +1,58 @@
+featureType: mesh Topology
+title: CMTB CMSF Background Grid
+summary: >
+  'The time mean backgound grid interpolated onto all of the CMSF .tel grid positions to be used as the background for the CMTB CMSF runs'
+history: 2018-05-07:data set created
+source: NCDEM, USACE, USGS bathymetry
+sourceUrl: (local files)
+standard_name_vocabulary: CFv25
+Metadata_Conventions: Unidata Dataset Discovery v1.0, CF-1.6
+metadata_link: N/A
+Conventions: CF-1.6
+creator_name: USACE/CHL/COAB
+creator_url: http://frf.usace.army.mil
+creator_email: spicer.bak@usace.army.mil
+license: 
+keywords_vocabulary: FGlobal Change Master Directory (GCMD) Earth Science Keywords; CF Standard Name Table (v23, 23 March 2013)
+keywords: Oceans > Ocean Waves > Wave Frequency, Oceans > Ocean Waves > Wave Height, Oceans > Ocean Waves > Wave Period, Oceans > Ocean Waves > Wave Spectra, Oceans > Ocean Waves > Wave Direction, DOD > DOD/USARMY/USACE/CHL/FRF > Field Research Facility, Coastal And Hydraulics Laboratory,U. S. Army Corps Of Engineers, U.S. Army, U. S. Department Of Defense, sea_surface_wave_variance_spectral_density, sea_surface_wave_significant_height, sea_surface_wave_from_direction,  sea_surface_wave_directional_variance_spectral_density
+processing: Geospatial programs - ARC GIS, Fledermaus
+organization: USACE/CHL/COAB
+publisher_url: http://frf.usace.army.mil
+infoUrl: http://frf.usace.army.mil
+publisher_email: frfwebmaster@usace.army.mil
+publisher_name: USACE/CHL/COAB
+format_version: v1.0
+institution: USACE/CHL/COAB
+contact: USACE/CHL/COAB
+contact_info: USACE/CHL/COAB
+contact_role: Owner/Collaborator
+contributor_name: USACE/CHL/COAB
+contributor_role: USACE/CHL/COAB
+naming_authority: FRF
+origin: USACE/CHL/COAB
+date_created: '2018-05-07'
+date_issued: '2018-05-07'
+acknowledgement: Data are provided by the Field Research Facility; Coastal Observations &amp; Analysis Branch; US Army Corps of Engineers, Duck, North Carolina.
+project: USACE/COAB observations
+id: 
+processing_level: 
+geospatial_vertical_units: m
+geospatial_vertical_resolution: .01m
+geospatial_vertical_min: -2200m
+geospatial_vertical_max: 28m
+geospatial_vertical_origin: NAVD88
+geospatial_lat_min: 
+geospatial_lat_max: 
+geospatial_lat_units: degrees_north
+geospatial_lon_min: 
+geospatial_lon_max: 
+geospatial_lon_units: degrees_east
+geospatial_vertical_positive: up
+time_coverage_start: '1974-05-10'
+time_coverage_end: '2018-05-07'
+deployment_start: '2018-05-07'
+platform: N/A
+instrument: N/A
+cross_shore_angle_units: N/A
+cross_shore_angle_description: N/A
+cross_shore_angle: N/A

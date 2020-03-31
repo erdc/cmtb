@@ -3,29 +3,31 @@ from matplotlib import pyplot as plt
 import numpy as np
 import matplotlib.dates as mdates
 import matplotlib.image as image
+<<<<<<< HEAD
+import os
+=======
 import os, math, warnings
 from scipy.interpolate import interpn, RectBivariateSpline
+>>>>>>> development
 from getdatatestbed.getDataFRF import getObs
-from testbedutils import sblib as sb
 from testbedutils.sblib import statsBryant
 from testbedutils.anglesLib import vectorRotation
 
+
+# these are all the ones that were formerly in plotFunctions.py
 def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
-    """This function takes various spectra, and plots them for QA/QC on the spectral inversion/rotation method
+    """
+    This function takes various spectra, and plots them for QA/QC on the spectral inversion/rotation method
 
-    Args:
-      fnameOut (str): file output
-      time: time stamp for Hs/ spectra
-      Hs: wave Height value
-      raw: this is un-rotated spectral input tuple (spec, direction bin, frequency bands)
-      rot: this is rotated spectral input tuple (spec, direction bin, frequency bands)
-      interp: this is interpolated spectral input tuple (spec, direction bin, frequency bands)
-      full (bool): True/False boolean (Default value = False)
-
-    Returns:
-      NONE
-      will create figure
-
+    :param fnameOut: file output
+    :param time: time stamp for Hs/ spectra
+    :param Hs:  wave Height value
+    :param raw: this is un-rotated spectral input tuple (spec, direction bin, frequency bands)
+    :param rot: this is rotated spectral input tuple (spec, direction bin, frequency bands)
+    :param interp: this is interpolated spectral input tuple (spec, direction bin, frequency bands)
+    :param full:  True/False boolean
+    :return: NONE
+        will create figure
     """
 
     nlines = 15  # number of lines to span across Half planed spectra
@@ -187,28 +189,16 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
       TODO:
       increase speed with this capability
       https://stackoverflow.com/questions/42386372/increase-the-speed-of-redrawing-contour-plot-in-matplotlib
-
     """
-    decimals, Norm = False, False # setting defaults
-    # Un pack Dictionary
+    # a place to manipulate axes - not manipulated now
     ycoord = fieldpacket['ycoord']
-    xcoord = fieldpacket['xcoord']
+    xcoord = fieldpacket['xcoord']  # [::-1]
     ylabel = fieldpacket['ylabel']
     xlabel = fieldpacket['xlabel']
     title = fieldpacket['title']
     clabel_text = fieldpacket['cblabel']
     time = fieldpacket['time']
     numrecs = np.size(fieldpacket['field'], axis=0)
-    if numrecs == 1:
-        time = [time]
-    # set the color map for the plot
-    if clabel_text.split('$')[0].lower().strip() in ['wave height', 'wavehs', 'peak period']:
-        colormap = 'GnBu'
-    elif clabel_text.split('-')[0].lower().strip() in ['water depth', 'bathymetry']:
-        colormap = 'RdBu'
-        Norm = True
-    else:
-        colormap = 'coolwarm'
 
     dx = xcoord[1] - xcoord[0]
     dy = ycoord[1] - ycoord[0]
@@ -219,22 +209,14 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
     else:
         print("spatial plotting function cannot currently handle dx != dy")
         raise NotImplementedError
-
     # applying colorbar labels
-
-    # cbar_max = sblib.baseRound(np.nanmax(fieldpacket['field']), sblib.oMagnitude(np.diff((np.nanmin(fieldpacket['field']), np.nanmax(fieldpacket['field'])))), ceil=True)
-    # cbar_min = sblib.baseRound(np.nanmin(fieldpacket['field']), sblib.oMagnitude(np.diff((np.nanmin(fieldpacket['field']), np.nanmax(fieldpacket['field'])))), floor=True)
-    if np.diff((np.nanmin(fieldpacket['field']), np.nanmax(fieldpacket['field']))) < 3:
-        from testbedutils import sblib
-        cbar_min = np.float('{:.3g}'.format(np.nanmin(fieldpacket['field'])))
-        cbar_max = np.float('{:.3g}'.format(np.nanmax(fieldpacket['field'])))
-        decimals=True
-    else:
-        cbar_min = np.floor(np.nanmin(fieldpacket['field']))
-        cbar_max = np.ceil(np.nanmax(fieldpacket['field']))
+    cbar_max = np.ceil(fieldpacket['field'].max())
+    cbar_min = np.floor(fieldpacket['field'].min())
     cbarlabels = np.linspace(cbar_min, cbar_max, num=5, endpoint=True)  # a list of labels
 
-    # wave gauges in approx position
+    if numrecs == 1:
+        time = [time]
+        # wave gauges in approx position
     x_pier = (0, 580)  # FRF pier in approximate locatioon
     y_pier = (516, 516)
     L_pier = 'FRF Pier'
@@ -281,7 +263,7 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
     x_Duck = (0)  # [-334])
     L_Duck = ''
     fgsize = (6, 9)
-    if nested == False:
+    if nested == 0:
         if dxdy == 50:
             # corrolla beach Access
             y_CBaccess = (fieldpacket['ycoord'][-221])
@@ -295,6 +277,7 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
             y_Duck = (fieldpacket['ycoord'][-469])
             x_Duck = (fieldpacket['xcoord'][8])  # [-334])
             L_Duck = 'Town of Duck'
+            # NOTE Xcoord and YCOORD are grid coords not plot coords
         elif dxdy == None:  # this is the variable spaced grid from CMS
 
             fgsize = (8,8)
@@ -313,7 +296,7 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
 
             # NOTE Xcoord and YCOORD are grid coords not plot coords
             nested = False  # this changes to plot the nearshore wave gauges
-    elif nested == True:
+    elif nested == 1:
         if dxdy == 5:
             L_26m = '' # don't plot 26m
             L_17m = ''
@@ -328,70 +311,42 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
     levels = np.linspace(cbar_min, cbar_max, 35)  # draw 35 levels
     norm = mc.BoundaryNorm(levels, 256)
 
-    from .plottingTools import  MidpointNormalize
     # __LOOPING THROUGH PLOTS___
     for tt in range(0, numrecs):
+        # print('\ntitle: %s plot \nsize: %s \ntime %s \ncbar_min %d cbar_max %d' %(title, fgsize, time[tt], cbar_min, cbar_max))
+
         plt.figure(figsize=fgsize, dpi=80, tight_layout=True)
         plt.title(title + '\n%s' % time[tt])
-        #
-        if Norm == True:
-            cont = plt.contourf(xcoord, ycoord, fieldpacket['field'][tt, :, :], levels, vmin=cbar_min, vmax=cbar_max,
-                     cmap=colormap, levels=levels, norm=MidpointNormalize(midpoint=0,vmin=cbar_min, vmax=cbar_max))
-        else:
-            cont = plt.contourf(xcoord, ycoord, fieldpacket['field'][tt, :, :], levels, vmin=cbar_min, vmax=cbar_max,
-                     cmap=colormap, levels=levels)
-        if 'directions' in kwargs:
-            Us = -np.rad2deg(np.cos(np.deg2rad(kwargs['directions'][tt])))
-            Vs = -np.rad2deg(np.sin(np.deg2rad(kwargs['directions'][tt])))
-            xp = xcoord
-            yp = ycoord
-            if model == 'CMS':
-                if nested == False:
-                    nx = 20
-                    ny = 25
-                else:
-                    nx = 14
-                    ny = 25
-                    xInd = np.logical_and(xcoord > 0, xcoord < 1000)
-                    yInd = np.logical_and(ycoord > -200, ycoord < 1600)
-                    xIndGrd, yIndGrd = np.meshgrid(xInd, yInd)
-                    indGrd = np.logical_and(xIndGrd, yIndGrd)
-                    xp= xcoord[xInd]
-                    yp = ycoord[yInd]
-                    Us = Us[indGrd].reshape(yp.size, xp.size)
-                    Vs = Vs[indGrd].reshape(yp.size, xp.size)
-            elif model == 'STWAVE':
-                nx = 14
-                ny = 25
-            x = np.linspace(xp[0], xp[-1], nx)
-            y = np.linspace(yp[0], yp[-1], ny)
-            Us = RectBivariateSpline(yp, xp, Us)(y, x)
-            Vs = RectBivariateSpline(yp, xp, Vs)(y, x)
-            locsX, locsY = np.meshgrid(x, y)
-            Q = plt.quiver(locsX, locsY, Us, Vs, pivot='mid', angles='xy')
-        ## write out text labels on plot
-        if nested == True:
-            ptStr = 'or'
-            plt.plot(x_8m, y_8m, ptStr)
+        try:
+            plt.contourf(xcoord, ycoord, fieldpacket['field'][tt, :, :], levels, vmin=cbar_min, vmax=cbar_max,
+                     cmap='coolwarm', levels=levels, norm=norm)
+        except TypeError:
+            plt.contourf(xcoord, ycoord, fieldpacket['field'][tt, :, :], levels, vmin=cbar_min, vmax=cbar_max,
+                     cmap='coolwarm', levels=levels, norm=norm)
+        # plot pier
+
+        # plot 8m
+        if nested == 1:
+            plt.plot(x_8m, y_8m, '+k')
             plt.text(x_8m, y_8m, L_8m, fontsize=12, va='bottom',
                      rotation=45, color='white', weight='bold')
-            plt.plot(x_5m, y_5m, ptStr)
+            plt.plot(x_5m, y_5m, '+k')
             plt.text(x_5m, y_5m, L_5m, fontsize=12, va='bottom',
                      rotation=45, color='white', weight='bold')
-            plt.plot(x_4m, y_4m, ptStr)
+            plt.plot(x_4m, y_4m, '+k')
             plt.text(x_4m, y_4m, L_3m, fontsize=12, va='bottom',
                      rotation=45, color='white', weight='bold')
-            plt.plot(x_3m, y_3m, ptStr)
+            plt.plot(x_3m, y_3m, '+k')
             plt.text(x_3m, y_3m, L_3m, fontsize=12, va='bottom',
                      rotation=45, color='white', weight='bold')
 
-            plt.plot(x_xp200, y_xp200, ptStr)
+            plt.plot(x_xp200, y_xp200, '+k')
             plt.text(x_xp200, y_xp200, L_xp200, rotation=45, fontsize=12, va='bottom',
                      color='white', weight='bold')
-            plt.plot(x_xp150, y_xp150, ptStr)
+            plt.plot(x_xp150, y_xp150, '+k')
             plt.text(x_xp150, y_xp150, L_xp150, rotation=45, fontsize=12, va='bottom',
                      color='white', weight='bold')
-            plt.plot(x_xp125, y_xp125, ptStr)
+            plt.plot(x_xp125, y_xp125, '+k')
             plt.text(x_xp125, y_xp125, L_xp125, rotation=45, fontsize=12,va='bottom',
                      color='white', weight='bold',ha='right')
 
@@ -399,9 +354,7 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
             plt.text(x_pier[1], y_pier[1], L_pier, fontsize=12, va='bottom', ha='right',
                      color='black', rotation=315, weight='bold')
             cont_labels = [0, 2, 4, 6, 8, 10]  # labels for contours
-            plt.xlim(0, 1000)
-            plt.ylim(-200, 1600)
-        elif nested == False:
+        elif nested == 0:
             plt.plot(x_CBaccess, y_CBaccess, 'oy', ms=10)
             plt.text(x_CBaccess, y_CBaccess, L_CBaccess, ha='right', va='bottom', fontsize=12,
                      color='white', rotation=315, weight='bold')
@@ -424,38 +377,34 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
             # plt.text(x_pier[1], y_pier[1], L_pier, fontsize=12, va='bottom', ha='right',
             #          color='black', rotation=-20, weight='bold')
             cont_labels = [0, 10, 16, 24]  # labels for contours
+
         plt.ylabel(ylabel)
         plt.xlabel(xlabel)
-        if decimals == True:
-            cbar = plt.colorbar(cont, format='%.3g')
-        else:
-            cbar = plt.colorbar(cont)
+        cbar = plt.colorbar()
         cbar.set_ticks(cbarlabels)
+        cbar.set_ticklabels(cbarlabels)
         cbar.set_label(clabel_text, fontsize=12)
-        con = plt.contour(xcoord, ycoord, contourpacket['bathymetry'][tt], levels=cont_labels, colors='k')
+        con = plt.contour(xcoord, ycoord, contourpacket['bathy'][0], levels=cont_labels, colors='k')
         plt.clabel(con, inline=True, fmt='%d')
-
+        # if type(time[tt]) == list:
+        #     plt.savefig(prefix + namebase + '_%s.png' % time)
         try:
-            plt.savefig(os.path.join(prefix +'_{}.png'.format(time[tt].strftime("%Y%m%d%H%M"))))
+            plt.savefig(prefix + namebase + '_%s.png' % time[tt].strftime("%Y%m%d%H%M"))
         except AttributeError:
-            plt.savefig(os.path.join(prefix + '_{}.png'.format(time[tt][0].strftime("%Y%m%d%H%M"))))
+            plt.savefig(prefix + namebase + '_%s.png' % time[tt][0].strftime("%Y%m%d%H%M"))
         plt.close()
 
 def plotWaveProfile(x, waveHs, bathyToPlot, fname):
-    """This function will plot the Cross shore Wave profile at the FRF Xshore array
+    """
+    This function will plot the Cross shore Wave profile at the FRF Xshore array
+    :param waveHs: a 2 dimensional array of wave height
+    :param x: the x coordinates of the plot
+    :param yLocation: the location (in STWAVE longshore coord)
+    of the profile of wave height to be tak en  default 142, is
+    the nested grid of the xshore array
+    :param bathyField: this is a 2 dimensional array of bathymetry with Positive up
 
-    Args:
-      waveHs: a 2 dimensional array of wave height
-      x: the x coordinates of the plot
-      yLocation: the location (in STWAVE longshore coord)
-          of the profile of wave height to be tak en  default 142, is the nested grid of the xshore array
-      bathyField: this is a 2 dimensional array of bathymetry with Positive up
-      bathyToPlot: 
-      fname:  output file name
-
-    Returns:
-      a saved plot
-
+    :return: a saved plot
     """
     profileToPlot = waveHs
     # if bathyField.ndim == 3:
@@ -480,31 +429,23 @@ def plotWaveProfile(x, waveHs, bathyToPlot, fname):
     plt.savefig(fname)
     plt.close()
 
-def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
-    """This script basically just compares two time series, under
+
+# these are all the ones that were formerly in CSHORE_plotLib
+def obs_V_mod_TS(ofname, p_dict, logo_path='../ArchiveFolder/CHL_logo.png'):
+    """
+    This script basically just compares two time series, under
         the assmption that one is from the model and one a set of observations
 
-    Args:
-      file_path: this is the full file-path (string) to the location where the plot will be saved
-      p_dict: has 6 keys to it.
-        'time':  a vector of datetimes
-
-        'obs':  vector of observations
-
-        'model': vector of model data
-
-        'var_name' (str): variable name
-
-        'units' (str): variable units -> this will be put inside a tex math environment!!!!
-
-        'p_title' (str): plot title
-
-      ofname: output file name
-      logo_path: path to a small logo to put at the bottom of the figure (Default value = 'ArchiveFolder/CHL_logo.png')
-
-    Returns:
-      a model vs. observation time-series plot'
-      the dictionary of the statistics calculated
+    :param  file_path: this is the full file-path (string) to the location where the plot will be saved
+    :param p_dict: has 6 keys to it.
+        (1) a vector of datetimes ('time')
+        (2) vector of observations ('obs')
+        (3) vector of model data ('model')
+        (4) variable name (string) ('var_name')
+        (5) variable units (string!!) ('units') -> this will be put inside a tex math environment!!!!
+        (6) plot title (string) ('p_title')
+    :return: a model vs. observation time-series plot'
+        the dictionary of the statistics calculated
 
     """
     # this function plots observed data vs. model data for time-series data and computes stats for it.
@@ -530,26 +471,26 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
         xfmt = mdates.DateFormatter('%Y-%m-%d %H:%M')
     else:
         # mark hourly with 6 hour labels major intervals
-        tickInterval = 6  # hours?
+        tickInterval = 12  # hours?
         majorTickLocator = mdates.HourLocator(interval=tickInterval)
         minorTickLocator = mdates.HourLocator(1)
-        xfmt = mdates.DateFormatter('%Y-%m-%d %H:%M')
+        xfmt = mdates.DateFormatter('%m/%d\n%H:%M')
+    # DLY notes 12/17/2018 - I think this tick selection section still needs work,
+    # it works fine in some cases but terrible in others
 
     ####################################################################################################################
     # Begin Plot
     ####################################################################################################################
     fig = plt.figure(figsize=(10, 10))
-    fig.suptitle(p_dict['p_title'], fontsize=18, fontweight='bold', verticalalignment='top')
+    if 'p_title' in p_dict.keys():
+        fig.suptitle(p_dict['p_title'], fontsize=18, fontweight='bold', verticalalignment='top')
 
     # time series
     ax1 = plt.subplot2grid((2, 2), (0, 0), colspan=2)
     min_val = np.nanmin([np.nanmin(p_dict['obs']), np.nanmin(p_dict['model'])])
     max_val = np.nanmax([np.nanmax(p_dict['obs']), np.nanmax(p_dict['model'])])
-
     if min_val < 0 and max_val > 0:
-        base_date = min(p_dict['time']) - DT.timedelta(seconds=0.5 * (p_dict['time'][1] - p_dict['time'][0]).total_seconds())
-        base_times = np.array([base_date + DT.timedelta(seconds=n * (p_dict['time'][1] - p_dict['time'][0]).total_seconds()) for n in range(0, len(p_dict['time']) + 1)])
-        ax1.plot(base_times, np.zeros(len(base_times)), 'k--')
+        ax1.plot(p_dict['time'], np.zeros(len(p_dict['time'])), 'k--')
     ax1.plot(p_dict['time'], p_dict['obs'], 'r.', label='Observed')
     ax1.plot(p_dict['time'], p_dict['model'], 'b.', label='Model')
     ax1.set_ylabel('%s [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
@@ -576,6 +517,7 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
     for tick in ax1.yaxis.get_major_ticks():
         tick.label.set_fontsize(14)
 
+    ax1.minorticks_off()
     ax1.tick_params(labelsize=14)
     plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=3, borderaxespad=0., fontsize=14)
 
@@ -600,12 +542,18 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
 
     # stats and stats text
     stats_dict = {}
-    if isinstance(p_dict['obs'], np.ma.masked_array) and ~p_dict['obs'].mask.any():
-        p_dict['obs'] = np.array(p_dict['obs'])
     stats_dict = statsBryant(p_dict['obs'], p_dict['model'])
     stats_dict['m_mean'] = np.nanmean(p_dict['model'])
     stats_dict['o_mean'] = np.nanmean(p_dict['obs'])
     # the below are calculated in statsBryant... this keeps all statistics calcs in the same place
+    # stats_dict['bias'] = np.mean(p_dict['obs'] - p_dict['model'])
+    # stats_dict['RMSE'] = np.sqrt((1 / (float(len(p_dict['obs'])) - 1)) * np.sum(np.power(p_dict['obs'] - p_dict['model'] - stats_dict['bias'], 2)))
+    # stats_dict['SI'] = stats_dict['RMSE'] / float(stats_dict['m_mean'])
+    # stats_dict['sym_slp'] = np.sqrt(np.sum(np.power(p_dict['obs'], 2)) / float(np.sum(np.power(p_dict['model'], 2))))
+    # dum = np.zeros([2, len(p_dict['model'])])
+    # dum[0] = p_dict['model'].flatten()
+    # dum[1] = p_dict['obs'].flatten()
+    # stats_dict['corr_coef'] = np.corrcoef(dum)[0, 1]
 
     header_str = '%s Comparison \nModel to Observations:' % (p_dict['var_name'])
     m_mean_str = '\n Model Mean $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['m_mean']), p_dict['units'])
@@ -616,8 +564,9 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
     sym_slp_str = '\n Symmetric Slope $=%s$' % ("{0:.2f}".format(stats_dict['symSlope']))
     corr_coef_str = '\n Correlation Coefficient $=%s$' % ("{0:.2f}".format(stats_dict['corr']))
     RMSE_Norm_str = '\n %%RMSE $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['RMSEnorm']), p_dict['units'])
+
     num_String = '\n Number of samples $= %s$' %len(stats_dict['residuals'])
-    plot_str = m_mean_str + o_mean_str + bias_str + RMSE_str + SI_str + sym_slp_str + corr_coef_str + RMSE_Norm_str + num_String
+    plot_str = m_mean_str + o_mean_str + bias_str + RMSE_str + RMSE_Norm_str + SI_str + sym_slp_str + corr_coef_str + num_String
     ax3 = plt.subplot2grid((2, 2), (1, 1), colspan=1)
     ax3.axis('off')
     ax4 = ax3.twinx()
@@ -625,7 +574,8 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
 
     try:
         ax4.axis('off')
-        CHL_logo = image.imread(os.path.join(logo_path))
+        dir_name = os.path.dirname(__file__).split('\\plotting')[0]
+        CHL_logo = image.imread(os.path.join(dir_name, logo_path))
         ax4 = fig.add_axes([0.78, 0.02, 0.20, 0.20], anchor='SE', zorder=-1)
         ax4.imshow(CHL_logo)
         ax4.axis('off')
@@ -639,37 +589,26 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
 
     fig.subplots_adjust(wspace=0.4, hspace=0.1)
     fig.tight_layout(pad=1, h_pad=2.5, w_pad=1, rect=[0.0, 0.0, 1.0, 0.925])
-    fig.savefig(ofname, dpi=80)
+    fig.savefig(ofname, dpi=300)
     plt.close()
     return stats_dict
 
 def bc_plot(ofname, p_dict):
-    """This is the script to plot some information about the boundary conditions that were put into the CSHORE infile..
-
-    Args:
-      ofname (str): this is the full file-path to the location where the plot will be saved
-      p_dict:
-        'time':  a vector of datetimes
-
-        'x':  vector of bathymetry x-positions
-
-        'zb': vector of bathymetry bed elevations
-
-        'init_bathy_stime':  datetime that the bathy survey was DONE
-
-        'WL': vector of water levels ('time-series') at the offshore boundary
-
-        'Hs':  vector of significant wave heights (time-series) at the offshore boundary
-
-        'angle': vector of wave angles (time-series) at the offshore boundary
-
-        'Tp': vector of wave periods (time-series) at the offshore boundary
-
-        'p_title' (str):  plot title
-
-    Returns:
-      a plot of the boundary conditions for the simulation
-
+    """
+    This is the script to plot some information about the boundary conditions that were put into the CSHORE infile..
+    :param file_path: this is the full file-path (string) to the location where the plot will be saved i.e., C://users...
+        DONT include the final '/' or the actual NAME of the plot!!!!!!
+    :param p_dict:
+        (1) a vector of datetimes ('time')
+        (2) vector of bathymetry x-positions ('x')
+        (3) vector of bathymetry bed elevations ('zb')
+        (4) datetime that the bathy survey was DONE ('init_bathy_stime')
+        (5) vector of water levels ('time-series') at the offshore boundary ('WL')
+        (6) vector of significant wave heights (time-series) at the offshore boundary ('Hs')
+        (7) vector of wave angles (time-series) at the offshore boundary ('angle')
+        (8) vector of wave periods (time-series) at the offshore boundary ('Tp')
+        (9) plot title ('string') ('p_title')
+    :return: a plot of the boundary conditions for the simulation
     """
 
     # get rid of this and include them in the handed dictionary if you want to include vegetation in the plots
@@ -781,52 +720,35 @@ def bc_plot(ofname, p_dict):
     plt.close()
 
 def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.png', contour_s=3, contour_d=8):
-    """This is a plot to compare observed and model bathymetry to each other
+    """
+    This is a plot to compare observed and model bathymetry to each other
+    :param file_path: this is the full file-path (string) to the location where the plot will be saved i.e., C://users...
+        DONT include the final '/' or the actual NAME of the plot!!!!!!
+    :param p_dict:
+        (1) a vector of x-positions for the bathymetry ('x')
+            MAKE SURE THIS IS IN FRF COORDS!!!!
+        (2) vector of OBSERVED bathymetry bed elevations ('obs')
+        (3) datetime of the OBSERVED bathymetry survey ('obs_time')
+        (4) vector of MODEL bathymetry bed elevations ('model')
+        (5) datetime of the MODEL bathymetry ('model_time')
+        (6) vector of model Hs at EACH model NODE at the TIME of the MODEL BATHYMETRY ('Hs')
+        (7) vector of the standard deviation of model Hs at EACH model NODE ('sigma_Hs')
+        (8) time series of water level at the offshore boundary ('WL')
+        (12) array of datetimes for the water level data ('time').
+            AS A HEADS UP, THIS IS THE RANGE OF TIMES THAT WILL GO INTO getObs for the comparisons!!!
+        (9) variable name ('var_name')
+        (10) variable units ('units') (string) -> this will be put inside a tex math environment!!!!
+        (11) plot title (string) ('p_title')
 
-    Args:
-      ofname: this is the full file-path (string) to the location where the plot will be saved
-      obs_dict:
-            'Alt03': eleveations from altimeter 03
-
-            'Alt04': elevations from altimeter 04
-
-            'Alt05': elevations from altimeter o5
-
-            'Adopp_35': wave heights
-
-            'AWAC6m': wave heights
-
-            'AWAC8m': wave heights
-      logo_path: this is the path to put a logo on the plot (Default value = 'ArchiveFolder/CHL_logo.png')
-      contour_s: this is the INSIDE THE SANDBAR contour line (shallow contour line) we are going out to for the
-            volume calculations (depth in m!!) (Default value = 3)
-      contour_d: this is the OUTSIDE THE SANDBAR contour line (deep contour line) we are going out to for the
-            volume calculations (depth in m!!) (Default value = 8)
-
-      p_dict (dict): dictionary
-        'obs':  vector of observations bed elevations
-
-        'model': vector of MODEL bathymetry bed elevations
-
-        'time':  a vector of datetimes
-
-        'x':  vector of bathymetry x-positions
-
-        'WL': vector of water levels ('time-series') at the offshore boundary
-
-        'Hs':  vector of significant wave heights (time-series) at the offshore boundary
-
-        'sigma_Hs':  vector of the standard deviation of model Hs at EACH model NODE
-
-        'units'(str): variable units -> this will be put inside a tex math environment!!!!
-
-        'p_title' (str):  plot title
-
-    Returns:
-      model to observation comparison for spatial data - right now all it does is bathymetry?
-      may need modifications to be more general, but I'm not sure what other
-      kind of data would need to be plotted in a similar manner?
-
+    :param logo_path: this is the path to get the CHL logo to display it on the plot!!!!
+    :param contour_s: this is the INSIDE THE SANDBAR contour line (shallow contour line)
+        we are going out to for the volume calculations (depth in m!!)
+    :param contour_d: this is the OUTSIDE THE SANDBAR contour line (deep contour line)
+        we are going out to for the volume calculations (depth in m!!)
+    :return:
+        model to observation comparison for spatial data - right now all it does is bathymetry?
+        may need modifications to be more general, but I'm not sure what other
+        kind of data would need to be plotted in a similar manner?
     """
 
     # Altimeter data!!!!!!!!
@@ -908,6 +830,7 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
                       label='Gauge Data')
         q, = ax5.plot(AWAC8m['xFRF'] * np.ones(1), temp8m, 'k_', label='Gauge Data')
 
+
     ax1.set_ylabel('Elevation (NAVD88) [$%s$]' % (p_dict['units']), fontsize=16)
     ax1.set_xlabel('Cross-shore Position [$%s$]' % (p_dict['units']), fontsize=16)
     ax5.set_ylabel('$H_{s}$ [$%s$]' % (p_dict['units']), fontsize=16)
@@ -942,6 +865,7 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
         tick.label.set_fontsize(14)
     ax1.tick_params(labelsize=14)
     ax5.tick_params(labelsize=14)
+
     if 'obs2_time' in p_dict.keys():
         if Alt05 is not None:
             p = [a, d, b, e, r, c, f]
@@ -963,12 +887,14 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     if min_val < 0 and max_val > 0:
         ax2.plot(one_one, np.zeros(len(one_one)), 'k--')
         ax2.plot(np.zeros(len(one_one)), one_one, 'k--')
+
     if 'obs2_time' in p_dict.keys():
         ax2.plot(p_dict['obs2'], p_dict['model'], 'r*')
         ax2.set_xlabel('Observed %s (final) [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
     else:
         ax2.plot(p_dict['obs'], p_dict['model'], 'r*')
         ax2.set_xlabel('Observed %s (initial) [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
+
     ax2.set_ylabel('Model %s [$%s$]' % (p_dict['var_name'], p_dict['units']), fontsize=16)
     ax2.set_xlim([min_val - 0.025 * (max_val - min_val), max_val + 0.025 * (max_val - min_val)])
     ax2.set_ylim([min_val - 0.025 * (max_val - min_val), max_val + 0.025 * (max_val - min_val)])
@@ -981,8 +907,8 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
 
     # stats and stats text
     stats_dict = sb.statsBryant(models=p_dict['model'], observations=p_dict['obs'])
-    # volume change
-    # shallow
+
+    # volume change, shallow
     index_XXm = np.min(np.argwhere(p_dict[
                                        'obs'] >= -1 * contour_s).flatten())  # ok, the indices currently count from offshore to onshore, so we want the SMALLEST index!
     vol_obs = np.trapz(p_dict['obs'][index_XXm:] - min_val, p_dict['x'][index_XXm:], p_dict['x'][1] - p_dict['x'][0])
@@ -1000,8 +926,8 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     header_str = '%s Comparison \nModel to Observations:' % (p_dict['var_name'])
     bias_str = '\n Bias $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['bias']), p_dict['units'])
     RMSE_str = '\n RMSE $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['RMSE']), p_dict['units'])
-    sym_slp_str = '\n Symmetric Slope $=%s$' % ("{0:.2f}".format(stats_dict['symSlope']))
-    corr_coef_str = '\n Correlation Coefficient $=%s$' % ("{0:.2f}".format(stats_dict['corr']))
+    sym_slp_str = '\n Symmetric Slope $=%s$' % ("{0:.2f}".format(stats_dict['sym_slp']))
+    corr_coef_str = '\n Correlation Coefficient $=%s$' % ("{0:.2f}".format(stats_dict['corr_coef']))
     shall_vol_str = '\n $%s$ $%s$ Volume Change $=%s$ $(%s^{3}/%s)$' % (
     contour_s, p_dict['units'], "{0:.2f}".format(stats_dict['vol_change_%sm' % (contour_s)]), p_dict['units'],
     p_dict['units'])
@@ -1017,7 +943,8 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     ax3.axis('off')
     try:
         ax4.axis('off')
-        CHL_logo = image.imread(logo_path)
+        dir_name = os.path.dirname(__file__).split('\\plotting')[0]
+        CHL_logo = image.imread(os.path.join(dir_name, logo_path))
         ax4 = fig.add_axes([0.78, 0.02, 0.20, 0.20], anchor='SE', zorder=-1)
         ax4.imshow(CHL_logo)
         ax4.axis('off')
@@ -1034,56 +961,32 @@ def obs_V_mod_bathy(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.
     fig.savefig(ofname, dpi=300)
     plt.close()
 
-def mod_results(ofname, p_dict, obs_dict, ylims=None):
-    """This script just lets you visualize the model outputs at a particular time-step
-
-    Args:
-      file_path: this is the full file-path (string) to the location where the plot will be saved i.e., C://users...
-            DONT include the final '/' or the actual NAME of the plot!!!!!!
-      p_dict:
-        'x':  a vector of x-positions for the bathymetry ( MAKE SURE THIS IS IN FRF COORDS!!!!)
-
-        'zb_m': vector of MODEL bathymetry bed elevations
-
-        'sigma_zbm': vector of the standard deviation of the MODEL bathymetry bed elevations at each node!
-
-        'model_time': datetime of the MODEL bathymetry
-
-        'Hs': vector of model Hs at EACH model NODE at the TIME of the MODEL BATHYMETRY
-
-        'sigma_Hs': vector of the standard deviation of model Hs at EACH model NODE
-
-        'setup_m': vector of the setup at EACH model NODE at the TIME of the MODEL BATHYMETRY () NOTE: the
-            "setup" value output by the model is actually just the water surface elevation!!!! So if you want
-             the actual "setup" you need to subtract off some reference water level! I used the water level at
-             the offshore boundary at the same time-step, but we will need to check this once we resolve
-             the model comparison issue with Brad!!
-
-        'sigma_setup': vector of the standard deviation of model setup at EACH model NODE DONT have to subtract
-             anything for standard deviation, it wont change....
-
-        'p_title'(str): plot title
-
-        'time':  array of datetimes for the water level data
-
-      ofname: file output
-      obs_dict:
-           'Alt03': eleveations from altimeter 03
-
-            'Alt04': elevations from altimeter 04
-
-            'Alt05': elevations from altimeter o5
-
-            'Adopp_35': wave heights
-
-            'AWAC6m': wave heights
-
-            'AWAC8m': wave heights
-
-    Returns:
-      plot of a bunch of model results
-
+def mod_results(ofname, p_dict, obs_dict):
     """
+    This script just lets you visualize the model outputs at a particular time-step
+    :param file_path: this is the full file-path (string) to the location where the plot will be saved i.e., C://users...
+        DONT include the final '/' or the actual NAME of the plot!!!!!!
+    :param p_dict:
+        (1) a vector of x-positions for the bathymetry ('x')
+            MAKE SURE THIS IS IN FRF COORDS!!!!
+        (2) vector of MODEL bathymetry bed elevations ('zb_m')
+        (3) vector of the standard deviation of the MODEL bathymetry bed elevations at each node! ('sigma_zbm')
+        (4) datetime of the MODEL bathymetry ('model_time')
+        (5) vector of model Hs at EACH model NODE at the TIME of the MODEL BATHYMETRY ('Hs')
+        (6) vector of the standard deviation of model Hs at EACH model NODE ('sigma_Hs')
+        (7) vector of the setup at EACH model NODE at the TIME of the MODEL BATHYMETRY ('setup_m')
+            NOTE: the "setup" value output by the model is actually just the water surface elevation!!!!
+            So if you want the actual "setup" you need to subtract off some reference water level!
+            I used the water level at the offshore boundary at the same time-step,
+                but we will need to check this once we resolve the model comparison issue with Brad!!
+        (8) vector of the standard deviation of model setup at EACH model NODE ('sigma_setup')
+            DONT have to subtract anything for standard deviation, it wont change....
+        (9) plot title (string) ('p_title')
+        (10) array of datetimes for the water level data ('time').
+            AS A HEADS UP, THIS IS THE RANGE OF TIMES THAT WILL GO INTO getObs for the comparisons!!!
+    :return: plot of a bunch of model results
+    """
+
     # Altimeter data!!!!!!!!
     Alt05 = obs_dict.get('Alt05', None)
     Alt04 = obs_dict.get('Alt04', None)
@@ -1135,7 +1038,6 @@ def mod_results(ofname, p_dict, obs_dict, ylims=None):
         ax1.plot(AWAC8m['xFRF']*np.ones(2), [temp8m - np.std(AWAC8m['Hs']), temp8m + np.std(AWAC8m['Hs'])], 'k-')
         ax1.plot(AWAC8m['xFRF']*np.ones(1), [temp8m], 'k_')
 
-
     ax1.set_ylabel('$H_{s}$ [$m$]', fontsize=16)
     ax1.set_xlabel('Cross-shore Position [$m$]', fontsize=16)
     # determine axis scale factor
@@ -1147,11 +1049,8 @@ def mod_results(ofname, p_dict, obs_dict, ylims=None):
         sf2 = 1.1
     else:
         sf2 = 0.9
+    ax1.set_ylim([sf1 * min_val, sf2 * max_val])
     ax1.set_xlim([min(dum_x), max(dum_x)])
-    if ylims is None:
-        ax1.set_ylim([sf1 * min_val, sf2 * max_val])
-    else:
-        ax1.set_ylim(ylims[0])
 
     for tick in ax1.xaxis.get_major_ticks():
         tick.label.set_fontsize(14)
@@ -1184,10 +1083,7 @@ def mod_results(ofname, p_dict, obs_dict, ylims=None):
         sf2 = 1.1
     else:
         sf2 = 0.9
-    if ylims is None:
-        ax2.set_ylim([sf1 * min_val, sf2 * max_val])
-    else:
-        ax2.set_ylim(ylims[1])
+    ax2.set_ylim([sf1 * min_val, sf2 * max_val])
     ax2.set_xlim([min(dum_x), max(dum_x)])
 
     for tick in ax2.xaxis.get_major_ticks():
@@ -1265,47 +1161,24 @@ def mod_results(ofname, p_dict, obs_dict, ylims=None):
     fig.savefig(ofname, dpi=300)
     plt.close()
 
-def als_results(ofname, p_dict, obs_dict, ylims=None):
-    """This is just some script to visualize the alongshore current results from the model output at a particular time step
-
-    Args:
-      p_dict: 1) a vector of x-positions for the bathymetry ('x')
+def als_results(ofname, p_dict, obs_dict):
+    """
+    This is just some script to visualize the alongshore current results from the model output at a particular time step
+    :param file_path: this is the full file-path (string) to the location where the plot will be saved i.e., C://users...
+        DONT include the final '/' or the actual NAME of the plot!!!!!!
+    :param p_dict:
+        (1) a vector of x-positions for the bathymetry ('x')
             MAKE SURE THIS IS IN FRF COORDS!!!!
-
         (2) vector of MODEL bathymetry bed elevations ('zb_m')
-
         (3) datetime of the MODEL bathymetry ('model_time')
-
         (4) vector of model alongshore velocity at EACH model NODE at the TIME of the MODEL BATHYMETRY ('vmean_m')
-
         (5) vector of the standard deviation of model alongshore velocity at EACH model NODE ('sigma_vm')
-
         (6) vector of model Hs at EACH model NODE at the TIME of the MODEL BATHYMETRY ('Hs')
-
         (7) vector of the standard deviation of model Hs at EACH model NODE ('sigma_Hs')
-
         (8) plot title (string) ('p_title')
-
-        (9) array of datetimes for the water level data ('time'). AS A HEADS UP, THIS IS THE RANGE OF
-            TIMES THAT WILL GO INTO getObs for the comparisons!!!
-
-      ofname: file output name
-      obs_dict:
-            'Alt03': eleveations from altimeter 03
-
-            'Alt04': elevations from altimeter 04
-
-            'Alt05': elevations from altimeter o5
-
-            'Adopp_35': wave heights
-
-            'AWAC6m': wave heights
-
-            'AWAC8m': wave heights
-
-    Returns:
-      plot of some alongshore current data
-
+        (9) array of datetimes for the water level data ('time').
+            AS A HEADS UP, THIS IS THE RANGE OF TIMES THAT WILL GO INTO getObs for the comparisons!!!
+    :return: plot of some alongshore current stuff
     """
     # Altimeter data!!!!!!!!
     Alt05 = obs_dict.get('Alt05', None)
@@ -1444,6 +1317,7 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
     else:
         ax2.set_ylim(ylims[0])
     ax2.set_xlim([min(CrossShoreX), max(CrossShoreX)])
+
     ax2.tick_params('y', colors='b')
     ax2.yaxis.label.set_color('blue')
 
@@ -1588,6 +1462,7 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
     else:
         ax4.set_ylim(ylims[1])
     ax4.set_xlim([min(CrossShoreX), max(CrossShoreX)])
+
     ax4.tick_params('y', colors='b')
     ax4.yaxis.label.set_color('blue')
 
@@ -1616,248 +1491,43 @@ def als_results(ofname, p_dict, obs_dict, ylims=None):
     fig.savefig(ofname, dpi=300)
     plt.close()
 
-def alt_PlotData(name, mod_time, mod_times, THREDDS='FRF'):
-    """This function is just to remove clutter in my plot functions
-    all it does is pull out altimeter data and put it into the appropriate dictionary keys.
-    If None, it will return masked arrays.
-
-    Args:
-      name: name of the altimeter you want (Alt03, Alt04, Alt05)
-      mod_time: start time of the model
-      time: array of model datetimes
-      mod: array of model observations at that instrument location corresponding to variable "comp_time"
-      mod_times: 
-      THREDDS:  (Default value = 'FRF')
-
-    Returns:
-      Altimeter data dictionary with keys:
-      'zb' - elevation
-
-      'name' - gage name
-
-      'time' - timestamps of the data
-
-      'xFRF' - position of the gage
-
-      'plot_ind' - this just tells it which data point it should plot for the snapshots
-
-    """
-    t1 = mod_times[0] - DT.timedelta(days=0, hours=0, minutes=3)
-    t2 = mod_times[-1] + DT.timedelta(days=0, hours=0, minutes=3)
-    frf_Data = getObs(t1, t2, THREDDS)
-
-    try:
-        dict = {}
-        alt_data = frf_Data.getALT(name)
-        dict['zb'] = alt_data['bottomElev']
-        dict['time'] = alt_data['time']
-        dict['name'] = alt_data['stationName']
-        dict['xFRF'] = round(alt_data['xFRF'])
-        plot_ind = np.where(abs(dict['time'] - mod_time) == min(abs(dict['time'] - mod_time)), 1, 0)
-        dict['plot_ind'] = plot_ind
-        dict['TS_toggle'] = True
-
-    except:
-        # just make it a masked array
-        dict = {}
-        comp_time = [mod_times[ii] + (mod_times[ii + 1] - mod_times[ii]) / 2 for ii in range(0, len(mod_times) - 1)]
-        dict['time'] = comp_time
-        fill_x = np.ones(np.shape(dict['time']))
-        dict['zb'] = np.ma.array(fill_x, mask=np.ones(np.shape(dict['time'])))
-        dict['name'] = name
-        dict['xFRF'] = np.ma.array(np.ones(1), mask=np.ones(1))
-        fill_ind = np.zeros(np.shape(dict['time']))
-        fill_ind[0] = 1
-        dict['plot_ind'] = fill_ind
-        dict['TS_toggle'] = False
-
-
-    return dict
-
-def wave_PlotData(name, mod_time, time, THREDDS='FRF'):
-    """This function is just to remove clutter in my plotting scripts
-    all it does is pull out altimeter data and put it into the appropriate dictionary keys.
-    If None, it will return masked arrays.
-
-    Args:
-      t1: start time you want to pull (a datetime, not a string)
-      t2: end time you want to pull (a datetime, not a string)
-      name: name of the wave gage you want
-      mod_time: start time of the model
-      time: array of model datetimes
-      THREDDS:  (Default value = 'FRF')
-
-    Returns:
-      Altimeter data dictionary with keys:
-          'Hs' - significant wave height
-
-          'name' - gage name
-
-          'wave_time' - timestamps of the data
-
-          'xFRF' - position of the gage
-
-          'plot_ind' - this just tells it which data point it should plot for the snapshots
-
-    """
-    warnings.warn("Don't use this function in new Development")
-    # take this function and break apart into multiple get data calls not in this library
-    t1 = time[0] - DT.timedelta(days=0, hours=0, minutes=3)
-    t2 = time[-1] + DT.timedelta(days=0, hours=0, minutes=3)
-
-    frf_Data = getObs(t1, t2, THREDDS)
-
-    try:
-        dict = {}
-        wave_data = frf_Data.getWaveSpec(gaugenumber=name)
-        # print(wave_data['time'])
-        dict['name'] = name
-        dict['wave_time'] = wave_data['time']
-        dict['Hs'] = wave_data['Hs']
-        dict['xFRF'] = wave_data['xFRF']
-        dict['plot_ind'] = np.where(abs(dict['wave_time'] - mod_time) == min(abs(dict['wave_time'] - mod_time)), 1, 0)
-        if name in [2, 3, 4, 5, 6, 'awac-11m', 'awac-8m', 'awac-6m', 'awac-4.5m',
-                                'adop-3.5m']:
-            cur_data = frf_Data.getCurrents(name)
-            dict['cur_time'] = cur_data['time']
-            dict['plot_ind_V'] = np.where(abs(dict['cur_time'] - mod_time) == min(abs(dict['cur_time'] - mod_time)), 1, 0)
-            # rotate my velocities!!!
-            # troubleshooting the velocity stuff
-            test_fun = lambda x: vectorRotation(x, theta=90 + 71.8)
-
-            newV = [test_fun(x) for x in zip(cur_data['aveU'], cur_data['aveV'])]
-            dict['U'] = np.array(zip(*newV)[0])
-            dict['V'] = np.array(zip(*newV)[1])
-        dict['TS_toggle'] = True
-
-    except:
-        print('No data at {}s!  Will return masked array.'.format(name))
-        # just make it a masked array
-        dict = {}
-        dict['wave_time'] = time
-        dict['cur_time'] = time
-        fill_x = np.ones_like(dict['wave_time'])
-        dict['Hs'] = np.ma.array(fill_x, mask=np.ones(np.shape(dict['wave_time'])))
-        dict['name'] = 'AWAC8m'
-        dict['xFRF'] = np.ma.array(np.ones(1), mask=np.ones(1))
-        fill_ind = np.zeros(np.shape(dict['wave_time']))
-        fill_ind[0] = 1
-        dict['plot_ind'] = fill_ind
-        dict['plot_ind_V'] = fill_ind
-        dict['U'] = np.ma.array(fill_x, mask=np.ones(np.shape(dict['wave_time'])))
-        dict['V'] = np.ma.array(fill_x, mask=np.ones(np.shape(dict['wave_time'])))
-        dict['TS_toggle'] = False
-
-    return dict
-
-def lidar_PlotData(time, THREDDS='FRF'):
-    """
-
-    Args:
-      time: 
-      THREDDS:  (Default value = 'FRF')
-
-    Returns:
-
-    """
-
-    t1 = time[0] - DT.timedelta(days=0, hours=0, minutes=3)
-    t2 = time[-1] + DT.timedelta(days=0, hours=0, minutes=3)
-
-    frf_Data = getObs(t1, t2, THREDDS)
-
-    try:
-        dict = {}
-        lidar_data_RU = frf_Data.getLidarRunup()
-        dict['runup2perc'] = lidar_data_RU['totalWaterLevel']
-        dict['runupTime'] = lidar_data_RU['time']
-        dict['runupMean'] = np.nanmean(lidar_data_RU['elevation'], axis=1)
-
-        lidar_data_WP = frf_Data.getLidarWaveProf()
-        dict['waveTime'] = lidar_data_WP['time']
-        dict['xFRF'] = lidar_data_WP['xFRF']
-        dict['yFRF'] = lidar_data_WP['yFRF']
-        dict['Hs'] = lidar_data_WP['waveHsTotal']
-        dict['WL'] = lidar_data_WP['waterLevel']
-        dict['TS_toggle'] = True
-
-    except:
-        # just make it a masked array
-        dict['runupTime'] = np.zeros(20)
-        fill_x = np.ones(np.shape(dict['runupTime']))
-        dict['runup2perc'] = np.ma.array(fill_x, mask=np.ones(np.shape(dict['runupTime'])))
-        dict['runupMean'] = np.ma.array(fill_x, mask=np.ones(np.shape(dict['runupTime'])))
-        dict['waveTime'] = np.zeros(20)
-        dict['xFRF'] = np.ones(np.shape(dict['waveTime']))
-        dict['yFRF'] = np.ones(np.shape(dict['waveTime']))
-        fill_x = np.ones((np.shape(dict['waveTime'])[0], np.shape(dict['xFRF'])[0]))
-        dict['Hs'] = np.ma.array(fill_x, mask=np.ones(np.shape(fill_x)))
-        dict['WL'] = np.ma.array(fill_x, mask=np.ones(np.shape(fill_x)))
-        dict['TS_toggle'] = False
-
-    return dict
-
 def obs_V_mod_bathy_TN(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.png', contour_s=3, contour_d=8):
     """This is a plot to compare observed and model bathymetry to each other
+    
+    :param file_path: this is the full file-path (string) to the location where the plot will be saved i.e., C://users...
+        DONT include the final '/' or the actual NAME of the plot!!!!!!
+    :param p_dict:
+        (1) a vector of x-positions for the bathymetry ('x')
+            MAKE SURE THIS IS IN FRF COORDS!!!!
 
-    Args:
-        p_dict (dict): plotting dictionary with below keys
-            'x': a vector of x-positions for the bathymetry
+        (2) vector of initial OBSERVED bathymetry bed elevations ('i_obs')
+        (3) datetime of the initial OBSERVED bathymetry survey ('i_obs_time')
 
-            'i_obs': vector of initial OBSERVED bathymetry bed elevations
+        (3) vector of final OBSERVED bathymetry bed elevations ('f_obs')
+        (4) datetime of the final OBSERVED bathymetry survey ('f_obs_time')
 
-            'i_obs_time': datetime of the initial OBSERVED bathymetry survey
+        (5) vector of MODEL bathymetry bed elevations ('model')
+        (6) datetime of the MODEL bathymetry ('model_time')
+        (7) vector of model Hs at EACH model NODE at the TIME of the MODEL BATHYMETRY ('Hs')
+        (8) vector of the standard deviation of model Hs at EACH model NODE ('sigma_Hs')
+        (9) time series of water level at the offshore boundary ('WL')
+        (13) array of datetimes for the water level data ('time').
+            AS A HEADS UP, THIS IS THE RANGE OF TIMES THAT WILL GO INTO getObs for the comparisons!!!
+        (10) variable name ('var_name')
+        (11) variable units ('units') (string) -> this will be put inside a tex math environment!!!!
+        (12) plot title (string) ('p_title')
 
-            'f_obs': vector of final OBSERVED bathymetry bed elevations
-
-            'f_obs_time':  datetime of the final OBSERVED bathymetry survey
-
-            'model': vector of MODEL bathymetry bed elevations
-
-            'model_time': datetime of the MODEL bathymetry
-
-            'Hs': vector of model Hs at EACH model NODE at the TIME of the MODEL BATHYMETRY
-
-            'sigma_Hs': vector of the standard deviation of model Hs at EACH model NODE
-
-            'WL': time series of water level at the offshore boundary
-
-            'time': array of datetimes for the water level data
-
-            'var_name': variable name
-
-            'units' (str):  variable units -> this will be put inside a tex math environment!!!!
-
-            'p_title' (str): plot title
-
-      logo_path: this is the path to display logo on the plot (Default value = 'ArchiveFolder/CHL_logo.png')
-
-      contour_s: this is the INSIDE THE SANDBAR contour line (shallow contour line)
-            we are going out to for the volume calculations (depth in m!!) (Default value = 3)
-
-      contour_d: this is the OUTSIDE THE SANDBAR contour line (deep contour line)
-            we are going out to for the volume calculations (depth in m!!) (Default value = 8)
-
-      ofname: file output name
-
-      obs_dict:
-        'Alt03': eleveations from altimeter 03
-
-        'Alt04': elevations from altimeter 04
-
-        'Alt05': elevations from altimeter o5
-
-        'Adopp_35': wave heights
-
-        'AWAC6m': wave heights
-
-        'AWAC8m': wave heights
-
-    Returns:
-      model to observation comparison for spatial data - right now all it does is bathymetry
-      may need modifications to be more general (if needed)
-
+    :param logo_path: this is the path to get the CHL logo to display it on the plot!!!!
+    :param contour_s: this is the INSIDE THE SANDBAR contour line (shallow contour line)
+        we are going out to for the volume calculations (depth in m!!)
+    :param contour_d: this is the OUTSIDE THE SANDBAR contour line (deep contour line)
+        we are going out to for the volume calculations (depth in m!!)
+    :return:
+        model to observation comparison for spatial data - right now all it does is bathymetry?
+        may need modifications to be more general, but I'm not sure what other
+        kind of data would need to be plotted in a similar manner?
     """
+
     # Altimeter data!!!!!!!!
     Alt05 = obs_dict['Alt05']
     Alt04 = obs_dict['Alt04']
@@ -1891,14 +1561,14 @@ def obs_V_mod_bathy_TN(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_lo
 
     # add altimeter data!!
     # Alt05
-    f, = ax1.plot(Alt05['xFRF'] * np.ones(2), [min(Alt05['zb']), max(Alt05['zb'])], 'k-', label='Gauge Data')
-    g, = ax1.plot(Alt05['xFRF'] * np.ones(1), Alt05['zb'][Alt05['plot_ind'] == 1], 'k_', label='Gauge Data')
+    f, = ax1.plot(Alt05['xFRF'] * np.ones(2), [min(Alt05['zb']), max(Alt05['zb'])], 'k-', label='Gage Data')
+    g, = ax1.plot(Alt05['xFRF'] * np.ones(1), Alt05['zb'][Alt05['plot_ind'] == 1], 'k_', label='Gage Data')
     # Alt04
-    h, = ax1.plot(Alt04['xFRF'] * np.ones(2), [min(Alt04['zb']), max(Alt04['zb'])], 'k-', label='Gauge Data')
-    i, = ax1.plot(Alt04['xFRF'] * np.ones(1), Alt04['zb'][Alt04['plot_ind'] == 1], 'k_', label='Gauge Data')
+    h, = ax1.plot(Alt04['xFRF'] * np.ones(2), [min(Alt04['zb']), max(Alt04['zb'])], 'k-', label='Gage Data')
+    i, = ax1.plot(Alt04['xFRF'] * np.ones(1), Alt04['zb'][Alt04['plot_ind'] == 1], 'k_', label='Gage Data')
     # Alt03
-    j, = ax1.plot(Alt03['xFRF'] * np.ones(2), [min(Alt03['zb']), max(Alt03['zb'])], 'k-', label='Gauge Data')
-    k, = ax1.plot(Alt03['xFRF'] * np.ones(1), Alt03['zb'][Alt03['plot_ind'] == 1], 'k_', label='Gauge Data')
+    j, = ax1.plot(Alt03['xFRF'] * np.ones(2), [min(Alt03['zb']), max(Alt03['zb'])], 'k-', label='Gage Data')
+    k, = ax1.plot(Alt03['xFRF'] * np.ones(1), Alt03['zb'][Alt03['plot_ind'] == 1], 'k_', label='Gage Data')
 
     ax5 = ax1.twinx()
     d, = ax5.plot(p_dict['x'], p_dict['Hs'], 'g-', label='Model $H_{s}$')
@@ -1907,14 +1577,14 @@ def obs_V_mod_bathy_TN(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_lo
 
     # add wave data!!
     # Adopp_35
-    l, = ax5.plot(Adopp_35['xFRF'] * np.ones(2), [Adopp_35['Hs'][Adopp_35['plot_ind'] == 1] - np.std(Adopp_35['Hs']), Adopp_35['Hs'][Adopp_35['plot_ind'] == 1] + np.std(Adopp_35['Hs'])], 'k-', label='Gauge Data')
-    m, = ax5.plot(Adopp_35['xFRF'] * np.ones(1), Adopp_35['Hs'][Adopp_35['plot_ind'] == 1], 'k_', label='Gauge Data')
+    l, = ax5.plot(Adopp_35['xFRF'] * np.ones(2), [Adopp_35['Hs'][Adopp_35['plot_ind'] == 1] - np.std(Adopp_35['Hs']), Adopp_35['Hs'][Adopp_35['plot_ind'] == 1] + np.std(Adopp_35['Hs'])], 'k-', label='Gage Data')
+    m, = ax5.plot(Adopp_35['xFRF'] * np.ones(1), Adopp_35['Hs'][Adopp_35['plot_ind'] == 1], 'k_', label='Gage Data')
     # AWAC6m
-    n, = ax5.plot(AWAC6m['xFRF'] * np.ones(2), [AWAC6m['Hs'][AWAC6m['plot_ind'] == 1] - np.std(AWAC6m['Hs']), AWAC6m['Hs'][AWAC6m['plot_ind'] == 1] + np.std(AWAC6m['Hs'])], 'k-', label='Gauge Data')
-    o, = ax5.plot(AWAC6m['xFRF'] * np.ones(1), AWAC6m['Hs'][AWAC6m['plot_ind'] == 1], 'k_', label='Gauge Data')
+    n, = ax5.plot(AWAC6m['xFRF'] * np.ones(2), [AWAC6m['Hs'][AWAC6m['plot_ind'] == 1] - np.std(AWAC6m['Hs']), AWAC6m['Hs'][AWAC6m['plot_ind'] == 1] + np.std(AWAC6m['Hs'])], 'k-', label='Gage Data')
+    o, = ax5.plot(AWAC6m['xFRF'] * np.ones(1), AWAC6m['Hs'][AWAC6m['plot_ind'] == 1], 'k_', label='Gage Data')
     # AWAC8m
-    p, = ax5.plot(AWAC8m['xFRF'] * np.ones(2), [AWAC8m['Hs'][AWAC8m['plot_ind'] == 1] - np.std(AWAC8m['Hs']), AWAC8m['Hs'][AWAC8m['plot_ind'] == 1] + np.std(AWAC8m['Hs'])], 'k-', label='Gauge Data')
-    q, = ax5.plot(AWAC8m['xFRF'] * np.ones(1), AWAC8m['Hs'][AWAC8m['plot_ind'] == 1], 'k_', label='Gauge Data')
+    p, = ax5.plot(AWAC8m['xFRF'] * np.ones(2), [AWAC8m['Hs'][AWAC8m['plot_ind'] == 1] - np.std(AWAC8m['Hs']), AWAC8m['Hs'][AWAC8m['plot_ind'] == 1] + np.std(AWAC8m['Hs'])], 'k-', label='Gage Data')
+    q, = ax5.plot(AWAC8m['xFRF'] * np.ones(1), AWAC8m['Hs'][AWAC8m['plot_ind'] == 1], 'k_', label='Gage Data')
 
     ax1.set_ylabel('Elevation (NAVD88) [$%s$]' % (p_dict['units']), fontsize=16)
     ax1.set_xlabel('Cross-shore Position [$%s$]' % (p_dict['units']), fontsize=16)
