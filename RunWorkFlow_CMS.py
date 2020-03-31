@@ -12,7 +12,6 @@ from getdatatestbed.getDataFRF import getDataTestBed
 from prepdata import inputOutput
 import netCDF4 as nc
 
-
 def Master_CMS_run(inputDict):
     '''
     This function will run CMS with any version prefix given start, end, and timestep
@@ -218,7 +217,6 @@ def Master_CMS_run(inputDict):
             print(e)
             logging.exception('\nERROR FOUND @ %s\n' %time, exc_info=True)
             os.chdir(curdir)
-
 
 if __name__ == "__main__":
     opts, args = getopt.getopt(sys.argv[1:], "h", ["help"])

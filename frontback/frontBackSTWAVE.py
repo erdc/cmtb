@@ -386,8 +386,8 @@ def STanalyze(startTime, inputDict):
     if plotFlag == True:
         print("   BEGIN PLOTTING ")
         d = DT.datetime.now()
-        plotFnameRegional = 'figures/CMTB_waveModels_STWAVE_%s_Regional-' % version_prefix
-        plotFnameLocal = 'figures/CMTB_waveModels_STWAVE_%s_Local-' % version_prefix
+        plotFnameRegional = 'figures/CMTB_waveModels_STWAVE_{}_Regional-'.format(version_prefix)
+        plotFnameLocal = 'figures/CMTB_waveModels_STWAVE_{}_Local-'.format(version_prefix)
         ## first make dicts for nested plots
         dep_nest_plot = {'title': 'Local FRF Property: Bathymetry', 'xlabel': 'Longshore distance [m]',
                          'ylabel': 'Cross-shore distance [m]',      'field': dep_nest['bathy'],
@@ -614,7 +614,7 @@ def STanalyze(startTime, inputDict):
     NCname = 'CMTB-waveModels_{}_{}_Regional-Field_{}.nc'.format(model, version_prefix, datestring)
     regionalOFName = os.path.join(NCpath, NCname)  # TdsF
     if not os.path.exists(os.path.join(TdsFldrBase, 'Regional-Field')):
-        os.makedirs(os.path.join(TdsFldrBase, 'Regional-Field'))  # maameke the directory for the thredds data output
+        os.makedirs(os.path.join(TdsFldrBase, 'Regional-Field'))  # make the directory for the thredds data output
     if not os.path.exists(os.path.join(TdsFldrBase, 'Regional-Field', 'Regional-Field.ncml')):
         inputOutput.makencml(os.path.join(TdsFldrBase, 'Regional-Field', 'Regional-Field.ncml'))  # remake the ncml if its not there
 
