@@ -22,9 +22,9 @@ def Master_CMS_run(inputDict):
     """
 
     # first up, need to check which parts I am running
-    waveFlag = inputDict.get('wave', True)
-    flowFlag = inputDict.get('flow', False)
-    morphFlag = inputDict.get('morph', False)
+    waveFlag = inputDict['waveSettings'].get('waveFlag', True)
+    flowFlag = inputDict['flowSettings'].get('flowFlag', False)   # inputDict.get('flow', False)
+    morphFlag = inputDict['morphSettings'].get('morphFlag', False)
     # parse out the rest of the input dictionary
     endTime_str = inputDict['endTime']
     startTime_str = inputDict['startTime']
@@ -33,18 +33,17 @@ def Master_CMS_run(inputDict):
     generateFlag = inputDict.get('generateFlag', True)
     runFlag = inputDict.get('runFlag', True)
     analyzeFlag = inputDict.get('analyzeFlag', True)
-    version_prefix = inputDict.get('version_prefix', 'base')
-    model = inputDict.get('model', 'CMS').lower()
-    fileHandling.checkVersionPrefix(model, version_prefix)
+    model = inputDict['modelSettings'].get('name', 'CMS').lower()
     coupleIncrement = inputDict.get('coupleIncrement', 0.5)  # couple every half hour
 
-    # __________________input directories________________________________
-    codeDir = os.getcwd()                                # location of root cmtb directory
+    version_prefix = fileHandling.checkVersionPrefix(model, inputDict)
+    inputDict['version_prefix'] = version_prefix          # write prefix to inputDict
+# __________________input directories________________________________
+    codeDir = os.getcwd()                                 # location of root cmtb directory
     # check executable
-    if inputDict['modelExecutable'].startswith(codeDir):  # change to relative path
+    if inputDict['modelExecutable'].startswith(codeDir):  # change to relative fname
         inputDict['modelExecutable'] = re.sub(codeDir, '', inputDict['modelExecutable'])
     inputDict['path_prefix'] = os.path.join(workingDir, model, version_prefix)
-
     # ______________________ Logging  ____________________________
     LOG_FILENAME = fileHandling.logFileLogic(inputDict['path_prefix'], version_prefix, startTime_str.replace(':', ''),
                               endTime_str.replace(':', ''), log=False)
@@ -54,11 +53,13 @@ def Master_CMS_run(inputDict):
     projectStart = DT.datetime.strptime(startTime_str, '%Y-%m-%dT%H:%M:%SZ')
 
     # check the surveyNumber of the previous days run
-    cmtb_data = getDataFRF.getDataTestBed(projectStart, projectEnd, inputDict['THREDDS'])
-    go = getDataFRF.getObs(projectStart-DT.timedelta(days=simulationDuration*3), projectEnd, inputDict['THREDDS'])  # add pad to make sure there's enough data for coldStart
-    # now get all Data
+    cmtb_data = getDataFRF.getDataTestBed(projectStart, projectEnd)
+    # add pad to make sure there's enough data for coldStart
+    go = getDataFRF.getObs(projectStart-DT.timedelta(days=simulationDuration*3), projectEnd)
+    # now get all Data for Boundary conditions
     if generateFlag is True:
-        allBathyTime = cmtb_data.getBathyIntegratedTransect(xbounds=[945, 950], ybounds=[945, 950], forceReturnAllPlusOne=True)['time']  # just for time
+        allBathyTime = cmtb_data.getBathyIntegratedTransect(xbounds=[945, 950], ybounds=[945, 950],
+                                                            forceReturnAllPlusOne=True)['time']  # just for time
         allWaves = go.getWaveSpec('waverider-26m')
         allWinds = go.getWind()
         allWL = go.getWL()
@@ -69,7 +70,7 @@ def Master_CMS_run(inputDict):
     # try:
     #     ## this section checks to see if i need to re-run simulations that were previously run with old bathymetry (identifying cold starts)
     #     timeYesterday = projectStart - DT.timedelta(days=1)  # find yesterdays simulation in datetime
-    #     cmsIO_yesterday = inputOutput.cmsfIO(path=os.path.join(inputDict['path_prefix'], DT.datetime.strftime(timeYesterday, '%Y-%m-%dT%H%M%SZ')))               # initialize the class
+    #     cmsIO_yesterday = inputOutput.cmsfIO(fname=os.path.join(inputDict['path_prefix'], DT.datetime.strftime(timeYesterday, '%Y-%m-%dT%H%M%SZ')))               # initialize the class
     #     # get into the directory I need
     #     cmsIO_yesterday.read_CMSF_all()
     #     cmsIO_yesterday.read_CMSF_telnc()
@@ -124,8 +125,8 @@ def Master_CMS_run(inputDict):
                 datestringNow = inputDict['datestring']
 
             if generateFlag is True and waveFlag is True:
-                frontBackCMS.CMSsimSetup(time, inputDict=inputDict, bathyTimes=allBathyTime, allWL=allWL,
-                                         allWaves=allWaves, allWind=allWinds, flowFlag=flowFlag)
+                frontBackCMS.CMSwaveSimSetup(time, inputDict=inputDict, bathyTimes=allBathyTime, allWL=allWL,
+                                             allWaves=allWaves, allWind=allWinds, flowFlag=flowFlag)
             cmsFpickleSaveFname = os.path.join(inputDict['path_prefix'], datestringNow, datestringNow + '_cmsfio.pickle')
 
             if runFlag == True: # run model
@@ -184,11 +185,14 @@ if __name__ == "__main__":
     # we are no longer allowing a default yaml file.
     # It will throw and error and tell the user where to go look for the example yaml
     try:
-        # assume the user gave the path
+        # assume the user gave the fname
         yamlLoc = args[0]
+        if os.path.exists('.cmtbSettings'):
+            with open('.cmtbSettings', 'r') as fid:
+                a = yaml.safe_load(fid)
         with open(os.path.join(yamlLoc), 'r') as f:
             inputDict = yaml.safe_load(f)
-            # inputDict = yaml.load(f, Loader=yaml.sa)
+        inputDict.update(a)
     except:
         raise IOError('Input YAML file required.  See yaml_files/TestBedExampleInputs/CMS_Input_example for example yaml file.')
 

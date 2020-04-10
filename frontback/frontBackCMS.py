@@ -52,7 +52,7 @@ def CMSFsimSetup(startTime, inputDict, **kwargs):
     Args:
         startTime(str): this is a string of format YYYY-mm-ddTHH:MM:SSZ (or YYYY-mm-dd) in UTC time
         inputDict(dict): this is a dictionary that is read from the yaml read function
-             requires keys ['startTime', 'endTime', 'path_prefix',]  probably others (please add)
+             requires keys ['startTime', 'endTime', 'path_prefix','version_prefix']  probably others (please add)
 
     Keyword Args:
         allBathyTimes = dictionary with pre-gathered bathytimes, use this for coldstart/hotstart logic
@@ -71,28 +71,31 @@ def CMSFsimSetup(startTime, inputDict, **kwargs):
         simulationDuration = inputDict['org_simulationDuration']
     else:
         simulationDuration = inputDict.get('simulationDuration', 24)
+    
     # pFlag = inputDict.get('plotFlag', True)  # no plots generated
-    path_prefix = inputDict['path_prefix']
-    model = inputDict.get('model', 'CMS').lower()
-    version_prefix = inputDict.get('version_prefix', 'base').lower()
+    
+    model = inputDict['modelSettings'].get('model', 'CMS').lower()
+    durationRamp = inputDict['modelSettings'].get('rampDuration', 1)
     bathyTimes = kwargs.get('bathyTimes', None)
-    # first up, need to check which parts I am running
-    morphFlag = inputDict.get('morph', False)
-    durationRamp = inputDict.get('rampDuration', 1)
+    morphFlag = inputDict['morphSettings'].get('morphFlag', False)
     #TODO: check if better way to handle flags at begining of process
-    print('-----> pre-processing flow')
-    flow_version_prefix = inputDict.get('flow_version_prefix', 'base').lower()
-    version_prefix = version_prefix + '_' + flow_version_prefix
+    path_prefix = inputDict['path_prefix']
+    version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
+    # flow_version_prefix = inputDict['flowSettings'].get('flow_version_prefix', 'base').lower()
+    # version_prefix = version_prefix + '_f' + flow_version_prefix
+    #
     # data check
-
-    if morphFlag:
-        assert 'morph_version_prefix' in inputDict, 'Must have "morph_version_prefix" in your input yaml'
-        morph_version_prefix = inputDict.get('morph_version_prefix', 'base')
-        version_prefix = version_prefix + '_' + morph_version_prefix
-        # data check
-        prefixList = np.array(['FIXED', 'MOBILE', 'MOBILE_RESET'])
-        assert (morph_version_prefix == prefixList).any(), "Please enter a valid morph version prefix\n Prefix assigned = %s must be in List %s" % (morph_version_prefix, prefixList)
-
+    
+    # morphFlag = inputDict['morphSettings'].get('morphFlag', False)
+    # if morphFlag:
+    #     morph_version_prefix = inputDict.get('morph_version_prefix', 'base').lower()
+    #     # data check
+    #     prefixList = np.array(['BASE'])
+    #     assert (morph_version_prefix.upper() == prefixList).any(), "Please enter a valid morph version prefix\n " \
+    #                                                               "Prefix assigned = {} must be in list {}".format(
+    #                                                               morph_version_prefix, prefixList)
+    #     version_prefix = version_prefix + '_m' + morph_version_prefix
+    #
     # _______________________________________________________________________________
     # _______________________________________________________________________________
     # set times (based on hot-start logic)
@@ -102,7 +105,7 @@ def CMSFsimSetup(startTime, inputDict, **kwargs):
     d2 = d1 + DT.timedelta(hours=simulationDuration)
     # inputDict['csFlag'] = 0
     prepdata = prepDataLib.PrepDataTools()                                                      # initialize prep data for preparation
-    cmsfio = inputOutput.cmsfIO(path=os.path.join(path_prefix, d1.strftime('%Y%m%dT%H%M%SZ')))  # iniitializing the I/o Script writer
+    cmsfio = inputOutput.cmsfIO(path=os.path.join(path_prefix, d1.strftime('%Y%m%dT%H%M%SZ')))  # initializing the I/o Script writer
     cmsfio.simulationDuration = simulationDuration
     cmsfio, d1Flow = prepdata.hotStartLogic(d1, cmsfio, bathyTimes, durationRamp)
     # __________________Make Diretories_____________________________________________
@@ -111,18 +114,22 @@ def CMSFsimSetup(startTime, inputDict, **kwargs):
     rawwind = kwargs.get('allWind', None)       # go.getWind(gaugenumber=0))
     rawWL = kwargs.get('allWL', None)           # go.getWL())
     rawspec = kwargs.get('allWaves', None)      # go.getWaveSpec(gaugenumber=0))
-    timeList, waveTimeList, flowTimeList, morphTimeList = prepdata.CMSF_createTimeLists(d1, d2, rawspec, rawWL,
-                                                                                        d1Flow=d1Flow)
+    # rawWL = go.getWL() if rawWL is None
+    timeList, waveTimeList, flowTimeList, morphTimeList = prepdata.createDifferentTimeLists(d1, d2, rawspec, rawWL,
+                                                                                            d1Flow=d1Flow)
     ##################################################################################################################
+    print('-----> pre-processing flow')
     gdTB = getDataFRF.getDataTestBed(d1, d2)                        # initalize bathy retrival
-    bathy = gdTB.getBathyIntegratedTransect(method=1)
+    if newBathy is True:
+        bathy = gdTB.getBathyIntegratedTransect(method=1)
+    else:
+        print('loadBathy from last simulation')
     ## _____________WINDS average and rotate winds & correct elevation to 10m ____________
     windpacket = prepdata.prep_wind(rawwind, flowTimeList, model=model)
     ## ___________WATER LEVEL average WL__________________
     WLpacket = prepdata.prep_WL(rawWL, flowTimeList)
     # check to be sure the .tel file is in the inputYaml
-    assert 'gridTEL' in inputDict.keys(), 'Error: to run CMS-Flow a .tel file must be specified.'
-
+    assert 'gridTEL' in inputDict['modelSettings'].keys(), 'Error: to run CMS-Flow a .tel file must be specified.'
     # modify packets for different time-steps by interpolating to necessary timestep and removing extra data
     # it's unclear if this step does anything that's not already done above, maybe in future raise error - sb
     windpacketF, WLpacketF, _ = prepdata.mod_packets(flowTimeList, windpacket, WLpacket)
@@ -133,30 +140,60 @@ def CMSFsimSetup(startTime, inputDict, **kwargs):
     # now we need to write the .xys files for these... - note, .bid file is always the same, so no need to write.
     cmCards, windDirDict, windVelDict, wlDict, cmsfio = prepdata.prep_dataCMSF(windpacketF, WLpacketF, bathy, inputDict,
                                                                        cmsfio)
+    
     ###################### end Prep Data for flow ##################################################################
+    if morphFlag:
+        # write the dictionary from the yaml write to the cmcards input file
+        cmCards['sedTransport'] = inputDict['morphSettings']
+        # morphStartTime = calcSedimentTransport.get('MORPH_START_TIME', 1)  # time in hours
+        # sedTransFormulation = calcSedimentTransport.get("SED_TRANS_FORMULATION",'NET')
+        # transportFormula = calcSedimentTransport.get(" TRANSPORT_FORMULA",'CSHORE')
+        # if transportFormula.lower() == 'cshore':  # if we're using cshore, set cshore specific knobs
+        #     cshoreEFFB = calcSedimentTransport.get("CSHORE_EFFB",  0.002)
+        #     cshoreBLP = calcSedimentTransport.get("CSHORE_BLP", 0.002)
+        #     cshoreSLP = calcSedimentTransport.get("CSHORE_SLP", 0.3)
+        # else:
+        #     raise NotImplementedError('only Cshore morphology implemented')
+        # concentrationProfile = calcSedimentTransport.get("CONCENTRATION_PROFILE", "EXPONENTIAL")
+        # sedimentDensity = calcSedimentTransport.get("SEDIMENT_DENSITY", 2650)           # kg/m^3
+        # sedimentPorosity = calcSedimentTransport.get("SEDIMENT_POROSITY", 0.4)
+        # bedLoadScaleFactor = calcSedimentTransport.get("BED_LOAD_SCALE_FACTOR", 0)
+        # suspLoadScaleFactor = calcSedimentTransport.get("SUSP_LOAD_SCALE_FACTOR", 1)
+        # schmidtNumber = calcSedimentTransport.get("SCHMIDT_NUMBER", 1)
+        # morphAccelFactor = calcSedimentTransport.get("MORPH_ACCEL_FACTOR", 1)
+        # bedslopeCoefficient = calcSedimentTransport.get("BEDSLOPE_COEFFICIENT", 1)
+        # adaptationMethodTotal = calcSedimentTransport.get("ADAPTATION_METHOD_TOTAL", "CONSTANT_LENGTH")
+        # adaptationLengthTotal = calcSedimentTransport.get("ADAPTATION_LENGTH_TOTAL", 10) # m
+        # sedSize = calcSedimentTransport.get("DIAMETER", 0.15)  # mm
+        # useAvalanching = calcSedimentTransport.get("USE_AVALANCHING", "OFF")
+        # waveSedTransport = calcSedimentTransport.get("WAVESEDTRANS", "OFF")
     ##______________________________________________________________________________________________________________
     # _____________________ begin file writing for flow  ___________________________________________________________
     ##______________________________________________________________________________________________________________
-    ncgYaml = 'yaml_files/flowModels/cmsf/{}/CMSFtel0_global.yml'.format(flow_version_prefix)
+    ncgYaml = 'yaml_files/flowModels/cmsf/{}/CMSFtel0_global.yml'.format(version_prefix)
     ncvYaml = 'yaml_files/flowModels/cmsf/CMSFtel0_var.yml'
-    makenc.makenc_CMSFtel(ofname=os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring + '_tel.nc'), dataDict=cmsfio.telnc_dict,
-                          globalYaml=ncgYaml, varYaml=ncvYaml)
-    cmsfio.write_CMSF_tel(ofname=os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring + '.tel'), telDict=cmsfio.telnc_dict)
-    cmsfio.write_CMSF_cmCards(fname=os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring+'.cmcards'), inputDict=cmCards)
-    cmsfio.write_CMSF_xys(ofname=os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring+'_wind_dir.xys'), xysDict=windDirDict)
-    cmsfio.write_CMSF_xys(ofname=os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring+'_wind_vel.xys'), xysDict=windVelDict)
-    cmsfio.write_CMSF_xys(ofname=os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring+'_h_1.xys'), xysDict=wlDict)
+    makenc.makenc_CMSFtel(ofname=os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring + '_tel.nc'),
+                          dataDict=cmsfio.telnc_dict, globalYaml=ncgYaml, varYaml=ncvYaml)
+    cmsfio.write_CMSF_tel(ofname=os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring + '.tel'),
+                          telDict=cmsfio.telnc_dict)
+    cmsfio.write_CMSF_xys(ofname=os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring+'_wind_dir.xys'),
+                          xysDict=windDirDict)
+    cmsfio.write_CMSF_xys(ofname=os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring+'_wind_vel.xys'),
+                          xysDict=windVelDict)
+    cmsfio.write_CMSF_xys(ofname=os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring+'_h_1.xys'),
+                          xysDict=wlDict)
+    cmsfio.write_CMSF_cmCards(ofname=os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring + '.cmcards'),
+                              inputDict=cmCards)
+
     # copy over the executable
     shutil.copy2(inputDict['modelExecutable'], os.path.join(path_prefix, cmsfio.datestring))
     # copy over the .bid file
     shutil.copy2('grids/CMS/CMS-Flow-FRF.bid', os.path.join(path_prefix, cmsfio.datestring, cmsfio.datestring+'.bid'))
 
+    cmsfio.version_prefix = version_prefix  # write this for loading purposes
     return d1Flow, d2, cmsfio, waveTimeList
 
-    if morphFlag:
-        raise NotImplementedError('morphology has Not been implmented')
-
-def CMSsimSetup(startTime, inputDict, **kwargs):
+def CMSwaveSimSetup(startTime, inputDict, **kwargs):
     """This Function is the master call for the preprocessing for unstructured CMS grid model runs
         it is designed to pull from GetData and utilize prepdatalib for development of the FRF CMTB
 
@@ -176,49 +213,52 @@ def CMSsimSetup(startTime, inputDict, **kwargs):
         flowFlag(bool): if also running flow model too
 
     """
-    # begin by setting up input parameters
     timerun = inputDict.get('simulationDuration', 24)
-    pFlag = inputDict.get('plotFlag', True)
-    path_prefix = inputDict['path_prefix']
-    model = inputDict.get('model', 'CMS').lower()
-    version_prefix = inputDict.get('version_prefix', 'base').lower()
-    bathyTimes = kwargs.get('bathyTimes', None)
-    flowFlag = kwargs.get('flowFlag', False)  # default Run Waves only
-
-    #TODO: check if better way to handle flags at begining of process
-    print('------>  pre-processing wave')
-    wave_version_prefix = inputDict.get('wave_version_prefix', 'base').lower()
-    # define version parameters
-    # TODO: is there things i can put up here for wave and flow from above??
-    simFnameBackground = inputDict.get('gridSIM', 'grids/CMS/CMS-Wave-FRF.sim')
-    backgroundDepFname = inputDict.get('gridDEP', 'grids/CMS/CMS-Wave-FRF.dep')
-    # do versioning stuff here
-    cmsio = inputOutput.cmsIO()  # initializing the I/o Script writer
     d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
-
     datestring = inputDict.get('datestring', d1.strftime('%Y%m%dT%H%M%SZ'))
+    
+    # begin by setting up input parameters
+    pFlag = inputDict.get('plotFlag', True)
+    path_prefix = inputDict['path_prefix']
+
+    model = inputDict['modelSettings'].get('model', 'CMS').lower()
+    simFnameBackground = inputDict['modelSettings'].get('gridSIM', 'grids/CMS/CMS-Wave-FRF.sim')
+    backgroundDepFname = inputDict['modelSettings'].get('gridDEP', 'grids/CMS/CMS-Wave-FRF.dep')
+
+    #TODO: check if better way to handle flags at begining of process
+    bathyTimes = kwargs.get('bathyTimes', None)
+    flowFlag = kwargs.get('flowFlag', False)                                                    # default Run Waves only
+    
+    # define version parameters
+    version_prefix = inputDict.get('version_prefix', 'base').lower()
+    # wave_version_prefix = version_prefix.split('_')[0]  # wave prefix is always first
+    
+    # TODO: is there things i can put up here for wave and flow from above??
 
     # __________________Make Diretories_____________________________________________
     fileHandling.makeCMTBfileStructure(path_prefix, datestring)
-    fileHandling.checkVersionPrefix(model, version_prefix)
+    # version_prefix = fileHandling.checkVersionPrefix(model, inputDict)
     #################################################################################################################
     #################################################################################################################
     ### ____________ Get prep data (get it if needed)  ________________
     #################################################################################################################
     #################################################################################################################
-    prepdata = prepDataLib.PrepDataTools()                            # intialize prep data for preparation
-    go = getDataFRF.getObs(d1, d2, THREDDS=inputDict['THREDDS'])  # initialize get observation incase i need it
+    print('------>  pre-processing wave')
+    cmsio = inputOutput.cmsIO()                                                     # initializing the I/o Script writer
+    prepdata = prepDataLib.PrepDataTools()                                         # intialize prep data for preparation
+    
+    go = getDataFRF.getObs(d1, d2)  # initialize get observation incase i need it
     # get data if i don't already have it
-    rawwind = kwargs.get('allWind', go.getWind(gaugenumber=0))
-    rawWL = kwargs.get('allWL', go.getWL())
-    rawspec = kwargs.get('allWaves', go.getWaveSpec(gaugenumber=0))
+    rawwind = kwargs.get('allWind',None)    # go.getWind(gaugenumber=0)) this default gets called for some reason
+    rawWL = kwargs.get('allWL', None)       #  go.getWL())
+    rawspec = kwargs.get('allWaves', None)  #go.getWaveSpec(gaugenumber=0))
     ############################
-    gdTB = getDataFRF.getDataTestBed(d1, d2)  # initalize bathy retrival
+    gdTB = getDataFRF.getDataTestBed(d1, d2)                                                  # initalize bathy retrival
     bathy = gdTB.getBathyIntegratedTransect(method=1)
-    full=False  # CMS wave doesn't operate in full plane mode
-    # create time list for wave model time step, grab from input dict (if was created from flow, need 1 extra value to bound
-    # start and finish of flow runs (will have to figure out a way to throw last value out)
+    full = False                                                           # CMS wave doesn't operate in full plane mode
+    # create time list for wave model time step, grab from input dict (if was created from flow, need 1 extra value to
+    # bound start and finish of flow runs (will have to figure out a way to throw last value out)
     waveTs = np.median(np.diff(rawspec['epochtime']))   # time step in minutes of observations
     waveTimeList = inputDict.get('waveTimeList', [d1 + DT.timedelta(seconds=waveTs * x) for x in
                         range(int((d2 - d1).total_seconds() / float( waveTs)))])
@@ -234,7 +274,7 @@ def CMSsimSetup(startTime, inputDict, **kwargs):
 
     ## _____________WAVES____________________________
     # rotate and lower resolution of directional wave spectra -- 50 freq bands are max for cms model
-    wavepacket = prepdata.prep_spec(rawspec, wave_version_prefix, datestr=datestring, plot=pFlag, full=full,
+    wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=datestring, plot=pFlag, full=full,
                                     outputPath=path_prefix, CMSinterp=50, model=model, waveTimeList=waveTimeList)
     bathyWaves = prepdata.prep_CMSbathy(bathy, simFnameBackground, backgroundGrid=backgroundDepFname)
 
@@ -530,8 +570,6 @@ def CMSanalyze(startTime, inputDict):
 
 def CMSFanalyze(inputDict, cmsfio):
     """ This runs the analyze script for cmsflow
-    Author: David Young
-
 
     This Function is the master call for the  data postprocessing for
     the Coastal Model Test Bed (CMTB).  It is designed to pull from
@@ -542,8 +580,6 @@ def CMSFanalyze(inputDict, cmsfio):
         inputDict: this is an input dictionary that was generated with the keys from the project input yaml file
 
 
-    Keyword Args:
-
     Returns:
         plots in the inputDict['workingDirectory'] location
         netCDF files to the inputDict['netCDFdir'] directory
@@ -552,7 +588,7 @@ def CMSFanalyze(inputDict, cmsfio):
     # ___________________define Global Variables___________________________________
     pFlag = inputDict.get('plotFlag', True)
     # version prefixes!
-    flow_version_prefix = inputDict['flow_version_prefix']
+    flow_version_prefix = cmsfio.version_prefix  # inputDict['version_prefix']
     path_prefix = inputDict['path_prefix']                   # for organizing data
     simulationDuration = inputDict['simulationDuration']
     Thredds_Base = inputDict.get('netCDFdir', '/home/%s/thredds_data/'.format(check_output('whoami', shell=True)[:-1]))
@@ -560,14 +596,14 @@ def CMSFanalyze(inputDict, cmsfio):
     date_str = inputDict.get('datestring', d1.strftime('%Y%m%dT%H%M%SZ'))
     prepdata = prepDataLib.PrepDataTools()
     fpath = os.path.join(path_prefix, date_str)
-    model = inputDict['model'].lower() + 'f'
+    model = inputDict['modelSettings']['name'].lower() + 'f'
     ######################################################################################################################
     ######################################################################################################################
     ##################################   Load Data Here / Massage Data Here   ############################################
     ######################################################################################################################
     ######################################################################################################################
     t = DT.datetime.now()
-    # load the files now, from the self.path location assigned during input file write, will load to class attributes
+    # load the files now, from the self.fname location assigned during input file write, will load to class attributes
     cmsfio.read_CMSF_all()
     print('Loading Files Took {} seconds '.format((DT.datetime.now() - t).seconds))
 
@@ -622,7 +658,7 @@ def CMSFanalyze(inputDict, cmsfio):
     cmsfWrite['vMag'] = np.ma.masked_where(maskInd, cmsfWrite['vMag'])
     cmsfWrite['waterLevel'] = np.ma.masked_where(maskInd, cmsfWrite['waterLevel'])
     cmsfWrite['aveE'] = np.ma.masked_where(maskInd, cmsfWrite['aveE'])
-    cmsfWrite['aveN'] =  np.ma.masked_where(maskInd, cmsfWrite['aveN'])
+    cmsfWrite['aveN'] = np.ma.masked_where(maskInd, cmsfWrite['aveN'])
     cmsfWrite['depth'] = np.ma.masked_where(cmsfWrite['depth'] == -999, cmsfWrite['depth'])
 
     # tack on the xFRF and yFRF values since I DONT have them in the solution netcdf files anymore
@@ -703,10 +739,10 @@ def CMSFanalyze(inputDict, cmsfio):
             #             pass
             #         else:
             #             # water level
-            #             path = fpath + '/figures/CMTB_CMSF_%s_%s_%s_WL.png' % (flow_version_prefix, date_str, ''.join(ch for ch in station if ch not in exclude).strip())
+            #             fname = fpath + '/figures/CMTB_CMSF_%s_%s_%s_WL.png' % (flow_version_prefix, date_str, ''.join(ch for ch in station if ch not in exclude).strip())
             #             p_dict = {'time': oDict['time'],
             #                       'obs': oDict['obsWL'],
             #                       'model': oDict['modWL'],
             #                       'var_name': '$WL (NAVD88)$',
             #                       'units': 'm'}
-            #             oP.obs_V_mod_TS(path, p_dict)
+            #             oP.obs_V_mod_TS(fname, p_dict)
