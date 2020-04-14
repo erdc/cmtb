@@ -20,7 +20,7 @@ def Master_ww3_run(inputDict):
 
     """
     ## unpack input Dictionary
-    version_prefix = inputDict['version_prefix']
+    version_prefix = inputDict['modelSettings']['version_prefix']
     endTime = inputDict['endTime']
     startTime = inputDict['startTime']
     simulationDuration = inputDict['simulationDuration']
@@ -33,7 +33,7 @@ def Master_ww3_run(inputDict):
     server = inputDict.get('THREDDS', 'CHL')
 
     # __________________pre-processing checks________________________________
-    fileHandling.checkVersionPrefix(model, version_prefix)
+    fileHandling.checkVersionPrefix(model, inputDict)
     # __________________input directories________________________________
     codeDir = os.getcwd()  # location of code
     # check executable
@@ -58,8 +58,8 @@ def Master_ww3_run(inputDict):
     fileHandling.displayStartInfo(projectStart, projectEnd, version_prefix, LOG_FILENAME, model)
 
     # ______________________________gather all data _____________________________
-    go = getObs(projectStart, projectEnd, THREDDS=server)  # initialize get observation
-    rawspec = go.getWaveSpec(gaugenumber='waverider-26m')
+    go = getObs(projectStart, projectEnd)  # initialize get observation
+    rawspec = go.getWaveSpec(gaugenumber='waverider-26m', specOnly=True)
     rawWL = go.getWL()
     rawwind = go.getWind(gaugenumber=0)
 
@@ -81,8 +81,12 @@ def Master_ww3_run(inputDict):
                 os.chdir(datadir)  # changing locations to where input files should be made
                 dt = DT.datetime.now()
                 print('Running {} Simulation starting at {}'.format(model, dt))
-                runString = codeDir + '{} {}.sim'.format(inputDict['modelExecutable'], ''.join(time.split(':')))
-                _ = check_output(runString, shell=True)
+                runString1 = codeDir + '{}/ww3_grid'.format(inputDict['modelExecutable'])
+                _ = check_output(runString1, shell=True)
+                runString2 = codeDir + '{}/ww3_bounc'.format(inputDict['modelExecutable'])
+                _ = check_output(runString2, shell=True)
+                runString3 = codeDir + '{}/ww3_shel'.format(inputDict['modelExecutable'])
+                _ = check_output(runString3, shell=True)
                 ww3io.simulationWallTime = DT.datetime.now() - dt
                 print('Simulation took {:.1f} minutes'.format(ww3io.simulationWallTime.total_seconds()/60))
                 os.chdir(curdir)
@@ -126,8 +130,13 @@ if __name__ == "__main__":
     try:
         # assume the user gave the path
         yamlLoc = args[0]
+        if os.path.exists('.cmtbSettings'):
+            with open('.cmtbSettings', 'r') as fid:
+                a = yaml.safe_load(fid)
         with open(os.path.join(yamlLoc), 'r') as f:
             inputDict = yaml.safe_load(f)
+        inputDict.update(a)
+        
     except:
         raise IOError('Input YAML file required.  See yaml_files/TestBedExampleInputs/{}_Input_example for example yaml file.'.format(model))
 

@@ -4,7 +4,7 @@ from prepdata import inputOutput
 from prepdata.prepDataLib import PrepDataTools
 from getdatatestbed.getDataFRF import getDataTestBed
 import datetime as DT
-import os, glob, makenc, sys
+import os, glob, makenc, sys, shutil
 from subprocess import check_output
 import netCDF4 as nc
 import numpy as np
@@ -35,8 +35,8 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
     # begin by setting up input parameters
     simulationDuration = int(inputDict.get('simulationDuration', 24))
     plotFlag = inputDict.get('plotFlag', True)
-    version_prefix = inputDict['version_prefix'].lower()
-    model = inputDict['model'].lower()
+    version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
+    model = inputDict['modelSettings'].get('model', 'ww3').lower()
     path_prefix = inputDict.get('path_prefix').lower()
     rawspec = allWave
     rawwind = allWind
@@ -66,6 +66,7 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
     # rotate and lower resolution of directional wave spectra
     _, waveTimeList, wlTimeList, _, windTimeList = prepdata.createDifferentTimeLists(d1, d2, rawspec, rawWL,
                                                                                      rawWind=rawwind)
+
     wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=dateString, plot=plotFlag, full=full, deltaangle=5,
                                     outputPath=path_prefix, model=model, waveTimeList=waveTimeList)
     # use generated time lists for these to provide accurate temporal values
@@ -74,8 +75,8 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
 
     # ____________ BATHY   _____________________________________________
     bathy = gdTB.getBathyIntegratedTransect(method=1)
-    _ = ww3io.load_msh(inputDict['grid'])
-    gridNodes = sb.Bunch({'points':ww3io.points})   # we will remove this when meshio is working as expected
+    _ = ww3io.load_msh(inputDict['modelSettings']['grid'])
+    gridNodes = sb.Bunch({'points':ww3io.points})              # we will remove this when meshio is working as expected
     
     if plotFlag: bathyPlotFname = os.path.join(path_prefix, dateString, 'figures', dateString+'_bathy.png');
     else: bathyPlotFname=False
@@ -83,7 +84,6 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
     
     # ____________________________ set model save points _______________________________________________________________
     # _________________________ Create observation locations ___________________________________________________________
-    print("TODO: get wave gauge locations")
     sys.path.append('/home/spike/repos/TDSlocationGrabber')
     from frfTDSdataCrawler import query
     dataLocations = query(d1, d2, inputName='/home/spike/repos/TDSlocationGrabber/database', type='waves')
@@ -97,17 +97,21 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
     ww3io.WL = WLpacket['avgWL']
 
     print('_________________ writing output _________________')
-    specFname = ww3io.writeWW3_spec(wavepacket)                       # write individual spec file
-    ww3io.writeWW3_grid(grid_inbindFname=inputDict['grid'].split('.')[0]+'.inbnd') # write grid file (defines geometry)
-    # ww3io.writeWW3_mesh(gridNodes=bathy)                            # write gmesh file
-    # ww3io.writeWW3_namelist()                                       # will write with defaults with no input args
-    specListFileName = ww3io.writeWW3_speclist(ofname=specFname)         #
-    # write files used as spectral boundary
-    ww3io.writeWW3_bouncfile(specListFilename=specListFileName)       # write boundary files
-    ww3io.writeWW3_shel(d1, d2, windpacket, WLpacket,                 # write shel file
-                        outputInterval=1800)
+    specFname = ww3io.writeWW3_spec(wavepacket)                            # write individual spec file
+    ww3io.writeWW3_grid(grid_inbindFname=inputDict['modelSettings']['grid'].split('.')[0]+'.inbnd',
+                        spectrumNTH=wavepacket['spec2d'].shape[2], spectrumNK=wavepacket['spec2d'].shape[1]) #
+    # write grid
+    # file
+    # ww3io.writeWW3_mesh(gridNodes=bathy)                                 # write gmesh file
     ww3io.write_msh(points=bathy.points, cell_data=ww3io.cell_data)
+    ww3io.writeWW3_namelist()                                              # will write with defaults with no input args
+    specListFileName = ww3io.writeWW3_speclist(ofname='spec.list', specFiles=specFname)                          #
+    # write files used as spectral boundary
+    ww3io.writeWW3_bouncfile(specListFilename=specListFileName)                           # write boundary files
+    ww3io.writeWW3_shel(d1, d2, windpacket, WLpacket, outputInterval=1800)                # write shel file
+    
 
+    # shutil.copy('grids/ww3/namelists.nml', ww3io.path_prefix)  # should be redundant of ww3io.writeWW3_namelist()
     return ww3io
 
 def ww3analyze(startTime, inputDict, ww3io):
