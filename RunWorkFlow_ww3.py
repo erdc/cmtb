@@ -81,11 +81,11 @@ def Master_ww3_run(inputDict):
                 os.chdir(datadir)  # changing locations to where input files should be made
                 dt = DT.datetime.now()
                 print('Running {} Simulation starting at {}'.format(model, dt))
-                runString1 = codeDir + '{}/ww3_grid'.format(inputDict['modelExecutable'])
+                runString1 = os.path.join(codeDir ,'{}/ww3_grid'.format(inputDict['modelExecutable']))
                 _ = check_output(runString1, shell=True)
-                runString2 = codeDir + '{}/ww3_bounc'.format(inputDict['modelExecutable'])
+                runString2 = os.path.join(codeDir, '{}/ww3_bounc'.format(inputDict['modelExecutable']))
                 _ = check_output(runString2, shell=True)
-                runString3 = codeDir + '{}/ww3_shel'.format(inputDict['modelExecutable'])
+                runString3 = os.path.join(codeDir, '{}/ww3_shel'.format(inputDict['modelExecutable']))
                 _ = check_output(runString3, shell=True)
                 ww3io.simulationWallTime = DT.datetime.now() - dt
                 print('Simulation took {:.1f} minutes'.format(ww3io.simulationWallTime.total_seconds()/60))
