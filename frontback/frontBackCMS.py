@@ -118,6 +118,7 @@ def CMSFsimSetup(startTime, inputDict, **kwargs):
     timeList, waveTimeList, flowTimeList, morphTimeList = prepdata.createDifferentTimeLists(d1, d2, rawspec, rawWL,
                                                                                             d1Flow=d1Flow)
     ##################################################################################################################
+    print
     print('-----> pre-processing flow')
     gdTB = getDataFRF.getDataTestBed(d1, d2)                        # initalize bathy retrival
     if newBathy is True:
@@ -145,28 +146,7 @@ def CMSFsimSetup(startTime, inputDict, **kwargs):
     if morphFlag:
         # write the dictionary from the yaml write to the cmcards input file
         cmCards['sedTransport'] = inputDict['morphSettings']
-        # morphStartTime = calcSedimentTransport.get('MORPH_START_TIME', 1)  # time in hours
-        # sedTransFormulation = calcSedimentTransport.get("SED_TRANS_FORMULATION",'NET')
-        # transportFormula = calcSedimentTransport.get(" TRANSPORT_FORMULA",'CSHORE')
-        # if transportFormula.lower() == 'cshore':  # if we're using cshore, set cshore specific knobs
-        #     cshoreEFFB = calcSedimentTransport.get("CSHORE_EFFB",  0.002)
-        #     cshoreBLP = calcSedimentTransport.get("CSHORE_BLP", 0.002)
-        #     cshoreSLP = calcSedimentTransport.get("CSHORE_SLP", 0.3)
-        # else:
-        #     raise NotImplementedError('only Cshore morphology implemented')
-        # concentrationProfile = calcSedimentTransport.get("CONCENTRATION_PROFILE", "EXPONENTIAL")
-        # sedimentDensity = calcSedimentTransport.get("SEDIMENT_DENSITY", 2650)           # kg/m^3
-        # sedimentPorosity = calcSedimentTransport.get("SEDIMENT_POROSITY", 0.4)
-        # bedLoadScaleFactor = calcSedimentTransport.get("BED_LOAD_SCALE_FACTOR", 0)
-        # suspLoadScaleFactor = calcSedimentTransport.get("SUSP_LOAD_SCALE_FACTOR", 1)
-        # schmidtNumber = calcSedimentTransport.get("SCHMIDT_NUMBER", 1)
-        # morphAccelFactor = calcSedimentTransport.get("MORPH_ACCEL_FACTOR", 1)
-        # bedslopeCoefficient = calcSedimentTransport.get("BEDSLOPE_COEFFICIENT", 1)
-        # adaptationMethodTotal = calcSedimentTransport.get("ADAPTATION_METHOD_TOTAL", "CONSTANT_LENGTH")
-        # adaptationLengthTotal = calcSedimentTransport.get("ADAPTATION_LENGTH_TOTAL", 10) # m
-        # sedSize = calcSedimentTransport.get("DIAMETER", 0.15)  # mm
-        # useAvalanching = calcSedimentTransport.get("USE_AVALANCHING", "OFF")
-        # waveSedTransport = calcSedimentTransport.get("WAVESEDTRANS", "OFF")
+
     ##______________________________________________________________________________________________________________
     # _____________________ begin file writing for flow  ___________________________________________________________
     ##______________________________________________________________________________________________________________
@@ -229,7 +209,7 @@ def CMSwaveSimSetup(startTime, inputDict, **kwargs):
     #TODO: check if better way to handle flags at begining of process
     bathyTimes = kwargs.get('bathyTimes', None)
     flowFlag = kwargs.get('flowFlag', False)                                                    # default Run Waves only
-    
+    print('TODO: change wave bathy************************************************************************************')
     # define version parameters
     version_prefix = inputDict.get('version_prefix', 'base').lower()
     # wave_version_prefix = version_prefix.split('_')[0]  # wave prefix is always first
@@ -248,7 +228,7 @@ def CMSwaveSimSetup(startTime, inputDict, **kwargs):
     cmsio = inputOutput.cmsIO()                                                     # initializing the I/o Script writer
     prepdata = prepDataLib.PrepDataTools()                                         # intialize prep data for preparation
     
-    go = getDataFRF.getObs(d1, d2)  # initialize get observation incase i need it
+    # go = getDataFRF.getObs(d1, d2)  # initialize get observation incase i need it
     # get data if i don't already have it
     rawwind = kwargs.get('allWind',None)    # go.getWind(gaugenumber=0)) this default gets called for some reason
     rawWL = kwargs.get('allWL', None)       #  go.getWL())
@@ -310,19 +290,20 @@ def CMSwaveSimSetup(startTime, inputDict, **kwargs):
     cmsio.clearAllWaveSimFiles(os.path.join(path_prefix, datestring), flowFlag = flowFlag) # remove old output files so they're not appended (cms default)
 
 def CMSanalyze(startTime, inputDict):
-    """This runs the analyze script for cms
-        Author: Spicer Bak
-    Association: USACE CHL Field Research Facility
-    Project:  Coastal Model Test Bed
+    """This runs the analyze script for cms model.
+
     This Function is the master call for the  data preperation for
     the Coastal Model Test Bed (CMTB).  It is designed to pull from
     GetData and utilize prep_datalib for development of the FRF CMTB
-
-    :param time:
-    :param inputDict: this is an input dictionary that was generated with the keys from the project input yaml file
-    :return:
+    
+    Args:
+         time:
+         inputDict: this is an input dictionary that was generated with the keys from the project input yaml file
+    
+    Returns:
         plots in the inputDict['workingDirectory'] location
         netCDF files to the inputDict['netCDFdir'] directory
+        
     """
     # ___________________define Global Variables___________________________________
     pFlag = inputDict.get('plotFlag', True)      # version prefixes!
@@ -370,12 +351,11 @@ def CMSanalyze(startTime, inputDict):
 
     obse_packet['ncSpec'] = np.ones(
         (obse_packet['spec'].shape[0], obse_packet['spec'].shape[1], obse_packet['spec'].shape[2], 72)) * 1e-6
-    # interp = np.ones((obse_packet['spec'].shape[0], obse_packet['spec'].shape[1], wavefreqbin.shape[0],
-    #                   obse_packet['spec'].shape[3])) * 1e-6  ### TO DO marked for removal
+
     for station in range(0, np.size(obse_packet['spec'], axis=1)):
         # rotate the spectra back to true north
         obse_packet['ncSpec'][:, station, :, :], obse_packet['ncDirs'] = prepdata.grid2geo_spec_rotate(
-                obse_packet['directions'],  obse_packet['spec'][:, station, :, :])   #interp[:, station, :, :]) - this was with interp
+                obse_packet['directions'],  obse_packet['spec'][:, station, :, :])
         # now converting m^2/Hz/radians back to m^2/Hz/degree
         # note that units of degrees are on the denominator which requires a deg2rad conversion instead of rad2deg
         obse_packet['ncSpec'][:, station, :, :] = np.deg2rad(obse_packet['ncSpec'][:, station, :, :])
