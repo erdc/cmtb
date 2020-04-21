@@ -403,8 +403,7 @@ def makenc_Station(stat_data, globalyaml_fname, flagfname, ofname, stat_yaml_fna
     fid.close()
 
 def convert_FRFgrid(gridFname, ofname, globalYaml, varYaml, plotFlag=False):
-    """
-    This function will convert the FRF gridded text product into a NetCDF file
+    """This function will convert the FRF gridded text product into a NetCDF file
 
     :param gridFname: input FRF gridded product
     :param ofname:  output netcdf filename
@@ -1171,14 +1170,13 @@ def makenc_CMSFrun(ofname, dataDict, globalYaml, varYaml):
 
     # creating dimensions of data
     time = fid.createDimension('time', dataDict['time'].shape[0])
-    cellID = fid.createDimension('cellID', dataDict['cellID'].shape[0])
-    one = fid.createDimension('one', 1)  # this dimension is specifically for the azimuth
+    cellID = fid.createDimension('cellNumber', dataDict['cellID'].shape[0])
+    # one = fid.createDimension('one', 1)  # this dimension is specifically for the azimuth
                                          # and grid origin stuff
 
     # check for some keys
     if 'depth' in dataDict.keys():
-        dataDict['elevation'] = -1 * dataDict['depth'].copy()
-        del dataDict['depth']
+        dataDict['elevation'] = -dataDict['depth'] #.copy
 
     if 'numberActiveCells' not in dataDict.keys():
         dataDict['numberActiveCells'] = dataDict['cellID'].shape[0]
@@ -1191,16 +1189,10 @@ def makenc_CMSFrun(ofname, dataDict, globalYaml, varYaml):
         dataDict['elevation'] = newElev
 
     if np.shape(dataDict['surveyNumber']) != np.shape(dataDict['time']):
-        newSN = np.zeros(dataDict['time'].shape[0])
-        for ss in range(0, dataDict['time'].shape[0]):
-            newSN[ss] = dataDict['surveyNumber']
-        dataDict['surveyNumber'] = newSN
+        dataDict['surveyNumber'] = np.tile(dataDict['surveyNumber'], np.shape(dataDict['time']))
 
     if np.shape(dataDict['surveyTime']) != np.shape(dataDict['time']):
-        newST = np.zeros(dataDict['time'].shape[0])
-        for ss in range(0, dataDict['time'].shape[0]):
-            newST[ss] = dataDict['surveyTime']
-        dataDict['surveyTime'] = newST
+        dataDict['surveyTime'] = np.tile(dataDict['surveyTime'], np.shape(dataDict['time']))
 
     # write data to file
     write_data_to_nc(fid, varAtts, dataDict)
