@@ -113,7 +113,6 @@ def pltFRFgrid(xyzDict, savefname=None):
     Returns:
         None
     """
-
     x = xyzDict['x']
     y = xyzDict['y']
     z = xyzDict['z']
@@ -126,6 +125,74 @@ def pltFRFgrid(xyzDict, savefname=None):
     if savefname is not None:
         plt.savefig(savefname)
     plt.close()
+
+def halfPlanePolarPlot(spectra, frequencies, directions, lims=[-18, 162], **kwargs):
+    """ creates single polar plot for spectra.  generally Half-planed
+
+    Args:
+        spectra (array): 2D array only
+        frequencies (array): 1 d array of corresponding frequencies to spectra
+        directions(array): directions associated with spectra
+        lims (list): default is half plane for Duck (incident energy only), will NOT truncate spectra
+            set to None if looking to plot whole 360 polar plot
+
+    Keyword Args:
+        'contour_levels'(list): a list of contour levels to color
+        'figsize' (tup): a tuple of figure size eg. (12, 10)
+        'fname' (str): file path save name
+
+    Returns:
+        Axis object: if you want to further modify the plot
+
+    """
+    # begin by checking inputs
+    assert np.array(spectra).ndim == 2, 'spectra needs to be 2 dimensional'
+    assert np.array(spectra).shape[0] == np.array(frequencies).shape[
+        0], 'spectra should be shaped by freq then direction'
+    assert np.array(spectra).shape[1] == np.array(directions).shape[
+        0], 'spectra should be shaped by freq then direction'
+    # pre-processing spectra
+    Edarray = np.asarray(spectra, dtype=object)  # make spectra an array (if not already )
+    Ednew = np.append(spectra, spectra[:, 0:1], axis=1)  # add extra directional band to get it to wrap
+    Dmean_rad = np.deg2rad(np.append(directions, directions[0]))  # convert input directions to radian
+    ## set Color-scale
+    if 'contour_levels' in kwargs:  # manually set contours
+        contour_levels = kwargs['contour_levels']
+    else:  # automatically set contours
+        Edmax = float(np.max(spectra))  # take max for colorbars
+        contourNumber = 50  # set default number of contour levels
+        minlevel = Edmax / contourNumber  # calculate min level
+        maxlevel = Edmax  # calculate max level
+        step = (maxlevel - minlevel) / contourNumber  # associated step
+        contour_levels = np.arange(minlevel, maxlevel, step)  # create list/array of contour levels for plot
+    if 'figsize' in kwargs:
+        figSize = kwargs['figsize']
+    else:
+        figSize = (11, 11)
+    ########################################################################
+    fig = plt.figure(figsize=figSize)  # create figure
+    thetas = Dmean_rad[:]  # in radian NOT DEGREES
+
+    ax = plt.subplot(111, polar=True)  # create polar axis object
+    ax.set_theta_direction(-1)  # set to counter clock-wise plot
+    ax.set_theta_zero_location("N")  # set zero as up
+    colorax = ax.contourf(thetas, frequencies, Ednew, contour_levels)  # make plot
+
+    ## Set titles and colorbar
+    plt.suptitle('Polar Spectrum ', fontsize=22, y=0.95, x=0.45)
+    cbar = fig.colorbar(colorax)
+    cbar.set_label('Energy Density ($m^2/Hz/deg$)', rotation=270, fontsize=16)
+    cbar.ax.get_yaxis().labelpad = 30
+
+    #     degrange = range(0,360,30)
+    #     lines, labels = plt.thetagrids(degrange, labels=None, frac = 1.07)
+    if lims is not None:
+        ax.set_thetalim(np.deg2rad(lims))
+    if 'fname' in kwargs:
+        plt.savefig(kwargs['fname']);
+        plt.close()
+
+    return ax
 
 def plot2DcontourSpec(spec2D, freqBin, dirBin, fname, pathCHLlogo=None, **kwargs):
     """This function plots a 2d spectra showing the 1d direction and 1d frequency spectra on both sides, idea and base function
@@ -544,16 +611,15 @@ def plotTS(plotpacket1, plotpacket2, plotpacket3):
     plt.close()
 
 # these are all the ones that were formerly in gridTools!
-def plotBathyInterp(ofname, dataDict, title):
-    """
-    This is a quick plot of the bathy interp, Not sure if its used in any work flow or was part of a quality check
+def plotBathyInterp(ofname2, dataDict, title):
+    """This is a quick plot of the bathy interp, Not sure if its used in any work flow or was part of a quality check
     This can probably be moved to a plotting library maybe be a more generic
 
     designed to QA newly inserted bathy into background
 
-    :param ofname: file output name
-
-    :param dataDict: a dictionary with keys:
+    Args:
+      ofname2: file output name
+      dataDict: a dictionary with keys:
         'newXfrf'  new x coords (1d)
         'newYfrf'  new y coords (1d)
         'newZfrf'  new Z values (2D of shape newXfrf, newYfrf)
@@ -563,8 +629,6 @@ def plotBathyInterp(ofname, dataDict, title):
         'modelGridY 1 d array of model domain
 
 
-    :param title:  Plot title
-    :return:
     """
 
     newXfrf = dataDict['newXfrf']
@@ -611,7 +675,7 @@ def plotBathyInterp(ofname, dataDict, title):
     cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
     cbar = fig.colorbar(ax1contOld, cax=cbar_ax)
     cbar.set_label('Elevation NAVD 88[m]')
-    plt.savefig(ofname)
+    plt.savefig(ofname2)
     plt.close(fig)
 
 def CreateGridPlotinFRF(outi, outj, spacings, fname):
@@ -699,7 +763,6 @@ def bathyEdgeHist(ofname, pDict, prox=None):
     if 'z2' in pDict.keys():
         assert np.shape(pDict['z2']) == np.shape(pDict['z1']), 'Error: z2 and z1 must be same shape.'
         dz = pDict['z1'] - pDict['z2']
-    else:
         dz = pDict['z1']
 
     # check shape of everything.
@@ -795,10 +858,10 @@ def bathyEdgeHist(ofname, pDict, prox=None):
         s1n = round(s1 * 4) / 4
         if s1n == 0:
             s1n = round(s1, 1)
-
+    
         # get it to the same decimal place it was before
         s1n = s1n * 10 ** cnt
-
+    
         # build stuff out of it....
         rL = np.arange(0, pDict['cbarMax'], s1n)
         lL = -1 * np.arange(s1n, abs(pDict['cbarMin']), s1n)
@@ -866,47 +929,154 @@ def bathyEdgeHist(ofname, pDict, prox=None):
     # save this?
     plt.savefig(ofname, dpi=300)
 
-# cool anotation functions
-def get_text_positions(x_data, y_data, txt_width, txt_height):
-    a = zip(y_data, x_data)
-    text_positions = y_data.copy()
-    for index, (y, x) in enumerate(a):
-        local_text_positions = [i for i in a if i[0] > (y - txt_height)
-                            and (abs(i[1] - x) < txt_width * 2) and i != (y,x)]
-        if local_text_positions:
-            sorted_ltp = sorted(local_text_positions)
-            if abs(sorted_ltp[0][0] - y) < txt_height: #True == collision
-                differ = np.diff(sorted_ltp, axis=0)
-                a[index] = (sorted_ltp[-1][0] + txt_height, a[index][1])
-                text_positions[index] = sorted_ltp[-1][0] + txt_height
-                for k, (j, m) in enumerate(differ):
-                    #j is the vertical distance between words
-                    if j > txt_height * 2: #if True then room to fit a word in
-                        a[index] = (sorted_ltp[k][0] + txt_height, a[index][1])
-                        text_positions[index] = sorted_ltp[k][0] + txt_height
-                        break
-    return text_positions
+def plot_scatterAndQQ(fname, time,  model, observations, **kwargs):
+    """
+    This will make a time-series, a binned scatter plot and a QQ plot for models and observations
 
-def text_plotter(x_data, y_data, text_positions, axis,txt_width,txt_height):
-    for x,y,t in zip(x_data, y_data, text_positions):
-        axis.text(x - txt_width, 1.01*t, '%d'%int(y),rotation=0, color='blue')
-        if y != t:
-            axis.arrow(x, t,0,y-t, color='red',alpha=0.3, width=txt_width*0.1,
-                       head_width=txt_width, head_length=txt_height*0.5,
-                       zorder=0,length_includes_head=True)
+    Args:
+        fname (str): save filename
+        time (list): datetime objects matched to model and observations
+        model (list): plottable values from the model (plotted on the y axis)
+        observations (list): plottable values from the observations (plotted on the x axis)
 
+    Keyword Args:
+        ** title (str): the title for the plot
+        ** units (str): used as axis label (not implemented)
 
+    """
+    ### imports
+    from statsmodels.graphics import gofplots
+    from testbedutils import sblib as sb
 
+    if 'title' in kwargs:
+        title = kwargs['title']
+    else:
+        title = 'Observations and model comparisons'
+    if 'units' in kwargs:
+        units = kwargs['units']
+    else:
+        units=None
+    ###########
+    # calculate statistics
+    if np.ma.isMaskedArray(model) and model.mask.any():
+        raise NotImplementedError('These are not fixed, check binned_xshoreSkillStat_generic for ideas')
+    else:
+        model=np.array(model)
+    if np.ma.isMaskedArray(observations) and observations.mask.any():
+        raise NotImplementedError ('These are not fixed, check binned_xshoreSkillStat_generic for ideas')
+    else:
+        observations = np.array(observations)
+    stats_dict = sb.statsBryant(observations, model)
 
+    ## generate string for plot
+    statString1 =  "Statistics\n\nModel to Observations:\n\nBias: {0:.2f}\nRMSE: {1:.2f}\n".format(stats_dict['bias'], stats_dict['RMSE'])
+    statString2 = "Scatter Index: {0:.2f}\nSymmetric Slope: {1:.2f}\n".format(stats_dict['scatterIndex'], stats_dict['symSlope'])
+    statString3 = "$R^2$: {0:.2f}\nsample Count: {1}".format(stats_dict['corr']**2, len(stats_dict['residuals']))
+    statString = statString1 + statString2 + statString3
+    #############################################
+    #  # # prep for plot
+    nbins = 100
+    H, xedges, yedges = np.histogram2d(observations, model, bins=nbins)
+    H = np.rot90(H)
+    H = np.flipud(H)
+    # Mask zeros
+    Hmasked = np.ma.masked_where(H==0,H)
+    # find data lims
+    ax1max = np.ceil(max(xedges.max(), yedges.max()))
+    ax1min = np.floor(min(xedges.min(), yedges.min()))
 
+    ########## make plot ########################
+    fig = plt.figure(figsize=(12,7))
+    fig.suptitle(title)
 
+    ax0 = plt.subplot2grid((2,3),(0,0), colspan=3)
+    ax0.plot(time, model, 'b.', label='model')
+    ax0.plot(time, observations, 'r.', ms=1, label='observation')
+    ax0.legend()
 
+    ax1 = plt.subplot2grid((2,3),(1,0))
+    ax1.plot([ax1min, ax1max], [ax1min, ax1max], 'k--', lw=1)
+    ax1.set_ylim([ax1min, ax1max])
+    ax1.set_xlim([ax1min, ax1max])
+    histo = ax1.pcolormesh(xedges, yedges, Hmasked)
+    cbar = plt.colorbar(histo)
+    cbar.ax.set_ylabel('Counts')
+    ax1.set_xlabel('observations')
+    ax1.set_ylabel('model')
 
+    ax2 = plt.subplot2grid((2,3),(1,1), sharey=ax1)
+    gofplots.qqplot_2samples(model, observations,  xlabel='observations', ylabel='model', line='45', ax=ax2)
 
+    ax3 = plt.subplot2grid((2,3), (1,2))
+    ax3.text(0, 0, statString, fontsize=12 )
+    ax3.set_axis_off()
 
+    plt.tight_layout(rect=[0, 0, 1, .95])
+    plt.savefig(fname); plt.close()
 
+def halfPlanePolarPlot(spectra, frequencies, directions, lims=[-18, 162], **kwargs):
+    """ creates single polar plot for spectra, taken in part from CDIP
 
+    Args:
+        spectra (array): 2D array only
+        frequencies (array): 1 d array of corresponding frequencies to spectra
+        directions(array): directions associated with spectra
+        lims (list): default is half plane for Duck (incident energy only), will NOT truncate spectra
+            set to None if looking to plot whole 360 polar plot
 
+    Keyword Args:
+        'contour_levels'(list): a list of contour levels to color
+        'figsize' (tup): a tuple of figure size eg. (12, 10)
+        'fname' (str): file path save name
+    Returns:
+        Axis object
 
+    """
+    # begin by checking inputs
+    assert np.array(spectra).ndim == 2, 'spectra needs to be 2 dimensional'
+    assert np.array(spectra).shape[0] == np.array(frequencies).shape[
+        0], 'spectra should be shaped by freq then direction'
+    assert np.array(spectra).shape[1] == np.array(directions).shape[
+        0], 'spectra should be shaped by freq then direction'
+    # pre-processing spectra
+    Edarray = np.asarray(spectra, dtype=object)  # make spectra an array (if not already )
+    Ednew = np.append(spectra, spectra[:, 0:1], axis=1)  # add extra directionalWaveGaugeList band to get it to wrap
+    Dmean_rad = np.deg2rad(np.append(directions, directions[0]))  # convert input directions to radian
+    ## set Color-scale
+    if 'contour_levels' in kwargs:  # manually set contours
+        contour_levels = kwargs['contour_levels']
+    else:  # automatically set contours
+        Edmax = float(np.max(spectra))  # take max for colorbars
+        contourNumber = 50  # set default number of contour levels
+        minlevel = Edmax / contourNumber  # calculate min level
+        maxlevel = Edmax  # calculate max level
+        step = (maxlevel - minlevel) / contourNumber  # associated step
+        contour_levels = np.arange(minlevel, maxlevel, step)  # create list/array of contour levels for plot
+    if 'figsize' in kwargs:
+        figSize = kwargs['figsize']
+    else:
+        figSize = (11, 11)
+    ########################################################################
+    fig = plt.figure(figsize=figSize)  # create figure
+    thetas = Dmean_rad[:]  # in radian NOT DEGREES
 
+    ax = plt.subplot(111, polar=True)  # create polar axis object
+    ax.set_theta_direction(-1)  # set to counter clock-wise plot
+    ax.set_theta_zero_location("N")  # set zero as up
+    colorax = ax.contourf(thetas, frequencies, Ednew, contour_levels)  # make plot
 
+    ## Set titles and colorbar
+    plt.suptitle('Polar Spectrum ', fontsize=22, y=0.95, x=0.45)
+    cbar = fig.colorbar(colorax)
+    cbar.set_label('Energy Density ($m^2/Hz/deg$)', rotation=270, fontsize=16)
+    cbar.ax.get_yaxis().labelpad = 30
+
+    #     degrange = range(0,360,30)
+    #     lines, labels = plt.thetagrids(degrange, labels=None, frac = 1.07)
+    if lims is not None:
+        ax.set_thetalim(np.deg2rad(lims))
+    if 'fname' in kwargs:
+        plt.savefig(kwargs['fname']);
+        plt.close()
+
+    return ax

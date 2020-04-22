@@ -10,9 +10,9 @@ from getdatatestbed import getDataFRF
 from testbedutils import fileHandling
 from prepdata import inputOutput
 
-
 def Master_CMS_run(inputDict):
-    """
+    """This function will run CMS with any version prefix given start, end, and timestep.
+
 
     Args:
         inputDict:

@@ -25,3 +25,14 @@
     <option name="PROJECT_TEST_RUNNER" value="pytest" />
   </component>
 </module>
+    <content url="file://$MODULE_DIR$">
+      <excludeFolder url="file://$MODULE_DIR$/data" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+  <component name="TestRunnerService">
+    <option name="projectConfiguration" value="pytest" />
+    <option name="PROJECT_TEST_RUNNER" value="pytest" />
+  </component>
+</module>

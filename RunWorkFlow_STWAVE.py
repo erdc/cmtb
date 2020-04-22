@@ -15,25 +15,25 @@ def Master_STWAVE_run(inputDict):
     This is the generic work flow
 
     Args:
-      inputDict: key pFlag: plots or not (boolean)
-    :key analyzeFlag: analyze results or not (boolean)
-    :key generateFlag: generate input files or not (boolean)
-    :key runFlag: run the simulation or not (boolean)
-    :key start_date: date I am starting the simulation (format '2018-01-15T00:00:00Z')
-    :key end_date: date I am ending the simulation (format '2018-01-15T00:00:00Z')
-    :key workingDirectory: path to the working directory the user wants
-    :key netCDFdir: path to the netCDF save location specified by the user
-    :key THREDDS: which THREDDS server are we using, 'FRF' or 'CHL'
-    :key version_prefix: right now we have 'FIXED', 'MOBILE', or 'MOBILE_RESET'
-    :key duration: how long you want the simulations to run in hours (24 by default)
+      inputDict:
+        key pFlag: plots or not (boolean)
+        :key analyzeFlag: analyze results or not (boolean)
+        :key generateFlag: generate input files or not (boolean)
+        :key runFlag: run the simulation or not (boolean)
+        :key start_date: date I am starting the simulation (format '2018-01-15T00:00:00Z')
+        :key end_date: date I am ending the simulation (format '2018-01-15T00:00:00Z')
+        :key workingDirectory: path to the working directory the user wants
+        :key netCDFdir: path to the netCDF save location specified by the user
+        :key THREDDS: which THREDDS server are we using, 'FRF' or 'CHL'
+        :key version_prefix: right now we have 'FIXED', 'MOBILE', or 'MOBILE_RESET'
+        :key duration: how long you want the simulations to run in hours (24 by default)
 
     Returns:
       None
 
     """
     # globals:
-    model = 'STWAVE'
-    inputDict['model'] = model
+    inputDict['model'] = inputDict['modelName']  # short cut
     ###################################################################################################################
     #######################   Parse out input Dictionary     ##########################################################
     ###################################################################################################################
@@ -57,12 +57,12 @@ def Master_STWAVE_run(inputDict):
         hostfile = 'hostfile-IB'
 
     ## handle Architecture here
-    if 'ForcedSurveyDate' in inputDict.keys():
+    if 'ForcedSurveyDate' in list(inputDict.keys()):
         ForcedSurveyDate = inputDict['ForcedSurveyDate']
-        path_prefix = os.path.join(model, version_prefix, 'SingleBathy_{}'.format(ForcedSurveyDate))
+        path_prefix = os.path.join(inputDict['modelName'], version_prefix, 'SingleBathy_{}'.format(ForcedSurveyDate))
     else:
         ForcedSurveyDate = None
-        path_prefix = os.path.join(model, version_prefix)
+        path_prefix = os.path.join(inputDict['modelName'], version_prefix)
 
     ###################################################################################################################
     #######################   doing Data check and setting up input vars  #############################################
@@ -118,16 +118,16 @@ def Master_STWAVE_run(inputDict):
     errors, errorDates = [],[]
     curdir = os.getcwd()
     # run the process through each of the above dates
-    print '\n-\n-\nMASTER WorkFLOW for STWAVE SIMULATIONS\n-\n-\n'
-    print 'Batch Process Start: %s     Finish: %s '% (d1, d2)
-    print 'The batch simulation is Run in %s Version' % version_prefix
-    print 'Check for simulation errors here %s' % LOG_FILENAME
-    print '------------------------------------\n\n************************************\n\n------------------------------------\n\n'
+    print('\n-\n-\nMASTER WorkFLOW for STWAVE SIMULATIONS\n-\n-\n')
+    print('Batch Process Start: %s     Finish: %s '% (d1, d2))
+    print('The batch simulation is Run in %s Version' % version_prefix)
+    print('Check for simulation errors here %s' % LOG_FILENAME)
+    print('------------------------------------\n\n************************************\n\n------------------------------------\n\n')
     ###################################################################################################################
     #######################   Loop over each day's simulation    ######################################################
     ###################################################################################################################
     for time in dateStringList:
-        print ' ------------------------------ START %s --------------------------------' %time
+        print(' ------------------------------ START %s --------------------------------' %time)
 
         try:
             datadir = os.path.join(simulation_workingDirectory, ''.join(time.split(':')))  # moving to the new simulation's folder
@@ -135,7 +135,7 @@ def Master_STWAVE_run(inputDict):
                 [nproc_par, nproc_nest] = STsimSetup(time, inputDict)
 
                 if nproc_par == -1 or nproc_nest == -1:
-                    print '************************\nNo Data available\naborting run\n***********************'
+                    print('************************\nNo Data available\naborting run\n***********************')
                     # remove generated files?
                     shutil.rmtree(os.path.join(simulation_workingDirectory,''.join(time.split(':'))))
                     continue  # this is to return to the next time step if there's no data
@@ -143,7 +143,7 @@ def Master_STWAVE_run(inputDict):
             if runFlag == True:
                 os.chdir(datadir)  # changing locations to where simulation files live
                 t= DT.datetime.now()
-                print 'Beggining Parent Simulation %s' %t
+                print('Beggining Parent Simulation %s' %t)
                 try:
                     assert os.path.isfile(hostfile), 'Check hostfile path'
                     parent = check_output('mpiexec -n {} -f {} {} {}.sim'.format(nproc_par, hostfile, executableLocation, ''.join(time.split(':'))), shell=True)
@@ -160,31 +160,31 @@ def Master_STWAVE_run(inputDict):
                     if count > nproc_nest:
                         count = nproc_nest # lower the processors called for to match sim file (otherwise will throw segfault)
                     child = check_output('mpiexec -n {} {} {}nested.sim'.format(count, executableLocation, ''.join(time.split(':'))), shell=True)
-                print('  Simulations took {}'.format(DT.datetime.now() - t))
+                    print(('  Simulations took {}'.format(DT.datetime.now() - t)))
             # run analyze and archive script
             os.chdir(curdir)  # change back after runing simulation locally
             if analyzeFlag == True:
                 STanalyze(time, inputDict)
             if pFlag == True and DT.date.today() == d2.date():
-                print '**\n Moving Plots! \n &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&'
+                print('**\n Moving Plots! \n &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
                 # move files
                 moveFnames = glob.glob(datadir + '/figures/CMTB*.png')
                 moveFnames.extend(glob.glob(datadir + '/figures/CMTB*.gif'))
                 for file in moveFnames:
                     shutil.copy(file,  '/mnt/gaia/gages/results/frfIn/CMTB')
-                    print 'moved %s ' % file
-            print ' --------------   SUCCESS: Done %s --------------------------------' %time
-        except Exception, e:
+                    print('moved %s ' % file)
+            print(' --------------   SUCCESS: Done %s --------------------------------' %time)
+        except Exception as e:
             os.chdir(curdir)  # if things break during run flag, need to get back out!
-            print '<< ERROR >> HAPPENED IN THIS TIME STEP '
+            print('<< ERROR >> HAPPENED IN THIS TIME STEP ')
             # print e
-            print e.args
+            print(e.args)
             logging.exception('\nERROR FOUND @ %s\n' %time, exc_info=True)
 
 if __name__ == "__main__":
     opts, args = getopt.getopt(sys.argv[1:], "h", ["help"])
-    print '___________________\n________________\n___________________\n________________\n___________________\n________________\n'
-    print 'USACE FRF Coastal Model Test Bed : STWAVE'
+    print('___________________\n________________\n___________________\n________________\n___________________\n________________\n')
+    print('USACE FRF Coastal Model Test Bed : STWAVE')
     import yaml
     yamlLoc = args[0]
     with open(yamlLoc, 'r') as f:

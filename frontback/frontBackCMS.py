@@ -1,9 +1,23 @@
+"""
+This script holds the master function for the simulation Setup
+for the CMS wave/Flow? setup
+"""
+import prepdata.prepDataLib
+import testbedutils.anglesLib
+from prepdata import inputOutput
+from getdatatestbed.getDataFRF import getDataTestBed
+from getdatatestbed.getDataFRF import getObs
+from getdatatestbed import getPlotData
 import datetime as DT
 import os, glob, shutil, string, makenc
 from subprocess import check_output
 import netCDF4 as nc
 import numpy as np
+import makenc
+from prepdata import prepDataLib as STPD
+from prepdata.inputOutput import cmsIO, stwaveIO, cmsfIO
 from getdatatestbed import getDataFRF
+import plotting.operationalPlots as oP
 from testbedutils import sblib as sb
 from testbedutils import waveLib as sbwave
 from testbedutils import fileHandling
@@ -261,8 +275,7 @@ def CMSwaveSimSetup(startTime, inputDict, **kwargs):
     specFname = os.path.join(path_prefix, datestring, datestring +'.eng')
     bathyFname = os.path.join(path_prefix, datestring, datestring + '.dep')
 
-    # modify packets for different time-steps!
-
+    # modify packets for different time-steps
     windpacketW, WLpacketW, wavepacketW = prepdata.mod_packets(waveTimeList, windpacket, WLpacket, wavepacket=wavepacket)
     # write files
     cmsio.writeCMS_std(fname=stdFname, gaugeLocs=gaugeLocs)
@@ -317,7 +330,7 @@ def CMSanalyze(startTime, inputDict):
     ##################################   Load Data Here / Massage Data Here   ############################################
     ######################################################################################################################
     ######################################################################################################################
-    t=DT.datetime.now()
+    t = DT.datetime.now()
     print('Loading files ')
     cio.ReadCMS_ALL(fpath, CMSF=True)  # load all files
     stat_packet = cio.stat_packet  # unpack dictionaries from class instance
@@ -350,7 +363,6 @@ def CMSanalyze(startTime, inputDict):
     ##################################  Spatial Data HERE     ############################################################
     ######################################################################################################################
     ######################################################################################################################
-    # tempClass = prepdata.prepDataLib.PrepDataTools()
     gridPack = prepdata.makeCMSgridNodes(float(cio.sim_Packet[0]), float(cio.sim_Packet[1]),
                                                      float(cio.sim_Packet[2]), dep_pack['dx'], dep_pack['dy'],
                                                      dep_pack['bathy'])# dims [t, x, y]
@@ -463,7 +475,7 @@ def CMSanalyze(startTime, inputDict):
             stat_data['Latitude'] = -999   # gridPack['longitude'][Idx_i, Idx_j] # something seems wrong with gridPack
             stat_data['Longitude'] = -999  # gridPack['latitude'][Idx_i, Idx_j]
 
-        ## make netCDF: Name files and make sure server directory has place for files to go
+        # Name files and make sure server directory has place for files to go
         print('making netCDF for model output at %s ' % station)
         outFileName = fileHandling.makeTDSfileStructure(os.path.join(Thredds_Base, station), fldrArch,  datestring, station)
         makenc.makenc_Station(stat_data, globalyaml_fname=globalyaml_fname, flagfname=flagfname,

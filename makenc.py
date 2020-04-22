@@ -91,23 +91,25 @@ def init_nc_file(nc_filename, attributes):
     return ncfile
 
 def write_data_to_nc(ncfile, template_vars, data_dict, write_vars='_variables'):
-    '''
-    This function actually writes the variables and the variable attributes to
+    """This function actually writes the variables and the variable attributes to
     the netCDF file
     cshore_ncfile is an open fid
 
     written by: ASA
     in the yaml, the "[variable]:" needs to be in the data dictionary,
      the output netcdf variable will take the name "name:"
-
+    
      Edited by Spicer Bak
-    :param ncfile: this is the opened netCDF file with already defined dimensions
-    :param template_vars: this is a dicitionary with variable and meta data associated with them
-    :param data_dict: this is a dictionary with keys associated to those hopefully in template_vars,
-            this holds the data
-    :return: netCDF file (still open)
-            also returns error strings and count that were created during the data writing process
-    '''
+
+    Args:
+      ncfile: this is an already opened netCDF file with already defined dimensions
+      template_vars (dict): variable and meta data associated with data_dict
+      data_dict (dict): this is a dictionary with keys associated to those hopefully in template_vars, this holds the data
+      write_vars: Unknown (Default value = '_variables')
+
+    Returns:
+         netCDF file (still open) also returns error strings and count that were created during the data writing process
+    """
 
     # Keep track of any errors found
     num_errors = 0
@@ -127,7 +129,7 @@ def write_data_to_nc(ncfile, template_vars, data_dict, write_vars='_variables'):
     # Write variables to file
     accept_vars = template_vars['_variables']
 
-    for var in accept_vars:  # only write varibles that were loaded from .yaml file
+    for var in accept_vars:  # only write variables that were loaded from .yaml file
         if var in data_dict:
             try:
                 if "fill_value" in template_vars[var] and "least_significant_digit" in template_vars:
@@ -214,8 +216,7 @@ def write_data_to_nc(ncfile, template_vars, data_dict, write_vars='_variables'):
 
             except Exception as e:
                 num_errors += 1
-                error_str += 'ERROR WRITING VARIABLE: ' + var + ' - ' + str(e) + '\n'
-                print(error_str)
+                print(('ERROR WRITING VARIABLE: {} - {} \n'.format(var, str(e))))
 
     return num_errors, error_str
 
@@ -272,6 +273,58 @@ def makenc_field(data_lib, globalyaml_fname, flagfname, ofname, var_yaml_fname):
     #    bathyDate_length = fid.createDimension('bathyDate_length', np.shape(data_lib['bathymetry'])[0])
 
     # bathydate = fid.createDimension('bathyDate_length', np.size(data_lib['bathymetryDate']))
+
+    # write data to the nc file
+    write_data_to_nc(fid, var_atts, data_lib)
+    # close file
+    fid.close()
+
+def makenc_phaseresolved(data_lib, globalyaml_fname, flagfname, ofname, var_yaml_fname):
+    """This is a function that takes wave nest dictionary and Tp_nest dictionnary and creates the high resolution
+    near shore field data from the Coastal Model Test Bed
+
+    Args:
+      data_lib: data lib is a library of data with keys the same name as associated variables to be written in the
+            netCDF file to be created, This function will look for:
+
+            'time', 'DX', 'DY', 'NI', 'NJ', 'bathymetry', 'bathymetryDate', 'waveHs', 'station_name'
+
+      globalyaml_fname: global meta data yaml file name
+      ofname: the file name to be created
+      flagfname: flag input file to flag data
+      var_yaml_fname:  variable meta data yaml file name
+
+
+    Returns:
+        written netCDF file
+    """
+
+    # import global atts
+    globalatts = import_template_file(globalyaml_fname)
+    # import variable data and meta
+    var_atts = import_template_file(var_yaml_fname)
+    # import flag data
+    flags = readflags(flagfname)['allflags']
+    data_lib['flags'] = flags
+    # figure out my grid spacing and write it to the file
+    if np.mean(data_lib['DX']) != np.median(data_lib['DX']):  # variable grid spacing
+        globalatts['grid_dx'] = 'variable'
+        globalatts['grid_dy'] = 'variable'
+    else:
+        globalatts['grid_dx'] = data_lib['DX']
+        globalatts['grid_dy'] = data_lib['DY']
+    globalatts['n_cell_y'] = data_lib['NJ']
+    globalatts['n_cell_x'] = data_lib['NI']
+
+    fid = init_nc_file(ofname, globalatts)  # initialize and write initial globals
+
+    #### create dimensions
+    tdim = fid.createDimension('time', np.shape(data_lib['waveHs'])[0])
+    tsdim = fid.createDimension('tsTime', len(data_lib['tsTime']))
+    xdim = fid.createDimension('xFRF', data_lib['NI'])
+    ydim = fid.createDimension('yFRF', data_lib['NJ'])
+    #inputtypes = fid.createDimension('in_type', np.shape(flags)[1]) # there are 4 input data types for flags
+    statnamelen = fid.createDimension('station_name_length', len(data_lib['station_name']))
 
     # write data to the nc file
     write_data_to_nc(fid, var_atts, data_lib)
@@ -592,7 +645,7 @@ def makenc_CSHORErun(ofname, dataDict, globalYaml, varYaml):
     array8m_loc = 914
 
     # creating dimensions of data
-    new_s = np.shape(range(-50, array8m_loc+1))[0]
+    new_s = np.shape(list(range(-50, array8m_loc+1)))[0]
     new_t = np.shape(dataDict['waveHs'])[0]
     xFRF = fid.createDimension('xFRF', new_s)
     time = fid.createDimension('time', new_t)
@@ -601,12 +654,13 @@ def makenc_CSHORErun(ofname, dataDict, globalYaml, varYaml):
 
     # if np.shape(range(-50, array8m_loc + 1))[0] == np.shape(dataDict['xFRF'])[0]:
 
-    if np.shape(range(-50, array8m_loc+1))[0] == np.shape(dataDict['xFRF']):
+
+    if np.shape(list(range(-50, array8m_loc+1)))[0] == np.shape(dataDict['xFRF']):
         # the model grid is the same as the netCDF grid, so do nothing
         dataDict_n = dataDict
-        pass
+        
     else:
-        dataDict_n = {'xFRF': np.flipud(np.array(range(-50, array8m_loc+1)) + 0.0),
+        dataDict_n = {'xFRF': np.flipud(np.array(list(range(-50, array8m_loc+1))) + 0.0),
                       'time': dataDict['time'],
                       'aveE': np.full((new_t, new_s), fill_value=np.nan),
                       'stdE': np.full((new_t, new_s), fill_value=np.nan),

@@ -44,7 +44,7 @@ directionalWaveEnergyDensity:
     short_name: ' energy density'
     _FillValue: '-999'
     dim: ['time', 'waveFrequency', 'waveDirectionBins']
-    description: 'the directional spectrum output from the station made during CMTB run'
+    description: 'the directionalWaveGaugeList spectrum output from the station made during CMTB run'
 
 station_name:
     name: 'station_name'
