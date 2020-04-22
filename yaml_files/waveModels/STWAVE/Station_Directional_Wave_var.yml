@@ -118,29 +118,32 @@ flags:
     coordinates: 'lat lon'
     description: "These flags are markers for the quality of input data into the model.  There are 3 main flags in place currently:\n 0: Good Data\n1:Linearly Interpolated Data - these data are interpolated due to missing or poorly flagged input data\n2: held as place holder\n3: held as place holder\n4: held as place holder 5: No data\n There are 4 categories for input data and associated flags to the STWAVE model.  they are ordered as wave, wind, waterlevel and currents"
 
-latitude:
-    name: 'latitude'
-    units: 'm'
-    standard_name: ''
-    long_name: 'Latitude'
-    data_type: 'f8'
-    dim: ['Lat']
-    _FillValue: '-999'
-    short_name: 'Lat'
-    coordinates: 'lat lon'
-    description: "Station Location in Lat-Lon from STWAVE model station made during CMTB run"
-
 longitude:
     name: 'longitude'
-    units: 'm'
-    standard_name: ''
-    long_name: 'Longitude'
+    units: 'degrees_east'
+    standard_name: 'longitude'
+    axis: 'X'
+    _CoordinateAxisType: 'Lon'
     data_type: 'f8'
     dim: ['Lon']
-    _FillValue: '-999'
-    short_name: 'Lon'
+    fill_value: '-999.99'
+    short_name: 'lon'
     coordinates: 'lat lon'
-    description: "Station Location in Lat-Lon from STWAVE model station made during CMTB run"
+    description: "save point location in Lat-Lon from model run"
+
+latitude:
+    name: 'latitude'
+    units: 'degrees_north'
+    standard_name: 'latitude'
+    axis: 'Y'
+    _CoordinateAxisType: 'Lat'
+    long_name: 'latitude'
+    data_type: 'f8'
+    dim: ['Lat']
+    fill_value: '-999'
+    short_name: 'lat'
+    coordinates: 'lat lon'
+    description: "save point location in Lat-Lon from model run"
     
 directionalWaveEnergyDensity:
     name: 'directionalWaveEnergyDensity'

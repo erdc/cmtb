@@ -1,17 +1,10 @@
 import datetime as DT
 from matplotlib import pyplot as plt
 import numpy as np
+from matplotlib import image, tri
 import matplotlib.dates as mdates
-import matplotlib.image as image
-<<<<<<< HEAD
-import os
-=======
-import os, math, warnings
-from scipy.interpolate import interpn, RectBivariateSpline
->>>>>>> development
-from getdatatestbed.getDataFRF import getObs
+import os, pandas
 from testbedutils.sblib import statsBryant
-from testbedutils.anglesLib import vectorRotation
 
 
 # these are all the ones that were formerly in plotFunctions.py
@@ -29,7 +22,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     :return: NONE
         will create figure
     """
-
+    pandas.plotting.register_matplotlib_converters()
     nlines = 15  # number of lines to span across Half planed spectra
     lw = 3  # this is the line width factor for showing the non shore perpendicular value
     assert raw[0].ndim == 2, 'first part of interp tuple should be 2 dimensional spectra'
@@ -52,10 +45,6 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     timeTS = Hs[1]  # time  series of Datetimes associated with Hs
     HsTs = Hs[2]  # total wave Height time series
 
-    # pltrawdWED = np.zeros([rawspec.shape[1], np.size(rawDirBin)])
-    # pltrotdWED = np.zeros([np.size(rotDirbin), np.size(rawDirBin)])
-    # pltintdWED = np.zeros([np.size(rotDirbin), np.size(rawDirbin)])
-
     # %%%% plotting loop %%%%%
     # for zz in range(0, raw.shape[0]):
     # prep formatting for plt
@@ -66,10 +55,8 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
 
 
     # getting proper colorbars and labels forthe contour plots
-    # cbar_min = np.min(rawspec['dWED']) # holding constant over entire run
-    # cbar_max = np.max(rawspec['dWED']) # holding constant over entire run
-    cbar_min = np.min(pltrawdWED)
-    cbar_max = np.max(pltrawdWED)
+    cbar_min = np.nanmin(pltrawdWED)
+    cbar_max = np.nanmax(pltrawdWED)
     levels = np.linspace(cbar_min, cbar_max, 35)  # the established levels to be plotted
     # levels = np.logspace(cbar_min, cbar_max**(1/cbar_max),num=35, endpoint=True, base=10)
     from matplotlib import colors
@@ -90,7 +77,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     # subplot 1 - measured spectra
     sub1 = fig.add_subplot(2, 3, 4)
     sub1.set_title('Measured Spectra', y=1.05)
-    aaa = sub1.contourf(rawFreqBin, rawDirBin, list(zip(*pltrawdWED)),
+    aaa = sub1.contourf(rawFreqBin, rawDirBin, pltrawdWED.T,
                         vmin=cbar_min, vmax=cbar_max, levels=levels, norm=norm)
     sub1.plot([0, 1], [70, 70], '--k', linewidth=lw)  # pier angle
     if full == False:
@@ -116,7 +103,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
         for iii in range(0, nlines):
             lineloc = bounds[0] + diff * iii
             sub2.plot([0, 1], [lineloc, lineloc], '--w', linewidth=lw)
-    bbb = sub2.contourf(rotFreqBin, rotDirBin, list(zip(*pltrotdWED)),
+    bbb = sub2.contourf(rotFreqBin, rotDirBin, pltrotdWED.T,
                         vmin=cbar_min, vmax=cbar_max, levels=levels, norm=norm)
     sub2.set_ylabel('Wave Direction - (0$\degree$=Shore norm +south)')
     sub2.set_xlabel('Frequency(hz)')
@@ -127,7 +114,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     # subplot 3
     sub3 = fig.add_subplot(2, 3, 6)
     sub3.set_title('Centered Input Spectra', y=1.05)
-    ccc = sub3.contourf(interpFreqBin, interpDirBin, list(zip(*pltintdWED)),
+    ccc = sub3.contourf(interpFreqBin, interpDirBin, pltintdWED.T,
                         vmin=cbar_min, vmax=cbar_max, levels=levels, norm=norm)
     sub3.plot([0, 1], [0, 0], '--k', linewidth=3.0)
     sub3.set_ylabel('Wave Direction - (0$\degree$ Shore Norm +south)')
@@ -316,7 +303,7 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
         # print('\ntitle: %s plot \nsize: %s \ntime %s \ncbar_min %d cbar_max %d' %(title, fgsize, time[tt], cbar_min, cbar_max))
 
         plt.figure(figsize=fgsize, dpi=80, tight_layout=True)
-        plt.title(title + '\n%s' % time[tt])
+        plt.title(title + '\n{}'.format(time[tt]))
         try:
             plt.contourf(xcoord, ycoord, fieldpacket['field'][tt, :, :], levels, vmin=cbar_min, vmax=cbar_max,
                      cmap='coolwarm', levels=levels, norm=norm)
@@ -431,7 +418,7 @@ def plotWaveProfile(x, waveHs, bathyToPlot, fname):
 
 
 # these are all the ones that were formerly in CSHORE_plotLib
-def obs_V_mod_TS(ofname, p_dict, logo_path='../ArchiveFolder/CHL_logo.png'):
+def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
     """
     This script basically just compares two time series, under
         the assmption that one is from the model and one a set of observations
@@ -508,10 +495,10 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='../ArchiveFolder/CHL_logo.png'):
                   max(p_dict['time']) + DT.timedelta(seconds=0.5 * (p_dict['time'][1] - p_dict['time'][0]).total_seconds())])
 
     # this is what you change for time-series x-axis ticks!!!!!
-
-    ax1.xaxis.set_major_locator(majorTickLocator)
-    ax1.xaxis.set_minor_locator(minorTickLocator)
-    ax1.xaxis.set_major_formatter(xfmt)
+    #
+    # ax1.xaxis.set_major_locator(majorTickLocator)
+    # ax1.xaxis.set_minor_locator(minorTickLocator)
+    # ax1.xaxis.set_major_formatter(xfmt)
     for tick in ax1.xaxis.get_major_ticks():
         tick.label.set_fontsize(14)
     for tick in ax1.yaxis.get_major_ticks():
@@ -519,8 +506,8 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='../ArchiveFolder/CHL_logo.png'):
 
     ax1.minorticks_off()
     ax1.tick_params(labelsize=14)
-    plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=3, borderaxespad=0., fontsize=14)
-
+    plt.legend(bbox_to_anchor=(0., 1.02, 1., 0.102), loc=3, ncol=3, borderaxespad=0., fontsize=14)
+    fig.autofmt_xdate()
     # Now working on the 1-1 comparison subplot
     one_one = np.linspace(min_val - 0.05 * (max_val - min_val), max_val + 0.05 * (max_val - min_val), 100)
     ax2 = plt.subplot2grid((2, 2), (1, 0), colspan=1)
@@ -541,19 +528,9 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='../ArchiveFolder/CHL_logo.png'):
     plt.legend(loc=0, ncol=1, borderaxespad=0.5, fontsize=14)
 
     # stats and stats text
-    stats_dict = {}
     stats_dict = statsBryant(p_dict['obs'], p_dict['model'])
     stats_dict['m_mean'] = np.nanmean(p_dict['model'])
     stats_dict['o_mean'] = np.nanmean(p_dict['obs'])
-    # the below are calculated in statsBryant... this keeps all statistics calcs in the same place
-    # stats_dict['bias'] = np.mean(p_dict['obs'] - p_dict['model'])
-    # stats_dict['RMSE'] = np.sqrt((1 / (float(len(p_dict['obs'])) - 1)) * np.sum(np.power(p_dict['obs'] - p_dict['model'] - stats_dict['bias'], 2)))
-    # stats_dict['SI'] = stats_dict['RMSE'] / float(stats_dict['m_mean'])
-    # stats_dict['sym_slp'] = np.sqrt(np.sum(np.power(p_dict['obs'], 2)) / float(np.sum(np.power(p_dict['model'], 2))))
-    # dum = np.zeros([2, len(p_dict['model'])])
-    # dum[0] = p_dict['model'].flatten()
-    # dum[1] = p_dict['obs'].flatten()
-    # stats_dict['corr_coef'] = np.corrcoef(dum)[0, 1]
 
     header_str = '%s Comparison \nModel to Observations:' % (p_dict['var_name'])
     m_mean_str = '\n Model Mean $=%s$ $(%s)$' % ("{0:.2f}".format(stats_dict['m_mean']), p_dict['units'])
@@ -568,21 +545,17 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='../ArchiveFolder/CHL_logo.png'):
     num_String = '\n Number of samples $= %s$' %len(stats_dict['residuals'])
     plot_str = m_mean_str + o_mean_str + bias_str + RMSE_str + RMSE_Norm_str + SI_str + sym_slp_str + corr_coef_str + num_String
     ax3 = plt.subplot2grid((2, 2), (1, 1), colspan=1)
-    ax3.axis('off')
     ax4 = ax3.twinx()
     ax3.axis('off')
-
+    ax4.axis('off')
     try:
-        ax4.axis('off')
-        dir_name = os.path.dirname(__file__).split('\\plotting')[0]
-        CHL_logo = image.imread(os.path.join(dir_name, logo_path))
+        CHL_logo = image.imread(logo_path)
         ax4 = fig.add_axes([0.78, 0.02, 0.20, 0.20], anchor='SE', zorder=-1)
         ax4.imshow(CHL_logo)
         ax4.axis('off')
     except:
         print('Plot generated sans CHL Logo!')
 
-    ax3.axis('off')
     ax3.text(0.01, 0.99, header_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=18,
              fontweight='bold')
     ax3.text(0.01, 0.90, plot_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=16)
@@ -1724,6 +1697,200 @@ def obs_V_mod_bathy_TN(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_lo
     fig.tight_layout(pad=1, h_pad=2.5, w_pad=1, rect=[0.0, 0.0, 1.0, 0.90])
     fig.savefig(ofname, dpi=300)
     plt.close()
+
+def plotUnstructField(ofname, pDict):
+    """
+    This is a function to plot unstructured grid bathymetry data.
+    It uses the matplotlib.tri package to triangulate your points onto a grid,
+    then the tricontourf function to actually plot it.  The triangulation is a Delaunay triangulation
+
+    :param ofname: complete filepath where the output will be stored, including extension!!!!!
+    :param pDict:
+        Keys:
+        ptitle - plot title
+        x - x-positions
+        y - y-positions
+        z - this can be any value that you want a 2D colorf plot of, but for our applications mainly depth or elevation
+        xLabel - label for x-axis
+        yLabel - label for y-axis
+        cbarLabel - label for the color bar
+        cbarMin - minumum value to show on colorbar
+        cbarMax - maximum value to show on colorbar
+        cbarColor - type of colorbar you want to use
+        ncLev - number of contour "levels" you want to have.
+                defaults to 100 to make it look like a continuous colorbar
+        xbounds - (xmin, xmax) for your plot
+        ybounds - (ymin, ymax) for your plot
+    :return:
+        saved contourf plot
+    """
+
+    # check for dictionary keys
+    assert 'x' in pDict.keys(), "Error: x must be specified"
+    assert 'y' in pDict.keys(), "Error: y must be specified"
+    assert 'z' in pDict.keys(), "Error: z must be specified"
+
+    # make assumptions if optional keys are blank
+    if 'xLabel' not in pDict.keys():
+        pDict['xLabel'] = 'x'
+    if 'yLabel' not in pDict.keys():
+        pDict['yLabel'] = 'y'
+    if 'cbarLabel' not in pDict.keys():
+        pDict['cbarLabel'] = 'z'
+    if 'cbarMin' not in pDict.keys():
+        pDict['cbarMin'] = np.nanmin(pDict['z'])
+    if 'cbarMax' not in pDict.keys():
+        pDict['cbarMax'] = np.nanmax(pDict['z'])
+    if 'cbarColor' not in pDict.keys():
+        pDict['cbarColor'] = 'RdYlBu'
+    if 'ncLev' not in pDict.keys():
+        pDict['ncLev'] = 100
+    if 'xbounds' not in pDict.keys():
+        pDict['xbounds'] = (np.min(pDict['x']), np.max(pDict['x']))
+    if 'ybounds' not in pDict.keys():
+        pDict['ybounds'] = (np.min(pDict['y']), np.max(pDict['y']))
+
+    z = pDict['z'].copy()
+    # NOTE - if pDict['z'] is a masked array, this script will MODIFY the mask!!!!!
+    maskFlag = False
+    if np.ma.is_masked(z):
+        maskInd = np.ma.getmask(z).copy()
+        maskFlag = True
+
+    # if I have colorbar ranges, force the data to be within the min/max bounds
+    z[z < pDict['cbarMin']] = pDict['cbarMin']
+    z[z > pDict['cbarMax']] = pDict['cbarMax']
+
+    # figure out how to force my colorbar ticks through zero
+    if pDict['cbarMin'] > 0 or pDict['cbarMax'] < 0:
+        v = np.linspace(pDict['cbarMin'], pDict['cbarMax'], 11, endpoint=True)
+    else:
+        # first guess at spacing
+        s1 = (pDict['cbarMax'] - pDict['cbarMin'])/float(11)
+        cnt = 0
+        if s1 > 1:
+            while s1 > 1:
+                cnt = cnt + 1
+                s1 = s1/float(10)
+        elif s1 < 0.1:
+            while s1 < 0.1:
+                cnt = cnt -1
+                s1 = s1 * float(10)
+        else:
+            pass
+        # round to nearest quarter
+        s1n = round(s1 * 4)/4
+        if s1n == 0:
+            s1n = round(s1, 1)
+
+        # get it to the same decimal place it was before
+        s1n = s1n*10**cnt
+
+        # build stuff out of it....
+        rL = np.arange(0, pDict['cbarMax'], s1n)
+        lL = -1*np.arange(s1n, abs(pDict['cbarMin']), s1n)
+        v = np.concatenate([lL, rL])
+
+
+    # perform triangulation
+    triang = tri.Triangulation(pDict['x'], pDict['y'])
+
+    # do we re-apply the mask here?  does tricontourf work with masked arrays?
+    if maskFlag:
+        z = np.array(z)
+        z[maskInd] = pDict['cbarMax'] + (pDict['cbarMax'] - pDict['cbarMin'])
+
+    # generate the plot.
+    axisAspect = (pDict['ybounds'][1] - pDict['ybounds'][0])/float(pDict['xbounds'][1] - pDict['xbounds'][0])
+    plt.figure()
+    plt.ylim([pDict['ybounds'][0], pDict['ybounds'][1]])
+    plt.xlim([pDict['xbounds'][0], pDict['xbounds'][1]])
+    plt.gca().set_aspect(axisAspect)
+    clev = np.arange(pDict['cbarMin'], pDict['cbarMax'], (pDict['cbarMax'] - pDict['cbarMin'])/float(pDict['ncLev']))
+    plt.tricontourf(triang, z, clev, cmap=plt.get_cmap(pDict['cbarColor']))
+    plt.clim(pDict['cbarMin'], pDict['cbarMax'])
+    cb1 = plt.colorbar(orientation='vertical', ticks=v)
+    cb1.set_label(pDict['cbarLabel'], fontsize=12)
+    if 'U' in pDict.keys() and 'V' in pDict.keys():
+
+        # lets interpolate this onto a uniform grid?
+        # build new grid
+        stepsize = 250
+        xP = []
+        yP = []
+        for x in range(pDict['xbounds'][0], pDict['xbounds'][1], stepsize):
+            for y in range(pDict['ybounds'][0], pDict['ybounds'][1], stepsize):
+                xP.append(x)
+                yP.append(y)
+        # do the interpolation
+        points = (pDict['x'], pDict['y'])
+        values = pDict['U']
+        # do the interpolation
+        uP = griddata(points, values, (xP, yP), method='linear')
+        values = pDict['V']
+        # do the interpolation
+        vP = griddata(points, values, (xP, yP), method='linear')
+
+        # plot quiver vectors
+        if 'scaleP' in pDict.keys():
+            Q = plt.quiver(xP, yP, uP, vP, scale=pDict['scaleP'])
+        else:
+            Q = plt.quiver(xP, yP, uP, vP)
+        vMag = np.sqrt(np.power(uP, 2) + np.power(vP, 2))
+        # what should the scale be?
+        if 'scaleV' in pDict.keys():
+            scaleV = round(pDict['scaleV'], 1)
+        else:
+            scaleV = round(np.nanmax(vMag), 1)
+        plt.quiverkey(Q, pDict['xbounds'][0] + 0.05*(pDict['xbounds'][1] - pDict['xbounds'][0]), pDict['ybounds'][1] + 0.02*(pDict['ybounds'][1] - pDict['ybounds'][0]), scaleV, '%s $m/s$'%scaleV, linewidth=1, labelpos='E', coordinates='data')
+
+    # DLY Note 12/19/2018 - the labeling of gauges is not flexible as currently constructed.  suggest switching to
+    # different markers and legend.  as is the text will overlap without significant tinkering
+    if 'gaugeLabels' in pDict.keys():
+        if pDict['gaugeLabels']:
+
+            gaugeNames = ['FRF Pier', '26m Waverider', '17m Waverider', '11m AWAC', '8m Array', '6m AWAC', '4.5m AWAC', '3.5m Aquadopp', '200m Paros', '150m Paros', '125m Paros']
+            gaugeX = [[0, 580], 16100, 3710, 1302, 825, 606, 400, 306, 200, 150, 125]
+            gaugeY = [[516, 516], 4375, 1303, 933, 915, 937, 939, 940, 940, 940, 950]
+
+            # gauge label time!
+            parosFlag = False
+            for ii in range(0, len(gaugeNames)):
+
+                if gaugeNames[ii] == 'FRF Pier':
+                    plt.plot(gaugeX[ii], gaugeY[ii], 'k-', linewidth=5)
+                    plt.text(gaugeX[ii][1], gaugeY[ii][1]-150, gaugeNames[ii], fontsize=8, va='bottom', ha='right',
+                             color='black', rotation=0)
+
+                elif 'Paros' in gaugeNames[ii]:
+                    if gaugeX[ii] > pDict['xbounds'][0] and gaugeX[ii] < pDict['xbounds'][1] and gaugeY[ii] > pDict['ybounds'][0] and gaugeY[ii] < pDict['ybounds'][1]:
+                        plt.plot(gaugeX[ii], gaugeY[ii], 'or')
+                        parosFlag = True
+                elif gaugeNames[ii] == '3.5m Aquadopp':
+                    if gaugeX[ii] > pDict['xbounds'][0] and gaugeX[ii] < pDict['xbounds'][1] and gaugeY[ii] > pDict['ybounds'][0] and gaugeY[ii] < pDict['ybounds'][1]:
+                        plt.plot(gaugeX[ii], gaugeY[ii], 'or')
+                        plt.text(gaugeX[ii]-25, gaugeY[ii], gaugeNames[ii], fontsize=6, va='bottom', rotation=90, color='black')
+                else:
+                    if gaugeX[ii] > pDict['xbounds'][0] and gaugeX[ii] < pDict['xbounds'][1] and gaugeY[ii] > pDict['ybounds'][0] and gaugeY[ii] < pDict['ybounds'][1]:
+                        plt.plot(gaugeX[ii], gaugeY[ii], 'or')
+                        plt.text(gaugeX[ii], gaugeY[ii], gaugeNames[ii], fontsize=6, va='bottom', rotation=90, color='black')
+            if parosFlag:
+                plt.text(gaugeX[-1]-65, gaugeY[-1]-225, '125m, 150m,\n200 m Paros', fontsize=6, va='bottom', rotation=90, color='black')
+
+
+
+
+
+    # set some other labels
+    plt.ylabel(pDict['yLabel'], fontsize=12)
+    plt.xlabel(pDict['xLabel'], fontsize=12)
+    if 'ptitle' in pDict.keys():
+        plt.title(pDict['ptitle'], fontsize=16)
+
+    # save time
+    plt.savefig(ofname, dpi=300, bbox_inches='tight')
+    plt.close()
+
 
 def generate_CrossShoreTimeseries(ofname, dataIn, bottomIn, xIn, **kwargs):
     """generates a water elevation cross-section, used single timesteps of

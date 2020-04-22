@@ -12,20 +12,24 @@ import matplotlib.cm as cm
 from scipy.interpolate import griddata
 from numpy.random import *
 
-
-# these are all the ones that were formerly in plotFunctions.py
 def gradient_fill(x, y, fill_color=None, ax=None, zfunc=False, **kwargs):
     """
     This is a function that plots a gradient fill found here
     http://stackoverflow.com/questions/29321835/is-it-possible
     -to-get-color-gradients-under-curve-in-matplotlb?noredirect=1&lq=1
-    :param x:
-    :param y:
-    :param fill_color:
-    :param ax:  The axis from the plot
-    :param zfunc:
-    :param kwargs:
-    :return:
+   Args:
+        x:
+        y:
+        fill_color:
+        ax:  The axis from the plot
+        zfunc:
+
+   Keyword Args
+       keyword args from plt.plot
+
+    Returns
+        None
+
     """
 
     from matplotlib.patches import Polygon
@@ -99,12 +103,15 @@ def gradient_fill(x, y, fill_color=None, ax=None, zfunc=False, **kwargs):
     ax.autoscale(True)
     return line, im
 
-def pltFRFgrid(xyzDict, save=False):
-    """
-    This function plots a dictionary of values with keys x, y, z
+def pltFRFgrid(xyzDict, savefname=None):
+    """This function plots a dictionary of values with keys x, y, z
 
-    :param save:
-    :return:
+    Args:
+        xyzDict: dictionary with x, y, z values
+        savefname(bool): save file name
+
+    Returns:
+        None
     """
     x = xyzDict['x']
     y = xyzDict['y']
@@ -115,6 +122,9 @@ def pltFRFgrid(xyzDict, save=False):
     # plt.contourf(ycoord, xcoord, fieldpacket['field'][tt, :, :], levels, vmin=cbar_min, vmax=cbar_max,
     #              cmap='coolwarm', levels=levels, norm=norm)
     plt.pcolor(x, y, z, vmin=z.min(), vmax=z.max())
+    if savefname is not None:
+        plt.savefig(savefname)
+    plt.close()
 
 def halfPlanePolarPlot(spectra, frequencies, directions, lims=[-18, 162], **kwargs):
     """ creates single polar plot for spectra.  generally Half-planed
@@ -185,18 +195,21 @@ def halfPlanePolarPlot(spectra, frequencies, directions, lims=[-18, 162], **kwar
     return ax
 
 def plot2DcontourSpec(spec2D, freqBin, dirBin, fname, pathCHLlogo=None, **kwargs):
+    """This function plots a 2d spectra showing the 1d direction and 1d frequency spectra on both sides, idea and base function
+        was taken from the below website from
 
-    """
-    This function plots a 2d spectra showing the 1d direction and 1d frequency spectra on both sides, idea and base function
-    was taken from the below website from
-    http://www.astrobetter.com/blog/2014/02/10/visualization-fun-with-python-2d-histogram-with-1d-histograms-on-axes/
-    :param fname: outpufile name
-    :param spec2D: 2 dimensional spectrum (single)
-    :param freqBin: associated freuqncy bins
-    :param dirBin: associated direction bins
-    :param pathCHLlogo: defaults to None, but will put a logo at the top right if path is given
+    Args:
+        fname: outpufile name
+        spec2D: 2 dimensional spectrum (single)
+        freqBin: associated freuqncy bins
+        dirBin: associated direction bins
+        pathCHLlogo: will put a logo at the top right if path is given (default=None)
 
-    :return: saves a plot to the fname location
+    Returns:
+        None
+
+    References:
+        http://www.astrobetter.com/blog/2014/02/10/visualization-fun-with-python-2d-histogram-with-1d-histograms-on-axes/
 
     """
     # convert spectra from m2/rad to m2/hz
@@ -322,8 +335,7 @@ def plot2DcontourSpec(spec2D, freqBin, dirBin, fname, pathCHLlogo=None, **kwargs
     plt.close()
 
 def pltspec(dirbin, freqbin, spec, name, bounds=[161.8, 341.8], nlines=15, show=1):
-    """
-    this plots a single spectra
+    """this plots a single spectra
     """
 
     diff = (bounds[1] - bounds[0]) / nlines
@@ -345,8 +357,7 @@ def pltspec(dirbin, freqbin, spec, name, bounds=[161.8, 341.8], nlines=15, show=
         plt.show()
 
 def plot121(plotpacket1, plotpacket2, plotpacket3):
-    """
-    this is a plot fuction that will plot 2 dataList and plot them 1-1 as a means
+    """ this is a plot fuction that will plot 2 dataList and plot them 1-1 as a means
     for comparison
     the first plot package is usually wave HS
     the second plot packages is ually wave Tp
@@ -479,9 +490,8 @@ def plot121(plotpacket1, plotpacket2, plotpacket3):
     plt.close()
 
 def plotTS(plotpacket1, plotpacket2, plotpacket3):
-    """
-    this is a function that plots 3 timeseries comparison data
-    title, path and file name are defined in plotpacket1
+    """this is a function that plots 3 timeseries comparison data
+        title, path and file name are defined in plotpacket1
     """
     # DEFINE plot variables
     # first plot packet
@@ -693,6 +703,231 @@ def CreateGridPlotinFRF(outi, outj, spacings, fname):
     plt.legend()
     plt.savefig(fname)
     plt.close()
+
+# these are some new ones I made for the .tel file
+def bathyEdgeHist(ofname, pDict, prox=None):
+    """this function takes in bathy data, pulls out all the values along the edges of the new surface and plots them to
+     see how far off they are from the original surface. if you hand it only 1 surface it will assume that it is a
+     differenced surface
+
+        ofname: complete filepath where the output will be stored, including extension!!!!!
+        pDict: input plotting dictionary with keys
+            ptitle - plot title
+            x - x-positions
+            y - y-positions
+            hUnits - units of the x and y positions (m or ft)
+            z1 - this can be any value that you want to compare, but for our applications mainly depth or elevation
+            z2 - this can be any value that you want to compare, but for our applications mainly depth or elevation
+            zUnits - units of the z stuff (m or ft)
+            xHistLabel - label for hist x-axis
+            yHistLabel - label for hist y-axis
+            xcLabel - label for x-axis
+            ycLabel - label for y-axis
+            cbarLabel - label for the color bar
+            cbarMin - minumum value to show on colorbar
+            cbarMax - maximum value to show on colorbar
+            cbarColor - type of colorbar you want to use
+            ncLev - number of contour "levels" you want to have.
+                    defaults to 100 to make it look like a continuous colorbar
+
+    Returns
+        histogram plot of the differences (z1 - z2) in the EDGES of the surface!!!!
+
+    """
+    # check for dictionary keys
+    assert 'x' in pDict.keys(), "Error: x must be specified"
+    assert 'y' in pDict.keys(), "Error: y must be specified"
+    assert 'z1' in pDict.keys(), "Error: z1 must be specified"
+
+    # make assumptions if optional keys are blank
+    if 'xHistLabel' not in pDict.keys():
+        pDict['xHistLabel'] = 'bins'
+    if 'yHistLabel' not in pDict.keys():
+        pDict['yHistLabel'] = 'Number'
+    if 'xcLabel' not in pDict.keys():
+        pDict['xcLabel'] = 'x'
+    if 'ycLabel' not in pDict.keys():
+        pDict['ycLabel'] = 'y'
+    if 'cbarLabel' not in pDict.keys():
+        pDict['cbarLabel'] = 'z'
+    if 'cbarColor' not in pDict.keys():
+        pDict['cbarColor'] = 'RdYlBu'
+    if 'ncLev' not in pDict.keys():
+        pDict['ncLev'] = 100
+    if 'hUnits' not in pDict.keys():
+        pDict['hUnits'] = 'm'
+    if 'zUnits' not in pDict.keys():
+        pDict['zUnits'] = 'm'
+
+    # get differenced surface
+    if 'z2' in pDict.keys():
+        assert np.shape(pDict['z2']) == np.shape(pDict['z1']), 'Error: z2 and z1 must be same shape.'
+        dz = pDict['z1'] - pDict['z2']
+        dz = pDict['z1']
+
+    # check shape of everything.
+    dz_sz = np.shape(dz)
+    if len(dz_sz) > 1:
+        # you have a 2D grid, check the sizes of x and y
+        dz_v = dz.reshape((1, dz.shape[0] * dz.shape[1]))[0]
+        if dz_sz == np.shape(pDict['x']) and dz_sz == np.shape(pDict['y']):
+            # reshape into list of points
+            x_v = pDict['x'].reshape((1, pDict['x'].shape[0] * pDict['x'].shape[1]))[0]
+            y_v = pDict['y'].reshape((1, pDict['y'].shape[0] * pDict['y'].shape[1]))[0]
+        else:
+            # turn x and y points into meshgrid
+            tx, ty = np.meshgrid(pDict['x'], pDict['y'])
+            # reshape into list of points
+            x_v = tx.reshape((1, tx.shape[0] * tx.shape[1]))[0]
+            y_v = ty.reshape((1, ty.shape[0] * ty.shape[1]))[0]
+    else:
+        # you already have lists of points
+        dz_v = dz
+        x_v = pDict['x']
+        y_v = pDict['y']
+
+    if 'cbarMin' not in pDict.keys():
+        pDict['cbarMin'] = np.nanmin(dz_v)
+    if 'cbarMax' not in pDict.keys():
+        pDict['cbarMax'] = np.nanmax(dz_v)
+
+    # now that I have a list of all points, I need to find the edges
+    points = np.column_stack((x_v, y_v))
+    hull = ConvexHull(points)
+    hullPts = points[hull.vertices, :]
+    # repeat the first point at the end so the below code checks the line between the last point and the first as well
+    hullPts2 = np.concatenate((hullPts, [hullPts[0,:]]), axis=0)
+
+    # how far from the edges are each of these points?
+    hullDist = []
+    for j in range(0, np.shape(points)[0]):
+        dists = []
+        p = points[j, :]
+        for i in range(len(hullPts2) - 1):
+            dists.append(sb.dist(hullPts2[i][0], hullPts2[i][1], hullPts2[i + 1][0], hullPts2[i + 1][1], p[0], p[1]))
+        hullDist.append(min(dists))
+
+    # show me the points within prox m of the edge
+    if prox is None:
+        # compute average nearest neighbor distance and use that
+        kdt = scipy.spatial.cKDTree(points)
+        k = 1  # number of nearest neighbors
+        dists, neighs = kdt.query(points, k + 1)
+        prox = np.mean(dists[:, 1])
+    ind = np.array(hullDist) <= prox
+    edgePts = points[ind, :]
+    edgeDiffs = dz_v[ind]
+
+    # make a histogram and a contourf plot of the original surface with the hull bounds and edge points overlaid
+    # in a panel to the right - this is going to be a cool figure.
+
+    # show time
+    # check to see the x vs y extents of my data.  If x is >> y you are better off with a horizontal plot
+    yR = max(y_v) - min(y_v)
+    xR = max(x_v) - min(x_v)
+    if xR >= 1.5*yR:
+        sp1 = 211
+        sp2 = 223
+        sp3 = 224
+    else:
+        sp1 = 121
+        sp2 = 222
+        sp3 = 224
+
+    # if I have colorbar ranges, force the data to be within the min/max bounds
+    dz_v[dz_v < pDict['cbarMin']] = pDict['cbarMin']
+    dz_v[dz_v > pDict['cbarMax']] = pDict['cbarMax']
+
+    # figure out how to force my colorbar ticks through zero
+    cbpts = 5
+    if pDict['cbarMin'] > 0 or pDict['cbarMax'] < 0:
+        v = np.linspace(pDict['cbarMin'], pDict['cbarMax'], cbpts, endpoint=True)
+    else:
+        # first guess at spacing
+        s1 = (pDict['cbarMax'] - pDict['cbarMin']) / float(cbpts)
+        cnt = 0
+        if s1 > 1:
+            while s1 > 1:
+                cnt = cnt + 1
+                s1 = s1 / float(10)
+        elif s1 < 0.1:
+            while s1 < 0.1:
+                cnt = cnt - 1
+                s1 = s1 * float(10)
+        # round to nearest quarter
+        s1n = round(s1 * 4) / 4
+        if s1n == 0:
+            s1n = round(s1, 1)
+    
+        # get it to the same decimal place it was before
+        s1n = s1n * 10 ** cnt
+    
+        # build stuff out of it....
+        rL = np.arange(0, pDict['cbarMax'], s1n)
+        lL = -1 * np.arange(s1n, abs(pDict['cbarMin']), s1n)
+        v = np.concatenate([lL, rL])
+
+    # perform triangulation
+    triang = tri.Triangulation(x_v, y_v)
+
+
+    # figure time?
+    fig = plt.figure(figsize=(10, 10))
+    if 'ptitle' in pDict.keys():
+        fig.suptitle(pDict['ptitle'], fontsize=18, fontweight='bold', verticalalignment='top')
+
+    # colour contour plot...
+    ax1 = plt.subplot(sp1)
+    ax1.set_aspect('equal')
+    clev = np.arange(dz_v.min(), dz_v.max(), 1 / float(pDict['ncLev']))
+    tmp = ax1.tricontourf(triang, dz_v, clev, cmap=plt.get_cmap(pDict['cbarColor']))
+    cb1 = plt.colorbar(tmp, orientation='horizontal', ticks=v)
+    # set some other labels
+    ax1.set_ylabel(pDict['ycLabel'], fontsize=12)
+    ax1.set_xlabel(pDict['xcLabel'], fontsize=12)
+    # overlay the hull points
+    ax1.plot(hullPts2[:, 0], hullPts2[:, 1], 'k--')
+    # overlay the "edge points"
+    ax1.scatter(edgePts[:, 0], edgePts[:, 1], c=edgeDiffs, marker='o', zorder=1, cmap=pDict['cbarColor'])
+    # ax1.scatter(edgePts[:, 0], edgePts[:, 1], c='r', marker='o', zorder=1)
+
+    # doctor up the x-ticks
+    M = 4
+    xticks = ticker.MaxNLocator(M)
+    ax1.xaxis.set_major_locator(xticks)
+
+    # edge depth histogram...
+    ax2 = plt.subplot(sp2)
+    # want an average of 10 in each bin
+    nbins = int(round(len(edgeDiffs)/float(10)))
+    if nbins < 5:
+        nbins = int(5)
+    n, bins, patches = ax2.hist(edgeDiffs, nbins, facecolor='green', alpha=0.75)
+    ax2.grid(True, linestyle='dotted')
+    # set some other labels
+    ax2.set_ylabel(pDict['yHistLabel'], fontsize=12)
+    ax2.set_xlabel(pDict['xHistLabel'], fontsize=12)
+
+    # some basic stats about this plot
+    header_str = 'STATISTICS:'
+    # edge threshold
+    edgeThresh_str = '\n edge threshold $=%s$ $%s$' % ("{0:.2f}".format(prox), pDict['hUnits'])
+    # how many edge points
+    edgeNum_str = '\n number of edge points $=%s$' % (str(len(edgeDiffs)))
+    # average and std of the depth difference
+    meanDiff_str = '\n mean difference $=%s$ $%s$' % ("{0:.2f}".format(np.mean(edgeDiffs)), pDict['zUnits'])
+    sDev_str = '\n s.dev of difference $=%s$ $%s$' % ("{0:.2f}".format(np.std(edgeDiffs)), pDict['zUnits'])
+    plot_str = edgeThresh_str + edgeNum_str + meanDiff_str + sDev_str
+    ax3 = plt.subplot(sp3)
+    ax3.axis('off')
+    ax3.text(0.01, 0.99, header_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=18,
+             fontweight='bold')
+    ax3.text(0.01, 0.95, plot_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=16)
+
+    fig.subplots_adjust(wspace=0.4, hspace=0.1)
+    fig.tight_layout(pad=1, h_pad=2.5, w_pad=1, rect=[0.0, 0.0, 1.0, 0.925])
+    # save this?
+    plt.savefig(ofname, dpi=300)
 
 def plot_scatterAndQQ(fname, time,  model, observations, **kwargs):
     """

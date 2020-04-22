@@ -1,6 +1,6 @@
 # stuff
 
-_variables: ['cellID', 'elevation', 'numberCells', 'aveE', 'aveN', 'time', 'waterLevel', 'durationRamp', 'surveyNumber', 'surveyTime']
+_variables: ['cellID', 'elevation', 'numberCells', 'aveE', 'aveN', 'time', 'waterLevel', 'surveyNumber', 'surveyTime']
 _attributes: ['notes']
 _dimensions: ['time', 'cellID', 'one']
 
@@ -86,17 +86,16 @@ waterLevel:
     coordinates: 'xFRF yFRF'
     description: 'Mean water surface elevation at each cell from CMTB CMSF model run'
 
-durationRamp:
-    name: 'durationRamp'
-    units: 'days'
+coldStart:
+    name: 'coldStart'
+    units: 'boolean'
     standard_name: ''
-    long_name: 'duration of cold start ramp'
-    data_type: 'f8'
+    long_name: 'cold start'
+    data_type: 'u1'
     dim: ['time']
-    fill_value: '-999.99'
-    short_name: 'durationRamp'
-    coordinates: 'N/A'
-    description: 'ramp duration for the cold-start CMTB CMSF model runs'
+    fill_value: '9'
+    short_name: 'coldStart'
+    description: '1 (true) shows that the model was cold started this run, and 0 means the model was run in a hotstart mode'
 
 surveyNumber:
     name: 'surveyNumber'
@@ -112,7 +111,7 @@ surveyNumber:
 
 surveyTime:
     name: 'surveyTime'
-    units: 'integer'
+    units: 'seconds since 1970-01-01'
     standard_name: ''
     long_name: 'survey time'
     data_type: 'f8'
@@ -120,4 +119,4 @@ surveyTime:
     fill_value: '-999'
     short_name: 'surveyTime'
     coordinates: 'N/A'
-    description: 'the survey time of the latest integrated bathymetry that went into this file'
+    description: 'the survey time of the bathymetry that went into this file'

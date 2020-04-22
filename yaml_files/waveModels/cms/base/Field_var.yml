@@ -14,6 +14,31 @@ time:
     calendar: 'gregorian'
     fill_value: '-999.99'
 
+longitude:
+    name: 'longitude'
+    units: 'degrees_east'
+    standard_name: 'longitude'
+    axis: 'X'
+    _CoordinateAxisType: 'Lon'
+    data_type: 'f8'
+    dim: ['Y_shore','X_shore']
+    fill_value: '-999.99'
+    short_name: 'lon'
+    coordinates: 'lat lon'
+
+latitude:
+    name: 'latitude'
+    units: 'degrees_north'
+    standard_name: 'latitude'
+    axis: 'Y'
+    _CoordinateAxisType: 'Lat'
+    long_name: 'latitude'
+    data_type: 'f8'
+    dim: [ 'Y_shore', 'X_shore']
+    fill_value: '-999.99'
+    short_name: 'lat'
+    coordinates: 'lat lon'
+
 xFRF:
     name: 'xFRF'
     units: 'meters'
