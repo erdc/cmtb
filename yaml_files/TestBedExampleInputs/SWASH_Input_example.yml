@@ -15,7 +15,7 @@ version_prefix: Base                        # controls switched with int the cod
 # path stuff           #
 ########################
 modelExecutable: /home/spike/repos/cmtb/bin/swash   # path to the model    REQUIRED# this is the directory where simulation files and QA/QC plots are made and existing architecture takes over
-workingDirectory: '/home/spike/cmtb/data'                                  # REQUIRED
+workingDirectory: data/waveModels                                  # REQUIRED usually [cmtbRoot]/data/waveModels
 # this is the base directory where netCDF files are output to,
 netCDFdir: /home/spike/thredds_data/waveModels                             #optional will default to home/[whoami]/thredds_data -- this needs /
 #########################

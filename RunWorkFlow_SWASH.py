@@ -39,9 +39,9 @@ def Master_SWASH_run(inputDict):
     # __________________input directories________________________________
     codeDir = os.getcwd()  # location of code
     # check executable
-    if inputDict['modelExecutable'].startswith(codeDir):  # change to relative path
-        import re
-        inputDict['modelExecutable'] = re.sub(codeDir, '', inputDict['modelExecutable'])
+    # if inputDict['modelExecutable'].startswith(codeDir):  # change to relative path
+    #     import re
+    #     inputDict['modelExecutable'] = re.sub(codeDir, '', inputDict['modelExecutable'])
 
     # ______________________ Logging  ____________________________
     # auto generated Log file using start_end timeSegment
@@ -136,8 +136,13 @@ if __name__ == "__main__":
     try:
         # assume the user gave the path
         yamlLoc = args[0]
+
         with open(os.path.join(yamlLoc), 'r') as f:
-            inputDict = yaml.load(f)
+            inputDict = yaml.safe_load(f)
+        if os.path.exists('.cmtbSettings'):
+            with open('.cmtbSettings', 'r') as fid:
+                a = yaml.safe_load(fid)
+            inputDict.update(a)
     except:
         raise IOError('Input YAML file required.  See yaml_files/TestBedExampleInputs/CMS_Input_example for example yaml file.')
 
