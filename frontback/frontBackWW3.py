@@ -86,6 +86,7 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
     # _________________________ Create observation locations ___________________________________________________________
     sys.path.append('/home/spike/repos/TDSlocationGrabber')
     from frfTDSdataCrawler import query
+    print('  TODO: handle TDS location grabber')
     dataLocations = query(d1, d2, inputName='/home/spike/repos/TDSlocationGrabber/database', type='waves')
     # # get gauge nodes x/y new idea: put gauges into input/output instance for the model, then we can save it
     gaugelocs = []
@@ -96,22 +97,21 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
     # ____________________________ begin writing model Input ___________________________________________________________
     ww3io.WL = WLpacket['avgWL']
 
-    print('_________________ writing output _________________')
+    print('_________________ writing input files _________________')
     specFname = ww3io.writeWW3_spec(wavepacket)                            # write individual spec file
     ww3io.writeWW3_grid(grid_inbindFname=inputDict['modelSettings']['grid'].split('.')[0]+'.inbnd',
                         spectrumNTH=wavepacket['spec2d'].shape[2], spectrumNK=wavepacket['spec2d'].shape[1]) #
-    # write grid
-    # file
+    # write grid file
     # ww3io.writeWW3_mesh(gridNodes=bathy)                                 # write gmesh file
-    ww3io.write_msh(points=bathy.points, cell_data=ww3io.cell_data)
+    ww3io.writeWW3_mesh(points=bathy.points, cell_data=ww3io.cell_data)
     ww3io.writeWW3_namelist()                                              # will write with defaults with no input args
-    specListFileName = ww3io.writeWW3_speclist(ofname='spec.list', specFiles=specFname)                          #
+    specListFileName = ww3io.writeWW3_speclist(ofname='spec.list', specFiles=specFname)   # write specFile
     # write files used as spectral boundary
     ww3io.writeWW3_bouncfile(specListFilename=specListFileName)                           # write boundary files
     ww3io.writeWW3_shel(d1, d2, windpacket, WLpacket, outputInterval=1800)                # write shel file
-    
-
-    # shutil.copy('grids/ww3/namelists.nml', ww3io.path_prefix)  # should be redundant of ww3io.writeWW3_namelist()
+    ww3io.writeWW3_ounf()                                                                 # process field data file
+    ww3io.writeWW3_ounp()                                                                 # process point data file
+    ww3io.dateString = dateString
     return ww3io
 
 def ww3analyze(startTime, inputDict, ww3io):
@@ -134,14 +134,14 @@ def ww3analyze(startTime, inputDict, ww3io):
     # ___________________define Global Variables___________________________________
     pFlag = inputDict.get('pFlag', True)
     model = inputDict.get('model', 'ww3')
-    version_prefix = inputDict['version_prefix']
+    version_prefix = ww3io.version_prefix
     path_prefix = inputDict.get('path_prefix', "{}".format(version_prefix))
     simulationDuration = inputDict['simulationDuration']
     Thredds_Base = inputDict.get('netCDFdir', '/home/{}/thredds_data/'.format(check_output('whoami', shell=True)[:-1]))
-    server = inputDict.get('THREDDS', 'CHL')
 
     # _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
     # establishing the resolution of the input datetime
+    # try:
     d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     d2 = d1 + DT.timedelta(0, simulationDuration * 3600, 0)
     datestring = d1.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
@@ -162,15 +162,18 @@ def ww3analyze(startTime, inputDict, ww3io):
     ######################################################################################################################
     t = DT.datetime.now()
     print('Loading files ')
-    ww3io.load_msh
-    cio.ReadCMS_ALL(fpath)  # load all files
+    fieldNc = ww3io.readWW3_field()   # load all files
+    pointNc = ww3io.readWW3_point()
+    bathyPacket = ww3io.readWW3_msh(os.path.join(path_prefix, datestring, datestring+'.msh'))
+    print('Loaded files in {:.1f}'.format((DT.datetime.now() - t).total_seconds()/60))
+
+    ######################
     stat_packet = cio.stat_packet  # unpack dictionaries from class instance
     obse_packet = cio.obse_Packet
     dep_pack = cio.dep_Packet
     dep_pack['bathy'] = np.expand_dims(dep_pack['bathy'], axis=0)
     # convert dep_pack to proper dep pack with keys
     wave_pack = cio.wave_Packet
-    print('Loaded files in {:.1f}'.format((DT.datetime.now() - t).total_seconds()/60))
     # correct model outout angles from STWAVE(+CCW) to Geospatial (+CW)
     stat_packet['WaveDm'] = testbedutils.anglesLib.STWangle2geo(stat_packet['WaveDm'])
     # correct angles

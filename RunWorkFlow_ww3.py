@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import os, getopt, sys, shutil, glob, logging, yaml, re, pickle
 import datetime as DT
 from subprocess import check_output
@@ -30,7 +30,6 @@ def Master_ww3_run(inputDict):
     analyzeFlag = inputDict['analyzeFlag']
     pFlag = inputDict['plotFlag']
     model = inputDict.get('model', 'ww3')
-    server = inputDict.get('THREDDS', 'CHL')
 
     # __________________pre-processing checks________________________________
     fileHandling.checkVersionPrefix(model, inputDict)
@@ -45,8 +44,12 @@ def Master_ww3_run(inputDict):
     # auto generated Log file using start_end time?
     LOG_FILENAME = fileHandling.logFileLogic(workingDirectory, version_prefix, startTime, endTime, log=False)
     # __________________get time list to loop over________________________________
-    projectEnd = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ')
-    projectStart = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
+    try:
+        projectEnd = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ')
+        projectStart = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
+    except TypeError:  # if input date was parsed as datetime
+        projectEnd = endTime
+        projectStart = startTime
     # This is the portion that creates a list of simulation end times
     dt_DT = DT.timedelta(0, simulationDuration * 60 * 60)  # timestep in datetime
     # make List of Datestring items, for simulations
@@ -58,10 +61,11 @@ def Master_ww3_run(inputDict):
     fileHandling.displayStartInfo(projectStart, projectEnd, version_prefix, LOG_FILENAME, model)
 
     # ______________________________gather all data _____________________________
-    go = getObs(projectStart, projectEnd)  # initialize get observation
-    rawspec = go.getWaveSpec(gaugenumber='waverider-26m', specOnly=True)
-    rawWL = go.getWL()
-    rawwind = go.getWind(gaugenumber=0)
+    if generateFlag == True:
+        go = getObs(projectStart, projectEnd)  # initialize get observation
+        rawspec = go.getWaveSpec(gaugenumber='waverider-26m', specOnly=True)
+        rawWL = go.getWL()
+        rawwind = go.getWind(gaugenumber=0)
 
     # ________________________________________________ RUN LOOP ________________________________________________
     # run the process through each of the above dates
@@ -69,16 +73,18 @@ def Master_ww3_run(inputDict):
     for time in dateStringList:
         try:
             print('Beginning Simulation {}'.format(DT.datetime.now()))
+            timeStamp = ''.join(time.split(':'))
+            datadir = os.path.join(workingDirectory, timeStamp)  # moving to the new simulation's
+            pickleSaveName = os.path.join(datadir, timeStamp + '_ww3io.pickle')
 
             if generateFlag == True:
-                ww3io = frontBackWW3.ww3simSetup(time, inputDict=inputDict,
-                                                 allWind=rawwind, allWL=rawWL, allWave=rawspec)
-                datadir = os.path.join(workingDirectory, ''.join(time.split(':')))  # moving to the new simulation's
-                                                                                     # folder
-                pickleSaveName = os.path.join(ww3io.path_prefix + '_ww3io.pickle')
+                ww3io = frontBackWW3.ww3simSetup(time, inputDict=inputDict, allWind=rawwind, allWL=rawWL,
+                                                 allWave=rawspec)
 
             if runFlag == True:    # run model
                 os.chdir(datadir)  # changing locations to where input files should be made
+                
+                # run preprocessing scripts and simultaion
                 dt = DT.datetime.now()
                 print('Running {} Simulation starting at {}'.format(model, dt))
                 runString1 = os.path.join(codeDir ,'{}/ww3_grid'.format(inputDict['modelExecutable']))
@@ -89,6 +95,14 @@ def Master_ww3_run(inputDict):
                 _ = check_output(runString3, shell=True)
                 ww3io.simulationWallTime = DT.datetime.now() - dt
                 print('Simulation took {:.1f} minutes'.format(ww3io.simulationWallTime.total_seconds()/60))
+                
+                # post process output data
+                dt = DT.datetime.now()
+                runString3 = os.path.join(codeDir, '{}/ww3_ounf'.format(inputDict['modelExecutable']))
+                _ = check_output(runString3, shell=True)
+                runString3 = os.path.join(codeDir, '{}/ww3_ounp'.format(inputDict['modelExecutable']))
+                _ = check_output(runString3, shell=True)
+                print('Simulation took {:.1f} minutes'.format((DT.datetime.now() - dt).total_seconds()/60))
                 os.chdir(curdir)
                 with open(pickleSaveName, 'wb') as fid:
                     pickle.dump(ww3io, fid, protocol=pickle.HIGHEST_PROTOCOL)
@@ -103,6 +117,7 @@ def Master_ww3_run(inputDict):
                         continue
                 frontBackWW3.ww3analyze(time, inputDict=inputDict, ww3io=ww3io)
 
+            # if it's a live run, move the plots to the output directory
             if pFlag == True and DT.date.today() == projectEnd:
                 # move files
                 moveFnames = glob.glob(curdir + 'cmtb*.png')
@@ -125,8 +140,7 @@ if __name__ == "__main__":
     opts, args = getopt.getopt(sys.argv[1:], "h", ["help"])
     print('___________________\n________________\n___________________\n________________\n___________________\n________________\n')
     print('USACE FRF Coastal Model Test Bed : {}'.format(model))
-    # we are no longer allowing a default yaml file.
-    # It will throw and error and tell the user where to go look for the example yaml
+
     try:
         # assume the user gave the path
         yamlLoc = args[0]
@@ -138,6 +152,6 @@ if __name__ == "__main__":
         inputDict.update(a)
         
     except:
-        raise IOError('Input YAML file required.  See yaml_files/TestBedExampleInputs/{}_Input_example for example yaml file.'.format(model))
+        raise IOError('Input YAML file required. See yaml_files/TestBedExampleInputs/{}_Input_example for example yaml file.'.format(model))
 
     Master_ww3_run(inputDict=inputDict)

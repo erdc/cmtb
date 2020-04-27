@@ -8,7 +8,6 @@ import numpy as np
 from frontback.frontBackSWASH import SwashSimSetup
 from frontback.frontBackSWASH import SwashAnalyze
 
-
 def Master_SWASH_run(inputDict):
     """This function will run CMS with any version prefix given start, end, and timestep
 

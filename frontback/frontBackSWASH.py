@@ -12,7 +12,6 @@ import os, glob, makenc, pickle, tarfile
 import netCDF4 as nc
 import numpy as np
 from prepdata import prepDataLib as STPD
-from prepdata.inputOutput import SWASHio
 from getdatatestbed import getDataFRF
 import plotting.operationalPlots as oP
 from testbedutils import sblib as sb
@@ -220,10 +219,6 @@ def SwashAnalyze(startTime, inputDict, swio):
     plt.xlabel('simulation time(s)')
     plt.savefig(ofname)
     plt.close()
-
-Warning
-
-
 
     # ################################
     #        Make NETCDF files       #
