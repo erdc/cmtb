@@ -66,9 +66,9 @@ def SwashSimSetup(startTime, inputDict):
     print("OPERATIONAL files will be place in {} folder".format(os.path.join(path_prefix, date_str)))
     # ______________________________________________________________________________
     # begin model data gathering
-    go = getObs(d1, d2, THREDDS=server)                  # initialize get observation class
+    go = getObs(d1, d2)                  # initialize get observation class
     prepdata = STPD.PrepDataTools()                      # for preprocessing
-    gdTB = getDataTestBed(d1, d2, THREDDS=server)        # for bathy data gathering
+    gdTB = getDataTestBed(d1, d2)        # for bathy data gathering
     # _____________WAVES____________________________
     print('_________________\nGetting Wave Data')
     rawspec = go.getWaveSpec(gaugenumber= '8m-array')
@@ -80,17 +80,6 @@ def SwashSimSetup(startTime, inputDict):
         raise NotImplementedError('pre-process TS data ')
     # _____________WINDS______________________
     print('_________________\nSkipping Wind')
-    # try:
-    #     rawwind = go.getWind(gaugenumber=0)
-    #     # average and rotate winds
-    #     windpacket = prepdata.prep_wind(rawwind, wavepacket['epochtime'])
-    #     # wind height correction
-    #     print('number of wind records %d with %d interpolated points' % (
-    #         np.size(windpacket['time']), sum(windpacket['flag'])))
-    # except (RuntimeError, TypeError):
-    #     windpacket = None
-    #     print(' NO WIND ON RECORD')
-
     ## ___________WATER LEVEL__________________
     print('_________________\nGetting Water Level Data')
     try:
