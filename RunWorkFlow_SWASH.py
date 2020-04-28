@@ -7,7 +7,7 @@ from subprocess import check_output
 import numpy as np
 from frontback.frontBackSWASH import SwashSimSetup
 from frontback.frontBackSWASH import SwashAnalyze
-
+from testbedutils import fileHandling
 
 def Master_SWASH_run(inputDict):
     """This function will run CMS with any version prefix given start, end, and timestep
@@ -31,7 +31,7 @@ def Master_SWASH_run(inputDict):
     pFlag = inputDict['pFlag']
     model = inputDict.get('modelName', 'SWASH').lower()
     inputDict['path_prefix'] = os.path.join(workingDir, model, version_prefix)
-    outDataBase = inputDict['path_prefix']
+    path_prefix = inputDict['path_prefix']
     # data check
     prefixList = np.array(['base', 'ts'])
     assert (version_prefix.lower() == prefixList).any(), "Please enter a valid version prefix\n Prefix assigned = %s must be in List %s" % (version_prefix, prefixList)
@@ -45,7 +45,7 @@ def Master_SWASH_run(inputDict):
 
     # ______________________ Logging  ____________________________
     # auto generated Log file using start_end timeSegment
-    LOG_FILENAME = os.path.join(outDataBase,'logs/{}_BatchRun_Log_{}_{}_{}.log'.format(model,version_prefix, startTime, endTime))
+    LOG_FILENAME = os.path.join(path_prefix,'logs/{}_BatchRun_Log_{}_{}_{}.log'.format(model,version_prefix, startTime, endTime))
     # try:
     #     logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
     # except IOError:
@@ -80,11 +80,13 @@ def Master_SWASH_run(inputDict):
     print('Check for simulation errors here {}'.format(LOG_FILENAME))
     print('------------------------------------\n\n************************************\n\n------------------------------------\n\n')
 
+
     # ________________________________________________ RUN LOOP ________________________________________________
     for timeSegment in dateStringList:
+        fileHandling.makeCMTBfileStructure(path_prefix=path_prefix, date_str=timeSegment)
         try:
             timeStamp = ''.join(timeSegment.split(':'))
-            datadir = os.path.join(outDataBase, timeStamp)  # moving to the new simulation's folder
+            datadir = os.path.join(path_prefix, timeStamp)  # moving to the new simulation's folder
             pickleSaveFname = os.path.join(datadir, timeStamp + '_io.pickle')
             if generateFlag == True:
                 SWIO = SwashSimSetup(timeSegment, inputDict=inputDict)

@@ -151,10 +151,8 @@ def SwashAnalyze(startTime, inputDict, swio):
 
     print('\nBeggining of Analyze Script\nLooking for file in ' + fpath)
     print('\nData Start: %s  Finish: %s' % (d1, d2))
-    go = getDataFRF.getObs(d1, d2, server)  # setting up get data instance
+    go = getDataFRF.getObs(d1, d2)  # setting up get data instance
     prepdata = STPD.PrepDataTools()         # initializing instance for rotation scheme
-    swio = swio                             # initializing read/write class as passed (has previous info from setup)
-    nprocessors = multiprocessing.cpu_count()/2                      # process plots with 4 processors
     SeaSwellCutoff = 0.05
     nSubSample = 5                          # data are output at high rate, how often do we want to plot
 
@@ -163,12 +161,9 @@ def SwashAnalyze(startTime, inputDict, swio):
     ##################################   Load Data Here / Massage Data Here   ############################################
     ######################################################################################################################
     ######################################################################################################################
-
     matfile = os.path.join(fpath, ''.join(swio.ofileNameBase.split('-'))+'.mat')
-
     print('Loading files ')
     simData, simMeta = swio.loadSwash_Mat(fname=matfile)  # load all files
-
     ######################################################################################################################
     #################################   obtain total water level   #######################################################
     ######################################################################################################################
@@ -233,7 +228,9 @@ def SwashAnalyze(startTime, inputDict, swio):
                                              simData['xFRF'])
             dataOut.append(ofPlotName)
         ############### make TS plot in parallel -- has bugs   #########################################################
-        # pool = multiprocessing.Pool(nprocessors)  # open multiprocessing pool
+        #nprocessors = multiprocessing.cpu_count()/2                  # process plots with half the number on the
+        # machine
+        # pool = multiprocessing.Pool(nprocessors)                   # open multiprocessing pool
         # _ = pool.map(parallel_generateCrossShoreTimeSeries, range(0, len(simData['time']), nSubSample))
         # pool.close()
         #
