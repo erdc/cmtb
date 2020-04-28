@@ -18,7 +18,7 @@ modelExecutable: /home/spike/cmtb/bin/stwave_p      # path to the model         
 # path stuff           #
 ########################
 # this is the directory where simulation files and QA/QC plots are made and existing architecture takes over
-workingDirectory: /home/spike/cmtb/data/STWAVE/                                    # REQUIRED
+workingDirectory: /home/spike/cmtb/data/waveModels/STWAVE/                                    # REQUIRED
 # this is the base directory where netCDF files are output to
 netCDFdir: /home/spike/cmtb/thredds_data                                   #
 #########################

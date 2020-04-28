@@ -17,6 +17,7 @@ from getdatatestbed import getDataFRF
 import plotting.operationalPlots as oP
 from testbedutils import sblib as sb
 from testbedutils import waveLib as sbwave
+from testbedutils import fileHandling
 from plotting.operationalPlots import obs_V_mod_TS
 from testbedutils import geoprocess as gp
 import multiprocessing
@@ -35,9 +36,9 @@ def SwashSimSetup(startTime, inputDict):
 
     """
     # begin by setting up input parameters
+    model = inputDict['modelSettings'].get('model')
     timerun = inputDict.get('simulationDuration', 1)
-    pFlag = inputDict.get('pFlag', True)
-    server = inputDict.get('THREDDS', 'CHL')
+    plotFlag = inputDict.get('plotFlag', True)
     # this raises error if not present (intended)
     version_prefix = inputDict['version_prefix'].lower()
     path_prefix = inputDict['path_prefix']  # data super directory
@@ -47,14 +48,13 @@ def SwashSimSetup(startTime, inputDict):
     assert version_prefix.lower() in versionlist, 'Please check your version Prefix'
     # here is where we set something that would handle 3D mode or time series mode,
     # might set flags for preprocessing below
+    fileHandling.checkVersionPrefix(model=model, inputDict=inputDict)
     # _______________________________________________________________________________
     # set times
     d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
     date_str = d1.strftime('%Y-%m-%dT%H%M%SZ')  # used to be end time
-
-    if isinstance(timerun, str):
-        timerun = int(timerun)
+    timerun = str(timerun)
 
     # __________________Make Working Data Directories_____________________________________________
     if not os.path.exists(os.path.join(path_prefix, date_str)):  # if it doesn't exist
@@ -131,8 +131,8 @@ def SwashAnalyze(startTime, inputDict, swio):
     print("check docstrings for Analyze and preprocess")
     # ___________________define Global Variables__________________________________
 
-    pFlag = inputDict.get('pFlag', True)
-    version_prefix = inputDict['version_prefix'].lower()
+    plotFlag = inputDict.get('plotFlag', True)
+    version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
     Thredds_Base = inputDict.get('netCDFdir', '/thredds_data')
     server = inputDict.get('THREDDS', 'CHL')
     # the below should error if not included in input Dict
@@ -210,7 +210,7 @@ def SwashAnalyze(startTime, inputDict, swio):
     #############################################################################################################
     setup = np.mean(simData['eta'], axis=0).squeeze()
     WL = simMeta['WL'] #added in editing, should possibly be changed?
-    if pFlag == True:
+    if plotFlag == True:
         from plotting import operationalPlots as oP
         ## remove images before making them if reprocessing
         imgList = glob.glob(os.path.join(path_prefix, datestring, 'figures', '*.png'))

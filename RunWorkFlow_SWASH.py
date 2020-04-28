@@ -20,7 +20,7 @@ def Master_SWASH_run(inputDict):
 
     """
     ## unpack Dictionary
-    version_prefix = inputDict['version_prefix'].lower()
+    version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
     endTime = inputDict['endTime']
     startTime = inputDict['startTime']
     simulationDuration = inputDict['simulationDuration']
@@ -28,7 +28,7 @@ def Master_SWASH_run(inputDict):
     generateFlag = inputDict['generateFlag']
     runFlag = inputDict['runFlag']
     analyzeFlag = inputDict['analyzeFlag']
-    pFlag = inputDict['pFlag']
+    plotFlag = inputDict['plotFlag']
     model = inputDict.get('modelName', 'SWASH').lower()
     inputDict['path_prefix'] = os.path.join(workingDir, model, version_prefix)
     path_prefix = inputDict['path_prefix']
@@ -111,7 +111,7 @@ def Master_SWASH_run(inputDict):
                 SWIO.path_prefix = os.path.join(workingDir, model, version_prefix, timeStamp)
                 SwashAnalyze(timeSegment, inputDict, SWIO)
 
-            if pFlag is True and DT.date.today() == projectEnd:
+            if plotFlag is True and DT.date.today() == projectEnd:
                 print('  TODO tar simulation files after generating netCDF')
                 # move files
                 moveFnames = glob.glob(curdir + 'cmtb*.png')

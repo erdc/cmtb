@@ -1,28 +1,27 @@
 # # # # # # # # # # # #
 # Data control        #
 # # # # # # # # # # # #
-THREDDS: CHL                                # CHL or FRF                    OPTIONAL: defaults to FRF
+pFlag: True                            # turn plotting on
+generateFlag: True                     # generate simulation input files (go get data, process, and write files)
+runFlag: True                          # run the simulation
+analyzeFlag: True                      # post process simulations (read files, post process data, make netCDF files, plot if desired)
 bathyLoc: integrated_bathy                  # bathymetry source.  OPTIONAL: defaults to FRF
-modelName: SWASH
 ########################
 #simulations parameters#
 ########################
 startTime: '2015-10-05T00:00:00Z'           # project start time
 endTime:   '2015-10-05T04:00:00Z'           # project End time
 simulationDuration: 1                       # duration in hours how frequently to get new data, size of individual simulations
-version_prefix: Base                        # controls switched with int the code
+modelExecutable: /home/spike/repos/cmtb/bin/swash   # path to the model    REQUIRED# this is the directory where simulation files and QA/QC plots are made and existing architecture takes over
 ########################
 # path stuff           #
 ########################
-modelExecutable: /home/spike/repos/cmtb/bin/swash   # path to the model    REQUIRED# this is the directory where simulation files and QA/QC plots are made and existing architecture takes over
+modelSettings:
+  model: swash
+  version_prefix: Base                        # controls switched with int the code
+  grid: None
+
+# this is the sim files, and plots
 workingDirectory: data/waveModels                                  # REQUIRED usually [cmtbRoot]/data/waveModels
 # this is the base directory where netCDF files are output to,
 netCDFdir: /home/spike/thredds_data/waveModels                             #optional will default to home/[whoami]/thredds_data -- this needs /
-#########################
-# testbed run control   #
-#########################
-# these are flags to control how the simulations are started and run
-pFlag: True                            # turn plotting on
-generateFlag: True                     # generate simulation input files (go get data, process, and write files)
-runFlag: True                          # run the simulation
-analyzeFlag: True                      # post process simulations (read files, post process data, make netCDF files, plot if desired)
