@@ -10,7 +10,7 @@ from getdatatestbed.getDataFRF import getObs
 from testbedutils import fileHandling
 
 def Master_ww3_run(inputDict):
-    """This function will run CMS with any version prefix given start, end, and timestep
+    """This function will run CMS with any version prefix given start, end, and timestep.
 
     Args:
       inputDict: a dictionary that is read from the input yaml
@@ -24,12 +24,13 @@ def Master_ww3_run(inputDict):
     endTime = inputDict['endTime']
     startTime = inputDict['startTime']
     simulationDuration = inputDict['simulationDuration']
-    workingDir = inputDict['workingDirectory']
+    workingDir = os.path.join(inputDict['workingDirectory'], 'waveModels')
     generateFlag = inputDict['generateFlag']
     runFlag = inputDict['runFlag']
     analyzeFlag = inputDict['analyzeFlag']
     pFlag = inputDict['plotFlag']
     model = inputDict.get('model', 'ww3')
+    log = inputDict.get('logging', True)
 
     # __________________pre-processing checks________________________________
     fileHandling.checkVersionPrefix(model, inputDict)
@@ -39,10 +40,11 @@ def Master_ww3_run(inputDict):
     if inputDict['modelExecutable'].startswith(codeDir):  # change to relative path
         inputDict['modelExecutable'] = re.sub(codeDir, '', inputDict['modelExecutable'])
     workingDirectory = os.path.join(workingDir, model.lower(), version_prefix)
+    inputDict['netCDFdir'] = os.path.join(inputDict['netCDFdir'], 'waveModels')
     inputDict['path_prefix'] = workingDirectory
     # ______________________ Logging  ____________________________
     # auto generated Log file using start_end time?
-    LOG_FILENAME = fileHandling.logFileLogic(workingDirectory, version_prefix, startTime, endTime, log=False)
+    LOG_FILENAME = fileHandling.logFileLogic(workingDirectory, version_prefix, startTime, endTime, log=log)
     # __________________get time list to loop over________________________________
     try:
         projectEnd = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ')
@@ -59,7 +61,6 @@ def Master_ww3_run(inputDict):
         dateStartList.append(dateStartList[-1] + dt_DT)
         dateStringList.append(dateStartList[-1].strftime("%Y-%m-%dT%H:%M:%SZ"))
     fileHandling.displayStartInfo(projectStart, projectEnd, version_prefix, LOG_FILENAME, model)
-
     # ______________________________gather all data _____________________________
     if generateFlag == True:
         go = getObs(projectStart, projectEnd)  # initialize get observation
@@ -71,15 +72,15 @@ def Master_ww3_run(inputDict):
     # run the process through each of the above dates
     errors, errorDates, curdir = [], [], os.getcwd()
     for time in dateStringList:
+        print('Beginning Simulation {}'.format(DT.datetime.now()))
         try:
-            print('Beginning Simulation {}'.format(DT.datetime.now()))
             timeStamp = ''.join(time.split(':'))
             datadir = os.path.join(workingDirectory, timeStamp)  # moving to the new simulation's
             pickleSaveName = os.path.join(datadir, timeStamp + '_ww3io.pickle')
-
             if generateFlag == True:
                 ww3io = frontBackWW3.ww3simSetup(time, inputDict=inputDict, allWind=rawwind, allWL=rawWL,
                                                  allWave=rawspec)
+                
 
             if runFlag == True:    # run model
                 os.chdir(datadir)  # changing locations to where input files should be made

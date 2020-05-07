@@ -37,7 +37,7 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
     plotFlag = inputDict.get('plotFlag', True)
     version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
     model = inputDict['modelSettings'].get('model', 'ww3').lower()
-    path_prefix = inputDict.get('path_prefix').lower()
+    path_prefix = inputDict.get('path_prefix')
     rawspec = allWave
     rawwind = allWind
     rawWL = allWL
@@ -75,7 +75,7 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
 
     # ____________ BATHY   _____________________________________________
     bathy = gdTB.getBathyIntegratedTransect(method=1)
-    _ = ww3io.load_msh(inputDict['modelSettings']['grid'])
+    _ = ww3io.readWW3_msh(inputDict['modelSettings']['grid'])
     gridNodes = sb.Bunch({'points':ww3io.points})              # we will remove this when meshio is working as expected
     
     if plotFlag: bathyPlotFname = os.path.join(path_prefix, dateString, 'figures', dateString+'_bathy.png');
@@ -99,11 +99,13 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
 
     print('_________________ writing input files _________________')
     specFname = ww3io.writeWW3_spec(wavepacket)                            # write individual spec file
-    ww3io.writeWW3_grid(grid_inbindFname=inputDict['modelSettings']['grid'].split('.')[0]+'.inbnd',
-                        spectrumNTH=wavepacket['spec2d'].shape[2], spectrumNK=wavepacket['spec2d'].shape[1]) #
     # write grid file
-    # ww3io.writeWW3_mesh(gridNodes=bathy)                                 # write gmesh file
-    ww3io.writeWW3_mesh(points=bathy.points, cell_data=ww3io.cell_data)
+    ww3io.writeWW3_grid(grid_inbindFname=inputDict['modelSettings']['grid'].split('.')[0]+'.inbnd',
+                        spectrumNTH=wavepacket['spec2d'].shape[2], spectrumNK=wavepacket['spec2d'].shape[1])
+    # write mesh file
+    # ww3io.writeWW3_mesh(gridNodes=bathy)                                 # write gmesh file using gmsh library
+    ww3io.write_msh(points=bathy.points, cell_data=ww3io.cell_data)        # write gmesh using manual function
+    # write name list file -- shouldn't change
     ww3io.writeWW3_namelist()                                              # will write with defaults with no input args
     specListFileName = ww3io.writeWW3_speclist(ofname='spec.list', specFiles=specFname)   # write specFile
     # write files used as spectral boundary
@@ -132,10 +134,10 @@ def ww3analyze(startTime, inputDict, ww3io):
 
     """
     # ___________________define Global Variables___________________________________
-    pFlag = inputDict.get('pFlag', True)
+    plotFlag = inputDict.get('plotFlag', True)
     model = inputDict.get('model', 'ww3')
     version_prefix = ww3io.version_prefix
-    path_prefix = inputDict.get('path_prefix', "{}".format(version_prefix))
+    path_prefix = inputDict.get(os.path.join('path_prefix', "{}".format(version_prefix)), ww3io.path_prefix)
     simulationDuration = inputDict['simulationDuration']
     Thredds_Base = inputDict.get('netCDFdir', '/home/{}/thredds_data/'.format(check_output('whoami', shell=True)[:-1]))
 
@@ -145,12 +147,12 @@ def ww3analyze(startTime, inputDict, ww3io):
     d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     d2 = d1 + DT.timedelta(0, simulationDuration * 3600, 0)
     datestring = d1.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
-    fpath = os.path.join(path_prefix, datestring)
+    simulationDirectory = os.path.join(path_prefix, datestring)
     # ____________________________________________________________________________
     if version_prefix == 'base':
         full = True   # define full plane
     # _____________________________________________________________________________
-    print('\nBeginning of Analyze Script\nLooking for file in {}'.format(fpath))
+    print('\nBeginning of Analyze Script\nLooking for file in {}'.format(simulationDirectory))
     print('\nData Start: {}  Finish: {}'.format(d1, d2))
     print('Analyzing simulation')
     # go = getDataFRF.getObs(d1, d2, server)  # setting up get data instance
@@ -162,27 +164,61 @@ def ww3analyze(startTime, inputDict, ww3io):
     ######################################################################################################################
     t = DT.datetime.now()
     print('Loading files ')
-    fieldNc = ww3io.readWW3_field()   # load all files
+    savePointFname = os.path.join(ww3io.path_prefix, "ww3.{}_spec.nc".format(DT.datetime.strptime(ww3io.dateString,
+                                                                                                  '%Y-%m-%dT%H%M%SZ').strftime('%Y%m')))
+    ##### point file processing
+    pointNc = nc.Dataset(savePointFname)
+    idxSorted = np.argsort(pointNc['direction'][:])
+    dWEDout = pointNc['efth'][:, :, :, idxSorted]
+    # for station in pointNc['station']
+    
+    
+    fieldNc = ww3io.readWW3_field()                                                              # load all files
     pointNc = ww3io.readWW3_point()
-    bathyPacket = ww3io.readWW3_msh(os.path.join(path_prefix, datestring, datestring+'.msh'))
-    print('Loaded files in {:.1f}'.format((DT.datetime.now() - t).total_seconds()/60))
+    bathyPacket = ww3io.readWW3_msh()
+    print('Loaded files in {:.2f} seconds'.format((DT.datetime.now() - t).total_seconds()/60))
 
     ######################
-    stat_packet = cio.stat_packet  # unpack dictionaries from class instance
-    obse_packet = cio.obse_Packet
-    dep_pack = cio.dep_Packet
-    dep_pack['bathy'] = np.expand_dims(dep_pack['bathy'], axis=0)
-    # convert dep_pack to proper dep pack with keys
-    wave_pack = cio.wave_Packet
-    # correct model outout angles from STWAVE(+CCW) to Geospatial (+CW)
-    stat_packet['WaveDm'] = testbedutils.anglesLib.STWangle2geo(stat_packet['WaveDm'])
-    # correct angles
-    stat_packet['WaveDm'] = testbedutils.anglesLib.angle_correct(stat_packet['WaveDm'])
+    #inputs
+    globalyaml_fname = "yaml_files/waveModels/ww3/base/point_globalmeta.yml"
+    ################ function
+    # global metaData to write
+    pointNc
 
-    obse_packet['ncSpec'] = np.ones(
-        (obse_packet['spec'].shape[0], obse_packet['spec'].shape[1], obse_packet['spec'].shape[2], 72)) * 1e-6
-    # interp = np.ones((obse_packet['spec'].shape[0], obse_packet['spec'].shape[1], wavefreqbin.shape[0],
-    #                   obse_packet['spec'].shape[3])) * 1e-6  ### TO DO marked for removal
+    
+    ncfile = nc.Dataset(ofname, 'w')
+    ncfile.createDimension('time', len(data['time']))
+    ncfile.createDimension('station', 1)
+    ncfile.createDimension('frequency', len(data['wavefreqbin']))
+    ncfile.createDimension('direction', len(data['wavedirbin']))
+    ncfile.createDimension('string16', 16)
+
+    dataset = ncfile.createVariable('time', 'f8', ('time',))
+    dataset[:] = nc.date2num(data['time'], 'days since 1990-01-01')
+    setattr(dataset, 'units', 'days since 1990-01-01 00:00:00')
+    setattr(dataset, 'calendar', 'gregorian')
+
+    dataset = ncfile.createVariable('frequency', 'f8', ('frequency',))
+    dataset[:] = data['wavefreqbin']
+    dataset = ncfile.createVariable('direction', 'f8', ('direction',))
+    dataset[:] = data['wavedirbin']
+    dataset = ncfile.createVariable('efth', 'f8', ('time', 'station', 'frequency', 'direction',))
+    # dataset[:] = efth2*180.0*np.pi
+    dataset[:] = np.expand_dims(data['spec2d'], axis=1)
+
+    dataset = ncfile.createVariable('station_name', 'S1', ('string16',))
+    dataset[:] = nc.stringtochar(np.array(['wave            '], 'S16'))
+    dataset = ncfile.createVariable('longitude', 'f4')
+    dataset[:] = data['lon']
+    dataset = ncfile.createVariable('latitude', 'f4')
+    dataset[:] = data['lat']
+    dataset = ncfile.createVariable('x', 'f4')
+    dataset[:] = data['xFRF']
+    dataset = ncfile.createVariable('y', 'f4')
+    dataset[:] = data['yFRF']
+    ncfile.close()
+    pointNc = prepdata.postProcessWW3pointNc(pointNC)
+    makenc.writeWW3Nc
     for station in range(0, np.size(obse_packet['spec'], axis=1)):
         # for dir_ocean in range(0, np.size(obse_packet['spec'], axis=0)):  # interp back to 62 frequencies
         #         f = interpolate.interp2d(obse_packet['wavefreqbin'], obse_packet['directions'],
@@ -236,19 +272,18 @@ def ww3analyze(startTime, inputDict, ww3io):
                'grid_azimuth': gridPack['azimuth']
                }
 
-    TdsFldrBase = os.path.join(Thredds_Base, fldrArch)
-    NCpath = sb.makeNCdir(Thredds_Base, os.path.join(version_prefix, 'Field'), datestring, model=model)
-    # make the name of this nc file
-    NCname = 'CMTB-waveModels_{}_{}_Field_{}.nc'.format(model, version_prefix, datestring)
-    fieldOfname = os.path.join(NCpath,
-                               NCname)  # TdsFldrBase + '/CMTB-waveModels_CMS_{}_Local-Field_%s.nc'.format(version_prefix, datestring)
-
-    if not os.path.exists(TdsFldrBase):
-        os.makedirs(TdsFldrBase)  # make the directory for the thredds data output
-    if not os.path.exists(os.path.join(TdsFldrBase, 'Field', 'Field.ncml')):
-        inputOutput.makencml(os.path.join(TdsFldrBase, 'Field', 'Field.ncml'))  # remake the ncml if its not there
+    # TdsFldrBase = os.path.join(Thredds_Base, fldrArch)
+    # NCpath = sb.makeNCdir(Thredds_Base, os.path.join(version_prefix, 'Field'), datestring, model=model)
+    # # make the name of this nc file
+    # NCname = 'CMTB-waveModels_{}_{}_Field_{}.nc'.format(model, version_prefix, datestring)
+    fieldOfname = fileHandling.makeTDSfileStructure(Thredds_Base, fldrArch, datestring, 'Field')
+    #
+    # if not os.path.exists(TdsFldrBase):
+    #     os.makedirs(TdsFldrBase)  # make the directory for the thredds data output
+    # if not os.path.exists(os.path.join(TdsFldrBase, 'Field', 'Field.ncml')):
+    #     inputOutput.makencml(os.path.join(TdsFldrBase, 'Field', 'Field.ncml'))  # remake the ncml if its not there
     # make file name strings
-    flagfname = os.path.join(fpath, 'Flags{}.out.txt'.format(datestring))  # startTime # the name of flag file
+    flagfname = os.path.join(simulationDirectory, 'Flags{}.out.txt'.format(datestring))  # startTime # the name of flag file
     fieldYaml = 'yaml_files/waveModels/%s/Field_globalmeta.yml' % (fldrArch)  # field
     varYaml = 'yaml_files/waveModels/%s/Field_var.yml' % (fldrArch)
     assert os.path.isfile(fieldYaml), 'NetCDF yaml files are not created'  # make sure yaml file is in place
@@ -259,7 +294,7 @@ def ww3analyze(startTime, inputDict, ww3io):
     ###################################################################################################################
     dep_pack['bathy'] = np.transpose(dep_pack['bathy'], (0, 2, 1))  # dims [t, y, x]
     plotParams = [('waveHs', '$m$'), ('bathymetry', 'NAVD88 $[m]$'), ('waveTp', '$s$'), ('waveDm', '$degTn$')]
-    if pFlag == True:
+    if plotFlag == True:
         for param in plotParams:
             print('    plotting %s...' % param[0])
             spatialPlotPack = {'title': 'Regional Grid: %s' % param[0],
@@ -272,12 +307,12 @@ def ww3analyze(startTime, inputDict, ww3io):
                                'time': nc.num2date(spatial['time'], 'seconds since 1970-01-01')}
             fnameSuffix = 'figures/CMTB_CMS_%s_%s' % (version_prefix, param[0])
             if param[0] == 'waveHs':
-                oP.plotSpatialFieldData(dep_pack, spatialPlotPack, os.path.join(fpath, fnameSuffix), nested=0, directions=spatial['waveDm'])
+                oP.plotSpatialFieldData(dep_pack, spatialPlotPack, os.path.join(simulationDirectory, fnameSuffix), nested=0, directions=spatial['waveDm'])
             else:
-                oP.plotSpatialFieldData(dep_pack, spatialPlotPack, os.path.join(fpath, fnameSuffix), nested=0)
+                oP.plotSpatialFieldData(dep_pack, spatialPlotPack, os.path.join(simulationDirectory, fnameSuffix), nested=0)
             # now make a gif for each one, then delete pictures
-            fList = sorted(glob.glob(fpath + '/figures/*%s*.png' % param[0]))
-            sb.makegif(fList, fpath + '/figures/CMTB_%s_%s_%s.gif' % (version_prefix, param[0], datestring))
+            fList = sorted(glob.glob(simulationDirectory + '/figures/*%s*.png' % param[0]))
+            sb.makegif(fList, simulationDirectory + '/figures/CMTB_%s_%s_%s.gif' % (version_prefix, param[0], datestring))
             [os.remove(ff) for ff in fList]
 
     ######################################################################################################################
@@ -299,7 +334,7 @@ def ww3analyze(startTime, inputDict, ww3io):
         # Idx_i = len(gridPack['i']) - np.argwhere(gridPack['i'] == stat_packet['iStation'][
         #     gg]).squeeze() - 1  # to invert the coordinates from offshore 0 to onshore 0
         # Idx_j = np.argwhere(gridPack['j'] == stat_packet['jStation'][gg]).squeeze()
-        if pFlag == True:
+        if plotFlag == True:
             w = go.getWaveSpec(station)  # go get all data
         else:
             w = go.getWaveGaugeLoc(station)
@@ -335,17 +370,19 @@ def ww3analyze(startTime, inputDict, ww3io):
             stat_data['Longitude'] = w['lon']
         # Name files and make sure server directory has place for files to go
         print('making netCDF for model output at %s ' % station)
-        TdsFldrBase = os.path.join(Thredds_Base, fldrArch, station)
+        outFileName = fileHandling.makeTDSfileStructure(Thredds_Base, fldrArch, datestring, 'Field')
 
-        NCpath = sb.makeNCdir(Thredds_Base, os.path.join(version_prefix, station), datestring, model='CMS')
-        # make the name of this nc file
-        NCname = 'CMTB-waveModels_{}_{}_{}_{}.nc'.format(model, version_prefix, station, datestring)
-        outFileName = os.path.join(NCpath, NCname)
-
-        if not os.path.exists(TdsFldrBase):
-            os.makedirs(TdsFldrBase)  # make the directory for the file/ncml to go into
-        if not os.path.exists(os.path.join(TdsFldrBase, station + '.ncml')):
-            inputOutput.makencml(os.path.join(TdsFldrBase, station + '.ncml'))
+        # TdsFldrBase = os.path.join(Thredds_Base, fldrArch, station)
+        #
+        # NCpath = sb.makeNCdir(Thredds_Base, os.path.join(version_prefix, station), datestring, model='CMS')
+        # # make the name of this nc file
+        # NCname = 'CMTB-waveModels_{}_{}_{}_{}.nc'.format(model, version_prefix, station, datestring)
+        # outFileName = os.path.join(NCpath, NCname)
+        #
+        # if not os.path.exists(TdsFldrBase):
+        #     os.makedirs(TdsFldrBase)  # make the directory for the file/ncml to go into
+        # if not os.path.exists(os.path.join(TdsFldrBase, station + '.ncml')):
+        #     inputOutput.makencml(os.path.join(TdsFldrBase, station + '.ncml'))
         # make netCDF
         makenc.makenc_Station(stat_data, globalyaml_fname=globalyaml_fname, flagfname=flagfname,
                               ofname=outFileName, stat_yaml_fname=stat_yaml_fname)
@@ -355,7 +392,7 @@ def ww3analyze(startTime, inputDict, ww3io):
         ###############################   Plotting  Below   ###############################################################
         ###################################################################################################################
 
-        if pFlag == True and 'time' in w:
+        if plotFlag == True and 'time' in w:
             if full == False:
                 w['dWED'], w['wavedirbin'] = prepdata.HPchop_spec(w['dWED'], w['wavedirbin'], angadj=70)
             obsStats = sbwave.waveStat(w['dWED'], w['wavefreqbin'], w['wavedirbin'])
@@ -392,7 +429,7 @@ def ww3analyze(startTime, inputDict, ww3io):
                               'units': units,  # ) -> this will be put inside a tex math environment!!!!
                               'p_title': title}
 
-                    ofname = os.path.join(fpath, 'figures/Station_%s_%s_%s.png' % (station, param, datestring))
+                    ofname = os.path.join(simulationDirectory, 'figures/Station_%s_%s_%s.png' % (station, param, datestring))
                     stats = obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png')
 
                     if station == 'waverider-26m' and param == 'Hm0':

@@ -1,7 +1,6 @@
 #######################
 # Data control        #
 #######################
-THREDDS: FRF  # CHL or FRF                                                         REQUIRED
 bathyLoc: integrated_bathy                   # bathymetry source
 modelName: STWAVE
 ########################
@@ -11,7 +10,7 @@ startTime: '2015-10-01T00:00:00Z'           # project start time
 endTime: '2015-10-05T00:00:00Z'             # project End time
 simulationDuration: 2  # duration in hours            how frequently to get new data, size of individual simulations
 version_prefix: HP                           # controls switches within the code
-gridDEP_nested: 'grids/STWAVE/Minigrid_5m.dep'
+gridDEP_nested: 'grids/STWAVE/Minigrid_10m.dep'
 gridDEP_parent: 'grids/STWAVE/Regional_50m.dep'     # base grid dep               REQUIRED
 modelExecutable: /home/spike/cmtb/bin/stwave_p      # path to the model            REQUIRED
 ########################
