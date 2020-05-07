@@ -1,6 +1,6 @@
 ## hopefully this is used for all phase resolving wave modeling done in test bed
 
-_variables: ['time','station_name', 'tsTime',  'xFRF', 'yFRF', 'totalWaterLevel', 'waveHs', 'waveHsIG', 'totalWaterLevelTS','eta','velocityU','velocityV']
+_variables: ['time','station_name', 'tsTime',  'xFRF', 'yFRF', 'totalWaterLevel', 'waveHs', 'waveHsIG', 'totalWaterLevelTS','eta','velocityU','velocityV', 'runTime', 'nProcess']
 _attributes: []
 _dimensions: ['station_name_length', 'time', 'tsTime', 'xFRF', 'yFRF']
 
@@ -13,6 +13,24 @@ time:
     dim: ['time']
     calendar: 'gregorian'
     fill_value: '-999.99'
+
+runTime:
+    name: 'runTime'
+    units: 'seconds since start of simulation'
+    long_name: 'Wall time since start of simulation'
+    short_name: 'WallTime'
+    data_type: 'f8'
+    dim: ['time']
+    description: 'this is taken from a difference in datetime now calls before and after the simulation is run'
+    fill_value: '-999.99'
+
+nProcess:
+  name: 'nProcess'
+  dim: ['time']
+  data_type: 'i8'
+  units: 'processor'
+  description: 'number of processes the simulation is run using'
+  fill_value: '-999'
 
 tsTime:
     name: 'tsTime'

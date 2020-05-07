@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 import matplotlib
-# matplotlib.use('Agg')
+matplotlib.use('Agg')
 import os, getopt, sys, shutil, glob, logging, yaml, time, pickle
 import datetime as DT
 from subprocess import check_output
 import numpy as np
 from frontback.frontBackSWASH import SwashSimSetup
 from frontback.frontBackSWASH import SwashAnalyze
-
+from testbedutils import fileHandling
 
 def Master_SWASH_run(inputDict):
     """This function will run CMS with any version prefix given start, end, and timestep
@@ -20,7 +20,7 @@ def Master_SWASH_run(inputDict):
 
     """
     ## unpack Dictionary
-    version_prefix = inputDict['version_prefix']
+    version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
     endTime = inputDict['endTime']
     startTime = inputDict['startTime']
     simulationDuration = inputDict['simulationDuration']
@@ -28,8 +28,10 @@ def Master_SWASH_run(inputDict):
     generateFlag = inputDict['generateFlag']
     runFlag = inputDict['runFlag']
     analyzeFlag = inputDict['analyzeFlag']
-    pFlag = inputDict['pFlag']
-    model = inputDict['modelName']
+    plotFlag = inputDict['plotFlag']
+    model = inputDict.get('modelName', 'SWASH').lower()
+    inputDict['path_prefix'] = os.path.join(workingDir, model, version_prefix)
+    path_prefix = inputDict['path_prefix']
     # data check
     prefixList = np.array(['base', 'ts'])
     assert (version_prefix.lower() == prefixList).any(), "Please enter a valid version prefix\n Prefix assigned = %s must be in List %s" % (version_prefix, prefixList)
@@ -37,15 +39,13 @@ def Master_SWASH_run(inputDict):
     # __________________input directories________________________________
     codeDir = os.getcwd()  # location of code
     # check executable
-    if inputDict['modelExecutable'].startswith(codeDir):  # change to relative path
-        import re
-        inputDict['modelExecutable'] = re.sub(codeDir, '', inputDict['modelExecutable'])
+    # if inputDict['modelExecutable'].startswith(codeDir):  # change to relative path
+    #     import re
+    #     inputDict['modelExecutable'] = re.sub(codeDir, '', inputDict['modelExecutable'])
 
-    outDataBase = os.path.join(workingDir, version_prefix) #(workingDir, model, version_prefix)
-    inputDict['path_prefix'] = outDataBase
     # ______________________ Logging  ____________________________
     # auto generated Log file using start_end timeSegment
-    LOG_FILENAME = os.path.join(outDataBase,'logs/{}_BatchRun_Log_{}_{}_{}.log'.format(model,version_prefix, startTime, endTime))
+    LOG_FILENAME = os.path.join(path_prefix,'logs/{}_BatchRun_Log_{}_{}_{}.log'.format(model,version_prefix, startTime, endTime))
     # try:
     #     logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
     # except IOError:
@@ -80,11 +80,13 @@ def Master_SWASH_run(inputDict):
     print('Check for simulation errors here {}'.format(LOG_FILENAME))
     print('------------------------------------\n\n************************************\n\n------------------------------------\n\n')
 
+
     # ________________________________________________ RUN LOOP ________________________________________________
     for timeSegment in dateStringList:
+        fileHandling.makeCMTBfileStructure(path_prefix=path_prefix, date_str=timeSegment)
         try:
             timeStamp = ''.join(timeSegment.split(':'))
-            datadir = os.path.join(outDataBase, timeStamp)  # moving to the new simulation's folder
+            datadir = os.path.join(path_prefix, timeStamp)  # moving to the new simulation's folder
             pickleSaveFname = os.path.join(datadir, timeStamp + '_io.pickle')
             if generateFlag == True:
                 SWIO = SwashSimSetup(timeSegment, inputDict=inputDict)
@@ -106,10 +108,10 @@ def Master_SWASH_run(inputDict):
 
             if analyzeFlag == True:
                 print('**\nBegin Analyze Script %s ' % DT.datetime.now())
-                SWIO.path_prefix = os.path.join(workingDir, version_prefix, timeStamp)
+                SWIO.path_prefix = os.path.join(workingDir, model, version_prefix, timeStamp)
                 SwashAnalyze(timeSegment, inputDict, SWIO)
 
-            if pFlag is True and DT.date.today() == projectEnd:
+            if plotFlag is True and DT.date.today() == projectEnd:
                 print('  TODO tar simulation files after generating netCDF')
                 # move files
                 moveFnames = glob.glob(curdir + 'cmtb*.png')
@@ -136,8 +138,13 @@ if __name__ == "__main__":
     try:
         # assume the user gave the path
         yamlLoc = args[0]
+
         with open(os.path.join(yamlLoc), 'r') as f:
-            inputDict = yaml.load(f)
+            inputDict = yaml.safe_load(f)
+        if os.path.exists('.cmtbSettings'):
+            with open('.cmtbSettings', 'r') as fid:
+                a = yaml.safe_load(fid)
+            inputDict.update(a)
     except:
         raise IOError('Input YAML file required.  See yaml_files/TestBedExampleInputs/CMS_Input_example for example yaml file.')
 
