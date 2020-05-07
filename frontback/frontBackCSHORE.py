@@ -57,6 +57,7 @@ def CSHOREsimSetup(startTime, inputDict):
     if type(timerun) == str:
         timerun = int(timerun)
     start_time = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
+    bathy_loc_List = np.array(['integrated_bathy', 'survey'])
 
     assert start_time.minute == 0 and start_time.second == 0 and start_time.microsecond == 0, 'Your simulation must start on the hour!'
 
@@ -90,11 +91,13 @@ def CSHOREsimSetup(startTime, inputDict):
     # it includes three hours to either side so the simulation can still run if we are missing wave data at the start and end points!!!
     frf_DataW = getObs(start_time - DT.timedelta(days=0, hours=3, minutes=0), end_time + DT.timedelta(days=0, hours=3, minutes=1), server)
     # go ahead and pull both wave gauges so I won't have to repeat this line over and over!
+    print("_________________\nGathering Wave Data")
     wave_data8m = frf_DataW.getWaveSpec(gaugenumber=12)
     wave_data6m = frf_DataW.getWaveSpec(gaugenumber=4)
     # getObs instance for bathy!! - only pull something that is on that day!
     frf_DataB = getObs(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), server)
     cmtb_data = getDataTestBed(start_time, end_time + DT.timedelta(days=0, hours=0, minutes=1), server)
+    cshore_io_O = inputOutput.cshoreIO()  # initalize input output
 
     # _____________________________________________________________________________
     # ______________Decision Time - Fixed vs. Mobile_______________________________
@@ -109,7 +112,6 @@ def CSHOREsimSetup(startTime, inputDict):
         print('\n____________________\nGetting Bathymetric Data\n')
 
         # what do I use as my initial bathy?
-        bathy_loc_List = np.array(['integrated_bathy', 'survey'])
         assert bathy_loc in bathy_loc_List, "Please enter a valid source bathymetry location \n Assigned location = %s must be in List %s" % (bathy_loc, bathy_loc_List)
         b_dict = {}
         if bathy_loc == 'survey':
@@ -132,10 +134,7 @@ def CSHOREsimSetup(startTime, inputDict):
         try:
             Time_O = (DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') - DT.timedelta(days=1)).strftime('%Y-%m-%dT%H%M%SZ')
             # initialize the class
-            cshore_io_O = inputOutput.cshoreIO()
-            # get into the directory I need
-            path_prefix_O = path_prefix
-            params0, bc0, veg0, hydro0, sed0, morpho0, meta0 = cshore_io_O.load_CSHORE_results(path_prefix_O + Time_O)
+            params0, bc0, veg0, hydro0, sed0, morpho0, meta0 = cshore_io_O.load_CSHORE_results(path_prefix + Time_O)
             prev_wg = meta0['BC_gage']
 
             # which gage was it?
@@ -188,9 +187,7 @@ def CSHOREsimSetup(startTime, inputDict):
 
         # first thing to check... am I resetting today
         if inputDict['reset']:
-            # yes i am
-
-            # which wave gage?
+            # which wave gauge?
             o_dict = prep.waveTree_CSHORE(wave_data8m, wave_data6m, BC_dict['timebc_wave'], start_time)
             assert o_dict is not None, 'Simulation broken.  Missing wave data!'
 
@@ -217,10 +214,7 @@ def CSHOREsimSetup(startTime, inputDict):
             try:
                 Time_O = (DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') - DT.timedelta(days=1)).strftime('%Y-%m-%dT%H%M%SZ')
                 # initialize the class
-                cshore_io_O = inputOutput.cshoreIO()
-                # get into the directory I need
-                path_prefix_O = path_prefix
-                params0, bc0, veg0, hydro0, sed0, morpho0, meta0 = cshore_io_O.load_CSHORE_results(path_prefix_O + Time_O)
+                params0, bc0, veg0, hydro0, sed0, morpho0, meta0 = cshore_io_O.load_CSHORE_results(path_prefix + Time_O)
                 prev_wg = meta0['BC_gage']
 
                 # which gage was it?
@@ -239,8 +233,7 @@ def CSHOREsimSetup(startTime, inputDict):
                 if prev_wg == wave_data8m['name'] and o_dict['BC_gage'] == wave_data6m['name']:
                     b_dict = prep.prep_CSHOREbathy(b_dict, o_dict)
             except:
-                assert 'zb' in list(b_dict.keys()), 'Please begin simulations the day after a newly collected bathymetry'
-
+                raise EnvironmentError('Simulation created an Error and can no longer proceed')
 
     # now assign my boundary condition stuff
     meta_dict['bathy_surv_num'] = b_dict['bathy_surv_num']
@@ -515,33 +508,34 @@ def CSHORE_analysis(startTime, inputDict):
         for gauge in go.waveGaugeList:
             print('Gathering Data for wave comparisons on {}'.format(gauge))
             obs_dict_waves[gauge] = go.getWaveSpec(gauge)
-            if 'time' in obs_dict_waves[gauge].keys() and obs_dict_waves[gauge]['time'].shape[0] > 1 and x_n.max() >= obs_dict_waves[gauge]['xFRF']:  # then there's data to compare to
+            if 'time' in obs_dict_waves[gauge].keys() and  x_n.max() >=obs_dict_waves[gauge]['xFRF']:  # then there's data to compare to
                 for var in plotVarsWaves:
                     obs_loc = round(obs_dict_waves[gauge]['xFRF'])
                     modVal = hydro[var][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
                     matchedPlotTime, matchedPlot_obs, matchedPlot_mod = timeMatch(obs_dict_waves[gauge]['time'], obs_dict_waves[gauge][var], times[1:], modVal)
-                    if var == 'Hs':
-                        var_name = '$H_{s}$'
-                        units = 'm'
-                    elif var == 'Tp':
-                        var_name = '$T_p$'
-                        units = 's'
-                    # else;
-                    #     raise NotImplementedError('not im')
+                    if len(matchedPlotTime) > 1:
+                        if var == 'Hs':
+                            var_name = '$H_{s}$'
+                            units = 'm'
+                        elif var == 'Tp':
+                            var_name = '$T_p$'
+                            units = 's'
+                        # else;
+                        #     raise NotImplementedError('not im')
 
-                    p_dict = {'time': matchedPlotTime,
-                              'obs': matchedPlot_obs,
-                              'model': matchedPlot_mod,
-                              'var_name': var_name,
-                              'units': units,
-                              'p_title': '%s CSHORE %s - %s' % (version_prefix, startTime, gauge)}
+                            p_dict = {'time': matchedPlotTime,
+                                      'obs': matchedPlot_obs,
+                                      'model': matchedPlot_mod,
+                                      'var_name': var_name,
+                                      'units': units,
+                                      'p_title': '%s CSHORE %s - %s' % (version_prefix, startTime, gauge)}
 
-                    _ = oP.obs_V_mod_TS(figurePath + '{}_{}.png'.format(gauge, var), p_dict)
+                            _ = oP.obs_V_mod_TS(figurePath + '{}_{}.png'.format(gauge, var), p_dict)
 
         for gauge in go.currentsGaugeList:
             print('Gathering Data for currents comparisons on {}'.format(gauge))
             obs_dict_currents[gauge] = go.getCurrents(gauge)
-            if 'time' in obs_dict_waves[gauge].keys() and obs_dict_waves[gauge]['time'].shape[0] > 1 and x_n.max() >= obs_dict_waves[gauge]['xFRF']:  # then there's data to compare to
+            if 'time' in obs_dict_waves[gauge].keys() and x_n.max() >= obs_dict_waves[gauge]['xFRF']:  # then there's data to compare to
                 for var in plotVarsCurrents:
                     if var in ['U']:
                         modVar = 'umean'  # these values come out of the file load and could be streamlined there in the future
@@ -553,23 +547,24 @@ def CSHORE_analysis(startTime, inputDict):
                     modVal = hydro[modVar][:, np.where(abs(x_n - obs_loc) == min(abs(x_n - obs_loc)), 1, 0) == 1].squeeze()
                     matchedPlotTime, matchedPlot_obs, matchedPlot_mod = timeMatch(obs_dict_currents[gauge]['time'],
                                                                       obs_dict_currents[gauge][obsVar], times[1:], modVal)
-                    if var == 'U':
-                        var_name = '$U$'
-                        units = 'm/s'
-                    elif var == 'V':
-                        var_name = '$V$'
-                        units = 'm/s'
-                    # else;
-                    #     raise NotImplementedError('not im')
+                    if len(matchedPlotTime) > 1:
+                        if var == 'U':
+                            var_name = '$U$'
+                            units = 'm/s'
+                        elif var == 'V':
+                            var_name = '$V$'
+                            units = 'm/s'
+                        # else;
+                        #     raise NotImplementedError('not im')
 
-                    p_dict = {'time': matchedPlotTime,
-                              'obs': matchedPlot_obs,
-                              'model': matchedPlot_mod,
-                              'var_name': var_name,
-                              'units': units,
-                              'p_title': '%s CSHORE %s - %s' % (version_prefix, startTime, gauge)}
+                        p_dict = {'time': matchedPlotTime,
+                                  'obs': matchedPlot_obs,
+                                  'model': matchedPlot_mod,
+                                  'var_name': var_name,
+                                  'units': units,
+                                  'p_title': '%s CSHORE %s - %s' % (version_prefix, startTime, gauge)}
 
-                    _ = oP.obs_V_mod_TS(figurePath + '{}_{}.png'.format(gauge, var), p_dict)
+                        _ = oP.obs_V_mod_TS(figurePath + '{}_{}.png'.format(gauge, var), p_dict)
 
 
         #######################################

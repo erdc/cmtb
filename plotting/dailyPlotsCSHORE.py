@@ -1,4 +1,5 @@
-import sys, os, glob, argparse
+import sys, os, glob, argparse, matplotlib
+matplotlib.use('Agg')  # for cron
 sys.path.append('../')
 import numpy as np
 import netCDF4 as nc
@@ -11,7 +12,7 @@ from testbedutils.sblib import timeMatch_altimeter, makegif, timeMatch
 from prepdata import prepDataLib
 
 # PARAMETERS
-workDir = '../../../Figures/cmtb/CSHORE'
+workDir = '/home/number/cmtb/liveDataPlots'
 endTime = DT.datetime.strptime('2016-05-02T00:15:00Z', '%Y-%m-%dT%H:%M:%SZ')
 prefixList = ['MOBILE_RESET']
 altStations = ['Alt05', 'Alt04', 'Alt03']

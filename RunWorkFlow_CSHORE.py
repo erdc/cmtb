@@ -18,23 +18,26 @@ def master_CSHORE_run(inputDict):
 
     Args:
       inputDict: keys are:
-    :key pFlag - plots or not (boolean)
-    :key analyzeFlag - analyze results or not (boolean)
-    :key generateFlag - generate input files or not (boolean)
-    :key runFlag - run the simulation or not (boolean)
-    :key start_date - date I am starting the simulation (format '2018-01-15T00:00:00Z')
-    :key end_date - date I am ending the simulation (format '2018-01-15T00:00:00Z')
-    :key WD - path to the working directory the user wants
-    :key netCDFdir - path to the netCDF save location specified by the user
-    :key THREDDS - which THREDDS server are we using, 'FRF' or 'CHL'
-    :key version_prefix - right now we have 'FIXED', 'MOBILE', or 'MOBILE_RESET'
-    :key duration - how long you want the simulations to run in hours (24 by default)
+        :key pFlag - plots or not (boolean)
+        :key analyzeFlag - analyze results or not (boolean)
+        :key generateFlag - generate input files or not (boolean)
+        :key runFlag - run the simulation or not (boolean)
+        :key start_date - date I am starting the simulation (format '2018-01-15T00:00:00Z')
+        :key end_date - date I am ending the simulation (format '2018-01-15T00:00:00Z')
+        :key WD - path to the working directory the user wants
+        :key netCDFdir - path to the netCDF save location specified by the user
+        :key THREDDS - which THREDDS server are we using, 'FRF' or 'CHL'
+        :key version_prefix - right now we have 'FIXED', 'MOBILE', or 'MOBILE_RESET'
+        :key duration - how long you want the simulations to run in hours (24 by default)
 
     Returns:
       None
 
-    """
 
+    TODO:
+        add post process efficient speed, by looking at survey dates and modifying the date list and simulation time based on that
+
+    """
     version_prefix = inputDict['version_prefix']
     endTime = inputDict['endTime']
     startTime = inputDict.pop('startTime')
@@ -45,6 +48,7 @@ def master_CSHORE_run(inputDict):
     runFlag = inputDict['runFlag']
     analyzeFlag = inputDict['analyzeFlag']
     sorceCodePATH = inputDict['modelExecutable']
+    model = 'CSHORE'
 
     # version check
     prefixList = np.array(['FIXED', 'MOBILE', 'MOBILE_RESET'])
@@ -52,14 +56,10 @@ def master_CSHORE_run(inputDict):
 
     # __________________input vars________________________________
     codeDir = os.getcwd()
-    if workingDir[-1] == '/':
-        outDataBase =os.path.join(workingDir, 'CSHORE', version_prefix)
-    else:
-        outDataBase = os.path.join(workingDir, 'CSHORE', version_prefix)
+    outDataBase =os.path.join(workingDir, model, version_prefix)
 
-    TOD = 0  # 0=start simulations at 0000
-    LOG_FILENAME = os.path.join(inputDict['logfileLoc'], 'CSHORE/%s/logs/CMTB_BatchRun_Log_%s_%s_%s.log' %(version_prefix, version_prefix, startTime.replace(':',''), endTime.replace(':','')))
-    #
+    # _______________ establish logging __________________________
+    LOG_FILENAME = os.path.join(inputDict['logfileLoc'], '{}/{}/logs/CMTB_BatchRun_Log_{}_{}_{}.log'.format(model, version_prefix, version_prefix, startTime.replace(':',''), endTime.replace(':','')))
     # try:
     #     logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
     # except IOError:
@@ -72,8 +72,8 @@ def master_CSHORE_run(inputDict):
     # logging.debug('\n-------------------\nTraceback Error Log for:\n\nSimulation Started: %s\n-------------------\n' % (DT.datetime.now()))
     # ____________________________________________________________
     # establishing the resolution of the input datetime
-    d2 = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(TOD / 24., 0, 0)
-    d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(TOD / 24., 0, 0)
+    d2 = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ')
+    d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
 
     # if the version is MOBILE then I do NOT want to check this, because MOBILE continuously
     # evolves and NEVER resets the bathymetry
@@ -108,14 +108,12 @@ def master_CSHORE_run(inputDict):
 
                 # reset the first day of the simulations to be the day after or of the latest survey
                 # (depending on if the survey time is 00:00:00 or 12:00:00)
-
-
         except IOError:
             # this means that this is the first time this has been run, so you don't have to worry about it.
             pass
 
 
-    # This is the portion that creates a list of simulation end times (start times?)
+    # This is the portion that creates a list of simulation start/end times
     dt_DT = DT.timedelta(0, simulationDuration * 60 * 60)  # timestep in datetime
     # make List of Datestring items, for simulations
     a = [d1]

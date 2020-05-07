@@ -1,14 +1,17 @@
+#!/urshome/number/anaconda2/bin/python
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jun 20 15:11:00 2018
 This makes observations vs model station plots for a user-specified number of days
+Must be run from plotting folder (given assumed architecture)
 
 @author: Chuan Li
 @contact: liC@oregonstate.edu
 @organization: USACE CHL FRF
 
 """
-import sys, getopt, warnings, os, glob, argparse, shutil
+import sys, getopt, warnings, os, glob, argparse, shutil, matplotlib
+matplotlib.use('Agg') # for cron
 import numpy as np
 import datetime as DT
 import netCDF4 as nc
@@ -17,7 +20,6 @@ from getdatatestbed import getDataFRF
 from testbedutils import waveLib as sbwave
 from testbedutils import sblib as sb
 from plotting import operationalPlots as oP
-
 # PARAMETERS
 modelList = ['STWAVE', 'CMS']
 prefixList = {'STWAVE': ['HP', 'FP', 'CB'],
@@ -26,15 +28,15 @@ stationList = ['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array',
                'awac-6m', 'awac-4.5m', 'adop-3.5m', 'xp200m', 'xp150m', 'xp125m']
 fieldVarList = ['waveHs', 'xRadGrad', 'yRadGrad', 'dissipation']
 numDays = 7
-workDir = '/home/chuan/Documents/Figures/cmtb'
+workDir = '/home/number/cmtb/liveDataPlots'
 angadj = 70
 logo_path = '../ArchiveFolder/CHL_logo.png'
 
 # MAIN CODE
 def main():
     startTime, endTime, modelList, prefixList, workDir = getUsrInp()
-    datestring = (startTime.strftime('%Y-%m-%dT%H%M%SZ') + '_' +
-                  endTime.strftime('%Y-%m-%dT%H%M%SZ'))
+    datestring = (startTime.strftime('%Y-%m-%dT%H0000Z') + '_' +
+                  endTime.strftime('%Y-%m-%dT%H0000Z'))
     for model in modelList:
         prefixes = prefixList[model]
         for prefix in prefixes:
@@ -226,10 +228,10 @@ def makePlots(ofname, param, time, obs, mod):
     print('Plotting ' + ofname)
     with warnings.catch_warnings(record=True) as w:
         oP.obs_V_mod_TS(ofname, dataDict, logo_path=logo_path)
-        if w != []:
-            assert str(w[0].message) == (
-                'This figure includes Axes that are not compatible ' +
-                'with tight_layout, so results might be incorrect.')
+        # if w != []:
+        #     assert str(w[0].message) == (
+        #         'This figure includes Axes that are not compatible ' +
+        #         'with tight_layout, so results might be incorrect.')
 
 if __name__ == '__main__':
     main()
