@@ -77,7 +77,7 @@ def unstructuredSpatialPlot(outFname, fieldNc, variable='waveHs', **kwargs):
         gl.xformatter = LONGITUDE_FORMATTER
         gl.yformatter = LATITUDE_FORMATTER
     
-    plt.tight_layout()
+        plt.tight_layout()
         plt.savefig(outFname)
 
 

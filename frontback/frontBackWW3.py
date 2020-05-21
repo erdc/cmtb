@@ -235,7 +235,7 @@ def ww3analyze(startTime, inputDict, ww3io):
     variables = ncfile.variables.keys()
     for var in variables:
         if var in ['waveHs', 'waveDm', 'waveTm']:
-        plotOutFname = 'test.png'
-        oP.unstructuredSpatialPlot(plotOutFname, fieldNc=ncfile, variable=var)
+            plotOutFname = 'test.png'
+            oP.unstructuredSpatialPlot(plotOutFname, fieldNc=ncfile, variable=var)
     
 
