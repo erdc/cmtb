@@ -3,20 +3,16 @@ title: savePoint from WW3
 summary: >
   USACE/COAB data generated as part of the Coastal Model Test Bed(CMTB).
   The WW3 is run in unsructured grid with implicit solver.
-  Bak, A. S., T. Hesser, J.M. Smith, and M.A. Bryant. 2016.
-  Initialization and Setup of the Coastal Model Test Bed: STWAVE.
-  Coastal and Hydraulics Engineering Technical Note ERDC/CHL CHETN-I-XX.
-  Vicksburg, MS: U.S. Army Engineering and Research and Development Center.
-  http://chl.erdc.usace.army.mil/chetn.
+
 history: data set created as part of the Coastal Model Test Bed.  Simulations done at the FRF
 model: WW3
 source: CMTB STWAVE full plane simulations
 platform: FRF Cluster - Crunchy
 sourceUrl: (local files)
-standard_name_vocabulary: CFv25
-Metadata_Conventions: Unidata Dataset Discovery v1.0, CF-1.6
+standard_name_vocabulary: CFv27
+Metadata_Conventions: Unidata Dataset Discovery v1.0, CF-1.8
 metadata_link: N/A
-Conventions: CF-1.6
+Conventions: CF-1.8
 creator_name: USACE/CHL/COAB
 creator_url: http://frf.usace.army.mil
 creator_email: frfwebmaster@usace.army.mil

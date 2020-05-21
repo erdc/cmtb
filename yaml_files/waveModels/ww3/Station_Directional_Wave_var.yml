@@ -1,8 +1,8 @@
 # WAVE TEMPLATE
 
-_variables: ['time','station_name','waveHs', 'waveTm', 'waveDm', 'waveTp', 'waterLevel', 'Umag', 'Udir', 'flags', 'latitude', 'longitude', 'directionalWaveEnergyDensity', 'waveDirectionBins', 'waveFrequency' ]
+_variables: ['time', 'station_name', 'latitude', 'longitude', 'directionalWaveEnergyDensity', 'waveDirectionBins', 'waveFrequency', 'waveHs', 'waveTm', 'waveDm', 'waveTp', 'waterLevel', 'windDirection', 'windSpeed', 'currentDirection', 'currentSpeed']
 _attributes: ['notes']
-_dimensions: ['time', 'station_name_length', 'in_type', 'Lat', 'Lon', 'waveFrequency', 'waveDirectionBins']
+_dimensions: ['time', 'station_name', 'latitude', 'longitude', 'waveFrequency', 'waveDirectionBins']
 
 time:
     name: 'time'
@@ -21,138 +21,168 @@ station_name:
     cf_role: timeseries_id
     short_name: station_name
     data_type: 'S1'
-    dim: ['station_name_length']
+    dim: ['station_name']
 
 waveHs:
     name: 'waveHs'
     units: 'm'
-    standard_name: ''
+    standard_name: 'sea_surface_wave_significant_height'
     long_name: 'Significant Wave Height'
     data_type: 'f8'
     dim: ['time']
     _FillValue: '-999'
     short_name: 'Wave Height'
-    coordinates: 'lat lon'
+    coordinates: 'latitude longitude'
+    description: 'significant wave height calculated from zeroth moment from spectra from station location'
+    least_significant_digit: 2
 
 waveTm:
     name: 'waveTm'
     units: 's'
-    standard_name: ''
+    standard_name: 'sea_surface_swell_wave_mean_period_from_variance_spectral_density_second_frequency_moment'
     long_name: 'Mean Wave Period'
     data_type: 'f8'
     dim: ['time']
     _FillValue: '-999'
     short_name: 'Mean Period'
-    coordinates: 'lat lon'
-    description: 'Mean Period from STWAVE model station made during CMTB run'
-
+    coordinates: 'latitude longitude'
+    description: 'Mean wave period from station location'
+    least_significant_digit: 2
+    comp_
 waveDm:
     name: 'waveDm'
     units: 'Degrees'
-    standard_name: ''
     long_name: 'Mean Wave Direction measured from true north'
     data_type: 'f8'
     dim: ['time']
     _FillValue: '-999'
     short_name: 'Mean Direction'
-    coordinates: 'lat lon'
-    description: 'Mean Wave Direction in true north from STWAVE model station made during CMTB run'
+    coordinates: 'latitude longitude'
+    description: 'Mean wave direction - vector averaged mean direction, see below
+                (http://wis.usace.army.mil/pdf/WIS_OneLine_format_20170406.pdf)'
+    least_significant_digit: 2
 
 waveTp:
     name: 'waveTp'
     units: 'seconds'
-    standard_name: ''
+    standard_name: 'sea_surface_wave_significant_period'
     long_name: 'Peak Wave Period'
     data_type: 'f8'
     dim: ['time']
     _FillValue: '-999'
     short_name: 'Tp'
-    coordinates: 'lat lon'
-    description: 'Peak Wave Period from STWAVE model station made during CMTB run'
+    coordinates: 'latitude longitude'
+    description: 'Peak Wave Period from station'
+    least_significant_digit: 2
 
 waterLevel:
     name: 'waterLevel'
     units: 'm'
-    #standard_name: ''
     long_name: 'Water Level'
     data_type: 'f8'
     dim: ['time']
     _FillValue: '-999'
     short_name: 'WL'
-    coordinates: 'lat lon'
-    description: 'Water Level (NAVD88) from STWAVE model station made during CMTB run'
+    coordinates: 'latitude longitude'
+    description: 'Water Level at station'
+    least_significant_digit: 2
 
-Umag: 
-    name: 'Umag'
+currentSpeed:
+    name: 'currentSpeed'
     units: 'm s-1'
-    standard_name: ''
-    long_name: 'Mean wind Speed'
+    long_name: 'Mean current speed'
     data_type: 'f8'
     dim: ['time']
     _FillValue: '-999'
-    short_name: 'wind speed'
-    coordinates: 'lat lon'
-    description: 'mean wind speed used for duration of simulation "timestep (IDD SNAP)" from STWAVE model station made during CMTB run'
+    short_name: 'current speed'
+    coordinates: 'latitude longitude'
+    description: 'ocean current direction at point location during simulation'
+    least_significant_digit: 2
 
-Udir:
-    name: 'Udir'
+currentDirection:
+    name: 'currentDirection'
     units: 'm s-1'
-    standard_name: ''
     long_name: 'Mean wind direction'
     data_type: 'f8'
     dim: ['time']
     _FillValue: '-999'
     short_name: 'wind direction'
-    coordinates: 'lat lon'
-    description: 'mean wind from direction in true north coordinates used for duration of simulation "timestep (IDD SNAP)" from STWAVE model station made during CMTB run'
+    coordinates: 'latitude longitude'
+    description: 'ocean current direction at point location during simulation'
 
-flags: 
+windSpeed:
+    name: 'windSpeed'
+    units: 'm s-1'
+    standard_name: 'wind_speed'
+    long_name: 'Mean wind Speed'
+    data_type: 'f8'
+    dim: ['time']
+    _FillValue: '-999'
+    short_name: 'wind speed'
+    coordinates: 'latitude longitude'
+    description: '10 m mean wind speed used in model simulation at point location'
+    least_significant_digit: 2
+
+windDirection:
+    name: 'windDirection'
+    units: 'm s-1'
+    standard_name: 'wind_from_direction'
+    long_name: 'Mean wind direction'
+    data_type: 'f8'
+    dim: ['time']
+    _FillValue: '-999'
+    short_name: 'wind direction'
+    coordinates: 'latitude longitude'
+    description: '10 m mean wind from direction in true north coordinates used in model simulation at point location'
+    least_significant_digit: 2
+
+flags:
     name: 'qcFlag'
     units: ''
     standard_name: ''
     long_name: 'Quality Control Flag Value'
     data_type: 'u2'
-    dim: ['time', 'input_types_length']
+    dim: ['time']
     _FillValue: '-99'
     short_name: 'qc Flag'
-    coordinates: 'lat lon'
+    coordinates: 'latitude longitude'
     description: "These flags are markers for the quality of input data into the model.  There are 3 main flags in place currently:\n 0: Good Data\n1:Linearly Interpolated Data - these data are interpolated due to missing or poorly flagged input data\n2: held as place holder\n3: held as place holder\n4: held as place holder 5: No data\n There are 4 categories for input data and associated flags to the STWAVE model.  they are ordered as wave, wind, waterlevel and currents"
 
 latitude:
     name: 'latitude'
     units: 'm'
-    standard_name: ''
+    standard_name: 'latitude'
     long_name: 'Latitude'
     data_type: 'f8'
-    dim: ['Lat']
+    dim: ['latitude']
     _FillValue: '-999'
     short_name: 'Lat'
-    coordinates: 'lat lon'
-    description: "Station Location in Lat-Lon from STWAVE model station made during CMTB run"
+    coordinates: 'latitude longitude'
+    description: "Station location latitude"
 
 longitude:
     name: 'longitude'
     units: 'm'
-    standard_name: ''
+    standard_name: 'longitude'
     long_name: 'Longitude'
     data_type: 'f8'
-    dim: ['Lon']
+    dim: ['longitude']
     _FillValue: '-999'
     short_name: 'Lon'
-    coordinates: 'lat lon'
-    description: "Station Location in Lat-Lon from STWAVE model station made during CMTB run"
-    
+    coordinates: 'latitude longitude'
+    description: "Station location longitude"
+
 directionalWaveEnergyDensity:
     name: 'directionalWaveEnergyDensity'
     units: 'm2 s deg-1'
     data_type: 'f8'
     standard_name: 'sea_surface_wave_directional_variance_spectral_density'
-    long_name: 'STWAVE 2D Wave energy density'
-    short_name: 'STWAVE energy density'
+    long_name: '2D Wave energy density'
+    short_name: '2D spec'
     _FillValue: '-999'
-    dim: ['time','waveFrequency', 'waveDirectionBins']
-    description: 'the directional spectrum output from the STWAVE station made during CMTB run'
-    
+    dim: ['time', 'waveFrequency', 'waveDirectionBins']
+    description: 'the 2 dimensional directional spectrum output from the model'
+
 waveDirectionBins:
     name: 'waveDirectionBins'
     long_name: 'Band center degrees'
@@ -168,7 +198,6 @@ waveFrequency:
     units: 's-1'
     _FillValue: '-999'
     data_type: 'f4'
-    units: 's-1'
     standard_name: 'wave_frequency'
     long_name: 'Band center frequency'
     dim: ['waveFrequency']
