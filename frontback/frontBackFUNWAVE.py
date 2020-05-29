@@ -2,7 +2,6 @@
 This script holds the master function for the simulation Setup
 for the Swash model setup
 """
-import testbedutils.anglesLib
 from prepdata import inputOutput
 from prepdata.prepDataLib import PrepDataTools as STPD
 from getdatatestbed.getDataFRF import getDataTestBed
@@ -12,8 +11,7 @@ import os, glob, makenc, pickle, tarfile
 import netCDF4 as nc
 import numpy as np
 from prepdata import prepDataLib as STPD
-from prepdata.inputOutput import swashIO
-from getdatatestbed import getDataFRF
+from prepdata.inputOutput import funwaveIO
 import plotting.operationalPlots as oP
 from testbedutils import sblib as sb
 from testbedutils import waveLib as sbwave
@@ -22,7 +20,7 @@ from plotting.operationalPlots import obs_V_mod_TS
 from testbedutils import geoprocess as gp
 import multiprocessing
 
-def FunwaveSimSetup(startTime, inputDict):
+def FunwaveSimSetup(startTime, inputDict, rawWL, rawspec, bathy):
     """This Function is the master call for the  data preparation for the Coastal Model
     Test Bed (CMTB) and the Swash wave/FLow model
 
@@ -43,9 +41,6 @@ def FunwaveSimSetup(startTime, inputDict):
     version_prefix = inputDict['version_prefix'].lower()
     path_prefix = inputDict['path_prefix']  # data super directory
     # ______________________________________________________________________________
-    # define version parameters
-    versionlist = ['base', 'ts']
-    assert version_prefix.lower() in versionlist, 'Please check your version Prefix'
     # here is where we set something that would handle 3D mode or time series mode,
     # might set flags for preprocessing below
     fileHandling.checkVersionPrefix(model=model, inputDict=inputDict)
@@ -53,29 +48,20 @@ def FunwaveSimSetup(startTime, inputDict):
     # set times
     d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
-    date_str = d1.strftime('%Y-%m-%dT%H%M%SZ')  # used to be end time
-    timerun = str(timerun)
+    date_str = d1.strftime('%Y-%m-%dT%H%M%SZ')
+    prepdata = STPD.PrepDataTools()  # for preprocessing
 
     # __________________Make Working Data Directories_____________________________________________
-    if not os.path.exists(os.path.join(path_prefix, date_str)):  # if it doesn't exist
-        os.makedirs(os.path.join(path_prefix, date_str))  # make the directory
-    if not os.path.exists(os.path.join(path_prefix, date_str)):
-        os.makedirs(os.path.join(path_prefix, date_str))
-
     print("Model Time Start : %s  Model Time End:  %s" % (d1, d2))
     print("OPERATIONAL files will be place in {} folder".format(os.path.join(path_prefix, date_str)))
-    # ______________________________________________________________________________
-    # begin model data gathering
-    go = getObs(d1, d2)                  # initialize get observation class
-    prepdata = STPD.PrepDataTools()                      # for preprocessing
-    gdTB = getDataTestBed(d1, d2)        # for bathy data gathering
+
     # _____________WAVES____________________________
     print('_________________\nGetting Wave Data')
-    rawspec = go.getWaveSpec(gaugenumber= '8m-array')
     assert 'time' in rawspec, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
     # preprocess wave spectra
     if version_prefix.lower() == 'base':
         wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix)
+        ## TODO: @Gaby Make sure this prep's for swash, maybe we need a new function called prep_FUNWAVE_spec
     else:
         raise NotImplementedError('pre-process TS data ')
     # _____________WINDS______________________
@@ -84,38 +70,51 @@ def FunwaveSimSetup(startTime, inputDict):
     print('_________________\nGetting Water Level Data')
     try:
         # get water level data
-        rawWL = go.getWL()
         # average WL
         WLpacket = prepdata.prep_WL(rawWL, wavepacket['epochtime'])
+        #TODO: @Gaby check that the WL is prepared the same way for this model (are bathy's positive/negative?)
+        # we can also add a "model" keyword argument to the above functions
+        # this goes with all of the models/functions
+        
         print('number of WL records %d, with %d interpolated points' % (
             np.size(WLpacket['time']), sum(WLpacket['flag'])))
     except (RuntimeError, TypeError):
         WLpacket = None
+        
     ### ____________ Get bathy grid from thredds ________________
-
-    bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])
     swsinfo, gridDict = prepdata.prep_SwashBathy(wavepacket['xFRF'], wavepacket['yFRF'], bathy, dx=1, dy=1,
                                                  yBounds=[944, 947])  # non-inclusive index if you want 3 make 4 wide
+    # TODO: @Gaby, check the bathy input (i'll make you a pickle for our bathy's) but we'll have to have a prep
+    #  function for the normal process (ie do we manually shift the bathy for WL or does funwave do that for us,
+    #  are there other preprocessing steps needed?
+    
+    # _____________ begin writing files _________________________
+    # set some of the class instance variables before writing input files
+    # TODO: @Gaby, calculate nprocessors (px * py), i think this is based on the grid, so you can use the output from
+    #  prep_FunwaveBathy
+    nprocessors = 2
+    fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WLpacket[
+        'avgWL'], equilbTime=wavepacket['spinUp'], Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'], Dm=wavepacket[
+        'waveDm'], nprocess=nprocessors)
 
-    ## begin output
-    # set some of the class instance variables before writing SWS file
-    swio = swashIO(WL=WLpacket['avgWL'], equilbTime=wavepacket['spinUp'], Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'],
-                   Dm=wavepacket['waveDm'], fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix,
-                   nprocess=gridDict['h'].shape[0])   # one compute core per cell in y
-
-    # write SWS file first
-    swio.write_sws(swsinfo)
-    swio.write_spec1D(wavepacket['freqbins'], wavepacket['fspec'])
-    swio.write_bot(gridDict['h'])
-    # now write QA/
-    swio.flags = None
+    #TODO: change the below functions to write 1D simulation files with appropriate input information.  In other
+    # words the dictionaries here that are input to your write functions, need to come out of the "prep" functions
+    # above.  For this we'll have to modify the "prep" functions to do that.   I'm happy to help point you to where
+    # you need to modify as needed.
+    fio.write_sws(swsinfo)
+    fio.write_spec1D(wavepacket['freqbins'], wavepacket['fspec'])
+    fio.write_bot(gridDict['h'])
+    # now write QA/QC flag
+    fio.flags = None
     pickleName = os.path.join(path_prefix, date_str,'.pickle')
     with open(pickleName, 'wb') as fid:
-        pickle.dump(swio, fid, protocol=pickle.HIGHEST_PROTOCOL)
-    return swio
+        pickle.dump(fio, fid, protocol=pickle.HIGHEST_PROTOCOL)
+    return fio
 
-def FunwaveAnalyze(startTime, inputDict, swio):
-    """This runs the post process script for Swash wave will create plots and netcdf files at request
+def FunwaveAnalyze(startTime, inputDict, fio):
+    """This runs the post process script for FUNWAVE simulations.
+    
+    The script will read model output, create plots, and netcdf files.
 
     Args:
         inputDict (dict): this is an input dictionary that was generated with the
@@ -151,7 +150,6 @@ def FunwaveAnalyze(startTime, inputDict, swio):
 
     print('\nBeggining of Analyze Script\nLooking for file in ' + fpath)
     print('\nData Start: %s  Finish: %s' % (d1, d2))
-    go = getDataFRF.getObs(d1, d2)  # setting up get data instance
     prepdata = STPD.PrepDataTools()         # initializing instance for rotation scheme
     SeaSwellCutoff = 0.05
     nSubSample = 5                          # data are output at high rate, how often do we want to plot
@@ -161,13 +159,13 @@ def FunwaveAnalyze(startTime, inputDict, swio):
     ##################################   Load Data Here / Massage Data Here   ############################################
     ######################################################################################################################
     ######################################################################################################################
-    matfile = os.path.join(fpath, ''.join(swio.ofileNameBase.split('-'))+'.mat')
+    matfile = os.path.join(fpath, ''.join(fio.ofileNameBase.split('-')) + '.mat')
     print('Loading files ')
-    simData, simMeta = swio.loadSwash_Mat(fname=matfile)  # load all files
+    simData, simMeta = fio.loadSwash_Mat(fname=matfile)  # load all files
     ######################################################################################################################
     #################################   obtain total water level   #######################################################
     ######################################################################################################################
-
+    #TODO: @Gaby, we'll use chuans/mine runup ID code here and save the runup time series data.
     eta = simData['eta'].squeeze()
 
     # now adapting Chuan's runup code, here we use 0.08 m for runup threshold
@@ -199,6 +197,7 @@ def FunwaveAnalyze(startTime, inputDict, swio):
     figureBaseFname = 'CMTB_waveModels_{}_{}_'.format(model, version_prefix)
     from matplotlib import pyplot as plt
     # make function for processing timeseries data
+    # TODO: @Gaby, these should look familiar!
     fspec, freqs = sbwave.timeSeriesAnalysis1D(simData['time'].squeeze(), simData['eta'].squeeze(), bandAvg=6)
     total = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=None)
     SeaSwellStats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=SeaSwellCutoff, highFreq=None)
@@ -211,6 +210,7 @@ def FunwaveAnalyze(startTime, inputDict, swio):
     setup = np.mean(simData['eta'], axis=0).squeeze()
     WL = simMeta['WL'] #added in editing, should possibly be changed?
     if plotFlag == True:
+        #TODO: @gaby, here  we'll be making QA/QC plots
         from plotting import operationalPlots as oP
         ## remove images before making them if reprocessing
         imgList = glob.glob(os.path.join(path_prefix, datestring, 'figures', '*.png'))
@@ -262,13 +262,16 @@ def FunwaveAnalyze(startTime, inputDict, swio):
 
     ##################################################################################################################
     ######################        Make NETCDF files       ############################################################
-    # ################################################################################################################
     ##################################################################################################################
-    ## before netCDF.
-    # get significant wave height for cross shore
-    # slice the time series so we're only isolating the non-repeating (one realization of) time series of data
-    #################################################3
+    ##################################################################################################################
 
+    #TODO: @Gaby, the last step, we'll be making netCDF files.  I'd like to loop matt and ty and maybe mike in here
+    # as we're going to be doing this for the LAB and it'd be nice to establish the "correct" format right off the
+    # bat here for FUNWAVE, then they can absorb what we generate to implement directly into the model. we have a
+    # tool to make netCDF files and it basically works by taking the model output and putting it into a dictionary.
+    # That dictionary will match the file: yaml_files/waveModels/funwave/funwave_var.yml hand the data to the
+    # function and the global metadata (yaml_files/waveModels/funwave/base/funwave_global.yml) and poof, it makes a
+    # matching netCDF file!  This will be the end of the workflow.
     tsTime = np.arange(0, len(simData['time'])*dt, dt)
 
     fldrArch = os.path.join(model, version_prefix)
@@ -284,8 +287,8 @@ def FunwaveAnalyze(startTime, inputDict, swio):
                'waveHs': np.reshape(SeaSwellStats['Hm0'], (1, len(simData['xFRF']))), # or from HsTS??
                'xFRF': simData['xFRF'],
                'yFRF': simData['yFRF'][0],
-               'runTime': np.expand_dims(swio.simulationWallTime, axis=0),
-               'nProcess': np.expand_dims(swio.nprocess, axis=0),
+               'runTime': np.expand_dims(fio.simulationWallTime, axis=0),
+               'nProcess': np.expand_dims(fio.nprocess, axis=0),
                'DX': np.median(np.diff(simData['xFRF'])).astype(int),
                'DY': 1,    # must be adjusted for 2D simulations
                'NI': len(simData['xFRF']),

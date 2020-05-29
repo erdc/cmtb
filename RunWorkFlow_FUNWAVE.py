@@ -6,7 +6,7 @@ import datetime as DT
 from subprocess import check_output
 import numpy as np
 from frontback import frontBackFUNWAVE
-
+from getdatatestbed import getDataFRF
 from testbedutils import fileHandling
 
 def Master_SWASH_run(inputDict):
@@ -62,7 +62,16 @@ def Master_SWASH_run(inputDict):
     # ______________________________decide process and run _____________________________
     fileHandling.displayStartInfo(projectStart, projectEnd, version_prefix, LOG_FILENAME, model)
     fileHandling.checkVersionPrefix(model, inputDict)
-    # ________________________________________________ RUN LOOP ________________________________________________
+    # ______________________________Get data to run model  _____________________________
+    # begin model data gathering
+    go = getDataFRF.getObs(d1, d2)                  # initialize get observation class
+    gdTB = getDataFRF.getDataTestBed(d1, d2)        # for bathy data gathering
+    rawspec = go.getWaveSpec(gaugenumber= '8m-array')
+    rawWL = go.getWL()
+    bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])
+
+    # _____________________________ RUN LOOP ___________________________________________
+    
     for timeSegment in dateStringList:
         fileHandling.makeCMTBfileStructure(path_prefix=path_prefix, date_str=timeSegment)
         try:
