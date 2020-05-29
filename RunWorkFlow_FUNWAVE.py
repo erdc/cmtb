@@ -5,8 +5,8 @@ import os, getopt, sys, shutil, glob, logging, yaml, time, pickle
 import datetime as DT
 from subprocess import check_output
 import numpy as np
-from frontback.frontBackSWASH import SwashSimSetup
-from frontback.frontBackSWASH import SwashAnalyze
+from frontback import frontBackFUNWAVE
+
 from testbedutils import fileHandling
 
 def Master_SWASH_run(inputDict):
@@ -29,30 +29,17 @@ def Master_SWASH_run(inputDict):
     runFlag = inputDict['runFlag']
     analyzeFlag = inputDict['analyzeFlag']
     plotFlag = inputDict['plotFlag']
-    model = inputDict.get('modelName', 'SWASH').lower()
+    model = inputDict.get('modelName', 'FUNWAVE').lower()
     inputDict['path_prefix'] = os.path.join(workingDir, model, version_prefix)
     path_prefix = inputDict['path_prefix']
     # data check
     prefixList = np.array(['base', 'ts'])
     assert (version_prefix.lower() == prefixList).any(), "Please enter a valid version prefix\n Prefix assigned = %s must be in List %s" % (version_prefix, prefixList)
 
-    # __________________input directories________________________________
-    codeDir = os.getcwd()  # location of code
-    # check executable
-    # if inputDict['modelExecutable'].startswith(codeDir):  # change to relative path
-    #     import re
-    #     inputDict['modelExecutable'] = re.sub(codeDir, '', inputDict['modelExecutable'])
-
     # ______________________ Logging  ____________________________
     # auto generated Log file using start_end timeSegment
-    LOG_FILENAME = os.path.join(path_prefix,'logs/{}_BatchRun_Log_{}_{}_{}.log'.format(model,version_prefix, startTime, endTime))
-    # try:
-    #     logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
-    # except IOError:
-    #     os.makedirs(os.path.join(outDataBase,'logs'))
-    #     logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
-    # logging.debug('\n-------------------\nTraceback Error Log for:\n\nSimulation Started: %s\n-------------------\n'
-    #               % (DT.datetime.now()))
+    LOG_FILENAME = fileHandling.logFileLogic(outDataBase=path_prefix, version_prefix=version_prefix, startTime=startTime,
+                                             endTime=endTime)
     # ____________________________________________________________
     # establishing the resolution of the input datetime
     try:
@@ -73,14 +60,8 @@ def Master_SWASH_run(inputDict):
     errors, errorDates = [],[]
     curdir = os.getcwd()
     # ______________________________decide process and run _____________________________
-    # run the process through each of the above dates
-    print('\n-\n-\nMASTER WorkFLOW for {} SIMULATIONS\n-\n-\n'.format(model))
-    print('Batch Process Start: %s     Finish: %s '% (projectStart, projectEnd))
-    print('The batch simulation is Run in %s Version' % version_prefix)
-    print('Check for simulation errors here {}'.format(LOG_FILENAME))
-    print('------------------------------------\n\n************************************\n\n------------------------------------\n\n')
-
-
+    fileHandling.displayStartInfo(projectStart, projectEnd, version_prefix, LOG_FILENAME, model)
+    fileHandling.checkVersionPrefix(model, inputDict)
     # ________________________________________________ RUN LOOP ________________________________________________
     for timeSegment in dateStringList:
         fileHandling.makeCMTBfileStructure(path_prefix=path_prefix, date_str=timeSegment)
@@ -89,27 +70,28 @@ def Master_SWASH_run(inputDict):
             datadir = os.path.join(path_prefix, timeStamp)  # moving to the new simulation's folder
             pickleSaveFname = os.path.join(datadir, timeStamp + '_io.pickle')
             if generateFlag == True:
-                SWIO = SwashSimSetup(timeSegment, inputDict=inputDict)
+                fIO = frontBackFUNWAVE.FunwaveSimSetup(timeSegment, inputDict=inputDict)
 
             if runFlag == True:        # run model
                 os.chdir(datadir)      # changing locations to where input files should be made
                 dt = time.time()
-                print('Running Simulation started with {} processors'.format(SWIO.nprocess))
-                _ = check_output("mpirun -n {} {} INPUT".format(SWIO.nprocess, os.path.join(codeDir, inputDict['modelExecutable'])), shell=True)
-                SWIO.simulationWallTime = time.time() - dt
-                print('Simulation took {:.1} seconds'.format(SWIO.simulationWallTime))
+                print('Running Simulation started with {} processors'.format(fIO.nprocess))
+                _ = check_output("mpirun -n {} {} INPUT".format(fIO.nprocess, os.path.join(curdir, inputDict[
+                    'modelExecutable'])), shell=True)
+                fIO.simulationWallTime = time.time() - dt
+                print('Simulation took {:.1} seconds'.format(fIO.simulationWallTime))
                 os.chdir(curdir)
                 with open(pickleSaveFname, 'wb') as fid:
-                    pickle.dump(SWIO, fid, protocol=pickle.HIGHEST_PROTOCOL)
+                    pickle.dump(fIO, fid, protocol=pickle.HIGHEST_PROTOCOL)
 
             else:   # assume there is a saved pickle of input/output that was generated before
                 with open(pickleSaveFname, 'rb') as fid:
-                    SWIO = pickle.load(fid)
+                    fIO = pickle.load(fid)
 
             if analyzeFlag == True:
                 print('**\nBegin Analyze Script %s ' % DT.datetime.now())
-                SWIO.path_prefix = os.path.join(workingDir, model, version_prefix, timeStamp)
-                SwashAnalyze(timeSegment, inputDict, SWIO)
+                fIO.path_prefix = os.path.join(workingDir, model, version_prefix, timeStamp)
+                frontBackFUNWAVE.FunwaveAnalyze(timeSegment, inputDict, fIO)
 
             if plotFlag is True and DT.date.today() == projectEnd:
                 print('  TODO tar simulation files after generating netCDF')

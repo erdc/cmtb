@@ -22,7 +22,7 @@ from plotting.operationalPlots import obs_V_mod_TS
 from testbedutils import geoprocess as gp
 import multiprocessing
 
-def SwashSimSetup(startTime, inputDict):
+def FunwaveSimSetup(startTime, inputDict):
     """This Function is the master call for the  data preparation for the Coastal Model
     Test Bed (CMTB) and the Swash wave/FLow model
 
@@ -114,7 +114,7 @@ def SwashSimSetup(startTime, inputDict):
         pickle.dump(swio, fid, protocol=pickle.HIGHEST_PROTOCOL)
     return swio
 
-def SwashAnalyze(startTime, inputDict, swio):
+def FunwaveAnalyze(startTime, inputDict, swio):
     """This runs the post process script for Swash wave will create plots and netcdf files at request
 
     Args:
