@@ -41,12 +41,11 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
     rawspec = allWave
     rawwind = allWind
     rawWL = allWL
-    # ______________________________________________________________________________
-    # do versioning stuff here
+    
+    # ___________________define version parameters_________________________________
     if model in ['ww3']:
         full = True
-    # _______________________________________________________________________________
-    # set times
+    # __________________set times _________________________________________________
     d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     d2 = d1 + DT.timedelta(0, simulationDuration * 3600, 0)
     dateString = d1.strftime('%Y-%m-%dT%H%M%SZ')  # used to be endtime
@@ -144,8 +143,8 @@ def ww3analyze(startTime, inputDict, ww3io):
     # try:
     d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     d2 = d1 + DT.timedelta(0, simulationDuration * 3600, 0)
-    datestring = d1.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
-    fpath = os.path.join(path_prefix, datestring)
+    dateString = d1.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
+    fpath = os.path.join(path_prefix, dateString)
     # ____________________________________________________________________________
     if version_prefix == 'base':
         full = True   # define full plane
@@ -164,7 +163,7 @@ def ww3analyze(startTime, inputDict, ww3io):
     print('Loading files ')
     fieldNc = ww3io.readWW3_field()   # load all files
     pointNc = ww3io.readWW3_point()
-    bathyPacket = ww3io.readWW3_msh(os.path.join(path_prefix, datestring, datestring+'.msh'))
+    bathyPacket = ww3io.readWW3_msh(os.path.join(path_prefix, dateString, dateString+'.msh'))
     print('Loaded files in {:.1f}'.format((DT.datetime.now() - t).total_seconds()/60))
 
     ######################
@@ -216,7 +215,7 @@ def ww3analyze(startTime, inputDict, ww3io):
     if np.median(gridPack['elevation']) < 0:
         gridPack['elevation'] = -gridPack['elevation']
 
-    fldrArch = os.path.join(model, version_prefix)
+    cmtbLocalFldrArch = os.path.join(model, version_prefix)
     spatial = {'time': nc.date2num(wave_pack['time'], units='seconds since 1970-01-01 00:00:00'),
                'station_name': 'Regional Simulation Field Data',
                'waveHs': np.transpose(wave_pack['waveHs'], (0, 2, 1)),  # put into dimensions [t, y, x]
@@ -236,10 +235,10 @@ def ww3analyze(startTime, inputDict, ww3io):
                'grid_azimuth': gridPack['azimuth']
                }
 
-    TdsFldrBase = os.path.join(Thredds_Base, fldrArch)
-    NCpath = sb.makeNCdir(Thredds_Base, os.path.join(version_prefix, 'Field'), datestring, model=model)
+    TdsFldrBase = os.path.join(Thredds_Base, cmtbLocalFldrArch)
+    NCpath = sb.makeNCdir(Thredds_Base, os.path.join(version_prefix, 'Field'), dateString, model=model)
     # make the name of this nc file
-    NCname = 'CMTB-waveModels_{}_{}_Field_{}.nc'.format(model, version_prefix, datestring)
+    NCname = 'CMTB-waveModels_{}_{}_Field_{}.nc'.format(model, version_prefix, dateString)
     fieldOfname = os.path.join(NCpath,
                                NCname)  # TdsFldrBase + '/CMTB-waveModels_CMS_{}_Local-Field_%s.nc'.format(version_prefix, datestring)
 
@@ -248,9 +247,9 @@ def ww3analyze(startTime, inputDict, ww3io):
     if not os.path.exists(os.path.join(TdsFldrBase, 'Field', 'Field.ncml')):
         inputOutput.makencml(os.path.join(TdsFldrBase, 'Field', 'Field.ncml'))  # remake the ncml if its not there
     # make file name strings
-    flagfname = os.path.join(fpath, 'Flags{}.out.txt'.format(datestring))  # startTime # the name of flag file
-    fieldYaml = 'yaml_files/waveModels/%s/Field_globalmeta.yml' % (fldrArch)  # field
-    varYaml = 'yaml_files/waveModels/%s/Field_var.yml' % (fldrArch)
+    flagfname = os.path.join(fpath, 'Flags{}.out.txt'.format(dateString))  # startTime # the name of flag file
+    fieldYaml = 'yaml_files/waveModels/%s/Field_globalmeta.yml' % (cmtbLocalFldrArch)  # field
+    varYaml = 'yaml_files/waveModels/%s/Field_var.yml' % (cmtbLocalFldrArch)
     assert os.path.isfile(fieldYaml), 'NetCDF yaml files are not created'  # make sure yaml file is in place
     makenc.makenc_field(data_lib=spatial, globalyaml_fname=fieldYaml, flagfname=flagfname,
                         ofname=fieldOfname, var_yaml_fname=varYaml)
@@ -277,7 +276,7 @@ def ww3analyze(startTime, inputDict, ww3io):
                 oP.plotSpatialFieldData(dep_pack, spatialPlotPack, os.path.join(fpath, fnameSuffix), nested=0)
             # now make a gif for each one, then delete pictures
             fList = sorted(glob.glob(fpath + '/figures/*%s*.png' % param[0]))
-            sb.makegif(fList, fpath + '/figures/CMTB_%s_%s_%s.gif' % (version_prefix, param[0], datestring))
+            sb.makegif(fList, fpath + '/figures/CMTB_%s_%s_%s.gif' % (version_prefix, param[0], dateString))
             [os.remove(ff) for ff in fList]
 
     ######################################################################################################################
@@ -293,8 +292,8 @@ def ww3analyze(startTime, inputDict, ww3io):
         # stationName = 'CMTB-waveModels_CMS_%s_%s' % (version_prefix, station)  # xp 125
 
         # this needs to be the same order as the run script
-        stat_yaml_fname = 'yaml_files/waveModels/{}/Station_var.yml'.format(fldrArch)
-        globalyaml_fname = 'yaml_files/waveModels/{}/Station_globalmeta.yml'.format(fldrArch)
+        stat_yaml_fname = 'yaml_files/waveModels/{}/Station_var.yml'.format(cmtbLocalFldrArch)
+        globalyaml_fname = 'yaml_files/waveModels/{}/Station_globalmeta.yml'.format(cmtbLocalFldrArch)
         # getting lat lon, easting northing idx's
         # Idx_i = len(gridPack['i']) - np.argwhere(gridPack['i'] == stat_packet['iStation'][
         #     gg]).squeeze() - 1  # to invert the coordinates from offshore 0 to onshore 0
@@ -335,11 +334,11 @@ def ww3analyze(startTime, inputDict, ww3io):
             stat_data['Longitude'] = w['lon']
         # Name files and make sure server directory has place for files to go
         print('making netCDF for model output at %s ' % station)
-        TdsFldrBase = os.path.join(Thredds_Base, fldrArch, station)
+        TdsFldrBase = os.path.join(Thredds_Base, cmtbLocalFldrArch, station)
 
-        NCpath = sb.makeNCdir(Thredds_Base, os.path.join(version_prefix, station), datestring, model='CMS')
+        NCpath = sb.makeNCdir(Thredds_Base, os.path.join(version_prefix, station), dateString, model='CMS')
         # make the name of this nc file
-        NCname = 'CMTB-waveModels_{}_{}_{}_{}.nc'.format(model, version_prefix, station, datestring)
+        NCname = 'CMTB-waveModels_{}_{}_{}_{}.nc'.format(model, version_prefix, station, dateString)
         outFileName = os.path.join(NCpath, NCname)
 
         if not os.path.exists(TdsFldrBase):
@@ -392,7 +391,7 @@ def ww3analyze(startTime, inputDict, ww3io):
                               'units': units,  # ) -> this will be put inside a tex math environment!!!!
                               'p_title': title}
 
-                    ofname = os.path.join(fpath, 'figures/Station_%s_%s_%s.png' % (station, param, datestring))
+                    ofname = os.path.join(fpath, 'figures/Station_%s_%s_%s.png' % (station, param, dateString))
                     stats = obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png')
 
                     if station == 'waverider-26m' and param == 'Hm0':
