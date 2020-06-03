@@ -92,10 +92,15 @@ def FunwaveSimSetup(startTime, inputDict, rawWL, rawspec, bathy):
     # set some of the class instance variables before writing input files
     # TODO: @Gaby, calculate nprocessors (px * py), i think this is based on the grid, so you can use the output from
     #  prep_FunwaveBathy
-    nprocessors = 2
+    
+    px = np.floor(gridDict['elevation'].shape[0]/100)  # or something to this effect
+    py = np.floor(gridDict['elevation'].shape[1]/100)  # or something to this effect
+    nprocessors = px * py  # now calculated on init
+    ## TODO: @gaby, you can change anything you need here, may save some of the write input requirements (eg px, py,
+    # maybe others)
     fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WLpacket[
         'avgWL'], equilbTime=wavepacket['spinUp'], Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'], Dm=wavepacket[
-        'waveDm'], nprocess=nprocessors)
+        'waveDm'], px = px, py=py)
 
     #TODO: change the below functions to write 1D simulation files with appropriate input information.  In other
     # words the dictionaries here that are input to your write functions, need to come out of the "prep" functions
@@ -265,7 +270,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     ##################################################################################################################
     ##################################################################################################################
 
-    #TODO: @Gaby, the last step, we'll be making netCDF files.  I'd like to loop matt and ty and maybe mike in here
+    #TODO: @Gaby, the last st   ep, we'll be making netCDF files.  I'd like to loop matt and ty and maybe mike in here
     # as we're going to be doing this for the LAB and it'd be nice to establish the "correct" format right off the
     # bat here for FUNWAVE, then they can absorb what we generate to implement directly into the model. we have a
     # tool to make netCDF files and it basically works by taking the model output and putting it into a dictionary.
