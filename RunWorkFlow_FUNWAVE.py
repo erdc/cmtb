@@ -9,8 +9,9 @@ from frontback import frontBackFUNWAVE
 from getdatatestbed import getDataFRF
 from testbedutils import fileHandling
 
-def Master_SWASH_run(inputDict):
-    """This function will run CMS with any version prefix given start, end, and timestep
+
+def Master_FUNWAVE_run(inputDict):
+    """This function will run FUNWAVE with any version prefix given start, end, and timestep
 
     Args:
       inputDict: a dictionary that is read from the input yaml
@@ -139,4 +140,4 @@ if __name__ == "__main__":
     except:
         raise IOError('Input YAML file required.  See yaml_files/TestBedExampleInputs/CMS_Input_example for example yaml file.')
 
-    Master_SWASH_run(inputDict=inputDict)
+    Master_FUNWAVE_run(inputDict=inputDict)
