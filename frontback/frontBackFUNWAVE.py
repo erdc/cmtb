@@ -20,7 +20,7 @@ from plotting.operationalPlots import obs_V_mod_TS
 from testbedutils import geoprocess as gp
 import multiprocessing
 
-def FunwaveSimSetup(startTime, inputDict, rawWL, rawspec, bathy):
+def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     """This Function is the master call for the  data preparation for the Coastal Model
     Test Bed (CMTB) and the Swash wave/FLow model
 
