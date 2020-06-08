@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-#!/home/number/anaconda2/bin/python
 import matplotlib
 matplotlib.use('Agg')
 import datetime as DT
@@ -169,6 +168,7 @@ def Master_STWAVE_run(inputDict):
                     shutil.copy(file,  '/mnt/gaia/gages/results/frfIn/CMTB')
                     print('moved %s ' % file)
             print(' --------------   SUCCESS: Done %s --------------------------------' %time)
+            
         except Exception as e:
             os.chdir(curdir)  # if things break during run flag, need to get back out!
             print('<< ERROR >> HAPPENED IN THIS TIME STEP ')
@@ -183,6 +183,6 @@ if __name__ == "__main__":
     import yaml
     yamlLoc = args[0]
     with open(yamlLoc, 'r') as f:
-        inputDict = yaml.load(f)  # load input yaml
+        inputDict = yaml.safe_load(f)  # load input yaml
     # run work flow
     Master_STWAVE_run(inputDict)

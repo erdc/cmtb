@@ -1,0 +1,205 @@
+# Spatial WAVE TEMPLATE
+_variables: ['time', 'longitude', 'latitude', 'xFRF', 'yFRF', 'connectivity',  'meshName',  'waveHs', 'bathymetry',
+             'three', 'nfaces', 'nnodes','waveTm', 'waveDm', 'dynamicTimeStep', 'mapStatus']
+_attributes: ['notes']
+_dimensions: ['time', 'nfaces', 'nnodes', 'three']
+
+meshName:
+    name: 'meshName'
+    cf_role: 'mesh_topology'
+    topology_dimension: 2
+    node_coordinates: 'latitude longitude'    # points to the auxiliary coordinate variables representing the node locations (latitude,
+    face_node_connectivity: 'connectivity'    # points to an index variable identifying for every face (here consistently triangle) the indices of its three corner nodes. The corner nodes should be specified in anticlockwise (also referred to as counterclockwise) direction as viewed from above (consistent with the CF-convention for bounds of p-sided cells). The connectivity array will thus be a matrix of size nFaces x 3.
+    face_dimension: 'nfaces'
+    notes: 'this variable contains no data.  It is solely here to describe the mesh and where appropriate data are. The attributes are used to point to variables describing the mesh topology'
+    data_type: 'i2'
+    dim: []
+    units: '1'
+
+nnodes:
+    name: 'nnodes'
+    dim: ['nnodes']
+    data_type: 'i8'
+    units: '1'
+    long_name: 'node count'
+    start_index: 0
+
+nfaces:
+    name: 'nfaces'
+    dim: ['nfaces']
+    data_type: 'i8'
+    units: '1'
+    long_name: 'face count'
+    start_index: 0
+
+three:
+    name: 'three'
+    dim: ['three']
+    data_type: 'u2'
+    units: '1'
+    long_name: 'dimension for connectivity'
+
+time:
+    name: 'time'
+    units: 'seconds since 1970-01-01 00:00:00'
+    standard_name: ''
+    long_name: 'UTC Model Time'
+    data_type: 'f8'
+    dim: ['time']
+    calendar: 'gregorian'
+    fill_value: '-999'
+
+connectivity:
+    name: 'connectivity'
+    cf_role: 'face_node_connectivity'
+    start_index: 0
+    long_name: "Topology data of 2D unstructured mesh"
+    node_coordinates: ["latitude", "longitude"]
+    face_dimension: "nfaces"
+    data_type: 'i8'
+    units: '1'
+    dim: ['nfaces', 'three']
+    notes: 'This variable describes the connectivity between nodes'
+
+longitude:
+    name: 'longitude'
+    units: "degrees_east"
+    axis: 'X'
+    standard_name: 'longitude'
+    long_name: 'longitude'
+    data_type: 'f8'
+    dim: ['nnodes']
+    fill_value: '-999'
+    short_name: 'lon'
+
+latitude:
+    name: 'latitude'
+    units: 'degrees_north'
+    axis: 'Y'
+    standard_name: 'latitude'
+    long_name: 'latitude'
+    data_type: 'f8'
+    dim: ['nnodes']
+    fill_value: '-999'
+    short_name: 'lat'
+
+xFRF:
+    name: 'xFRF'
+    units: 'm'
+    long_name: 'FRF cross-shore coordinate'
+    data_type: 'f8'
+    dim: ['nnodes']
+    fill_value: '-999'
+    short_name: 'xFRF'
+    coordinates: 'latitude longitude'
+#    grid_mapping:    #then a grid_mapping variable provides the information required to derive longitude and latitude values for each grid location.
+    description: 'cross-shore coordinate in local FRF coordinate system'
+
+yFRF:
+    name: 'yFRF'
+    units: 'm'
+    long_name:  'FRF along-shore coordinate'
+    data_type: 'f8'
+    dim: ['nnodes']
+    fill_value: '-999'
+    short_name: 'yFRF'
+    coordinates: 'latitude longitude'
+    description: 'along-shore coordinate in local FRF coordinate system'
+
+waveHs:
+    name: 'waveHs'
+    long_name: 'significant height of wind and swell waves'
+    standard_name: 'sea_surface_wave_significant_height'
+    globwave_name: 'significant_wave_height'
+    units: 'm'
+    data_type: 'f8'
+    scale_factor: 1
+    add_offset: 0
+    valid_min: 0
+    valid_max: 32000
+    dim: ['time', 'nnodes']
+    location: 'node'
+    mesh: 'meshName'
+    coordinates: 'longitude latitude'
+    #    fill_value: '-999'
+    short_name: 'Wave Height'
+    description: 'Significant Wave Height across the modeled domain'
+
+bathymetry:
+    name: 'bathymetry'
+    units: 'm'
+    standard_name: ''
+    long_name: 'Model domain bathymetry'
+    data_type: 'f8'
+    dim: ['time', 'nnodes']
+    fill_value: '-999'
+    location: 'node'
+    mesh: 'meshName'
+    short_name: 'bathy'
+    coordinates: 'longitude latitude xFRF yFRF'
+    description: 'Modeled bathymetry for CMTB run measured from NAVD88'
+    least_significant_digit: 2
+    positive: 'up'
+    EPSG: '5703'
+
+waveTm:
+    name: 'waveTm'
+    units: 's'
+    standard_name: 'sea_surface_wind_wave_mean_period_from_variance_spectral_density_second_frequency_moment'
+    long_name: 'Mean Wave Period - T02'
+    data_type: 'f8'
+    dim: ['time', 'nnodes']
+    fill_value: '-999'
+    short_name: 'Mean Period'
+    coordinates: 'longitude latitude xFRF yFRF'
+    description: 'Mean Wave Period at ever model node'
+    least_significant_digit: 2
+
+waveDm:
+    name: 'waveDm'
+    units: 'degree'
+    standard_name: 'sea_surface_wave_from_direction'
+    globwave_name: 'wave_from_direction'
+    long_name: 'Mean Wave Direction measured from true north'
+    data_type: 'f8'
+    dim: ['time', 'nnodes']
+    fill_value: '-999'
+    short_name: 'Dm'
+    coordinates: 'longitude latitude xFRF yFRF'
+    description: 'Mean wave direction across the modeled domain'
+    least_significant_digit: 2
+
+waveTp:
+    name: 'waveTp'
+    units: 'seconds'
+    standard_name: ''
+    long_name: 'Peak Wave Period'
+    data_type: 'f8'
+    dim: ['time', 'nnodes']
+    fill_value: '-999'
+    short_name: 'Tp'
+    coordinates: 'longitude latitude xFRF yFRF'
+    description: 'Peak wave period across the modeled domain'
+    least_significant_digit: 2
+
+dynamicTimeStep:
+    name: 'dynamicTimeStep'
+    scale_factor: '1.0'
+    add_offset: '0.0'
+    valid_min: '0'
+    valid_max: '32000'
+    units: 's'
+    long_name: 'dynamic time step'
+    standard_name: 'dynamic_time_step'
+    globwave_name: 'dynamic_time_step'
+
+mapStatus:
+    name: 'mapStatus'
+    dim: ['nnodes']
+    long_name: 'status map'
+    units: '1'
+    valid_min: '-32'
+    valid_max: '32'
+    data_type: 'u4'
+    notes: 'It is unclear what the different map cell status values relates to'
+

@@ -7,8 +7,79 @@ import os, math
 from scipy.interpolate import interpn, RectBivariateSpline
 from getdatatestbed.getDataFRF import getObs
 from testbedutils import sblib as sb
-from testbedutils.sblib import statsBryant
 from testbedutils.anglesLib import vectorRotation
+import cartopy.crs as ccrs
+
+def unstructuredSpatialPlot(outFname, fieldNc, variable='waveHs', **kwargs):
+    """Plots unstructured data from open netCDF file
+    
+    Args:
+        plotFname: output plot file name
+        ncfile: open netCDF file
+        variables: single variable to plot in the netCDF file with attributes 'short_name' and 'units'
+    
+    Keyword Args:
+        'bottomLeft': tuple of decimal lon/lat for bottom left of zoomed in domain (default=(-75.758986, 36.173927))
+        'topRight':  tuple of decimal lon/lat for bottom left of zoomed in domain (default=(-75.743879, 36.190276))
+    
+    Returns:
+        None
+        
+    """
+    from matplotlib import tri
+    from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
+    timeIDX = kwargs.get('timeIdx', slice)
+    lon, lat = fieldNc['longitude'][:], fieldNc['latitude'][:]
+    value = fieldNc[variable][timeIDX, :]
+    bathy = fieldNc['bathymetry'][timeIDX]
+    title = fieldNc[variable].short_name
+    axisLabel = title + ' [{}]'.format(fieldNc['waveHs'].units)
+    figsize = (16, 6)
+    ######### pre process
+    triang = tri.Triangulation(lon, lat)
+    
+    # take these from data or FRF locations
+    zoomBL = kwargs.get('bottomLeft', (-75.758986, 36.173927))
+    zoomTR = kwargs.get('topRight', (-75.743879, 36.190276))
+    ###########################
+    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=figsize, subplot_kw=dict(projection=ccrs.PlateCarree()))
+    ####
+    axis = 0  # first subplot
+    ax[axis].coastlines(resolution='10m', zorder=1)
+    lines = ax[axis].triplot(triang, linestyle='-', lw=1, alpha=0.35, color='darkgray', zorder=1)
+    ax[axis].tricontour(triang, bathy, linestyles='dotted', colors='black', levels=[0, 1, 3.5, 5, 7])
+    ax[axis].set_extent([zoomTR[0], zoomBL[0], zoomBL[1], zoomTR[1]])
+    ax[axis].set_title('Mesh', fontsize=12)
+    
+    ####
+    axis = 1  #2nd subplot
+    ax[axis].coastlines(resolution='10m', zorder=1)
+    mappable = ax[axis].tripcolor(triang, value)
+    ax[axis].tricontour(triang, bathy, linestyles='dotted', colors='black', levels=[0, 1, 3.5, 5, 7])
+    ax[axis].set_extent([zoomTR[0], zoomBL[0], zoomBL[1], zoomTR[1]])
+    cbar = plt.colorbar(mappable, ax=ax[axis], fraction=0.046, pad=0.04)
+    cbar.set_label(axisLabel)
+    ax[axis].set_title('nearshore {0}'.format(title), fontsize=12)
+    
+    ####
+    axis = 2  #3nd subplot
+    ax[axis].coastlines(resolution='10m', zorder=1)
+    mappable = ax[axis].tripcolor(triang, value)
+    ax[axis].tricontour(triang, bathy, linestyles='dotted', colors='black', levels=[0, 5, 10, 15, 20])
+    cbar = plt.colorbar(mappable, ax=ax[axis], fraction=0.046, pad=0.04)
+    cbar.set_label(axisLabel)
+    ax[axis].set_title('nearshore {0}'.format(title), fontsize=12)
+    
+    for axis in range(0, len(ax)):
+        print(axis)
+        gl = ax[axis].gridlines(draw_labels=True)
+        gl.top_labels= gl.right_labels = False
+        gl.xformatter = LONGITUDE_FORMATTER
+        gl.yformatter = LATITUDE_FORMATTER
+    
+        plt.tight_layout()
+        plt.savefig(outFname)
+
 
 def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     """This function takes various spectra, and plots them for QA/QC on the spectral inversion/rotation method
@@ -454,7 +525,7 @@ def plotWaveProfile(x, waveHs, bathyToPlot, fname):
       yLocation: the location (in STWAVE longshore coord)
           of the profile of wave height to be tak en  default 142, is the nested grid of the xshore array
       bathyField: this is a 2 dimensional array of bathymetry with Positive up
-      bathyToPlot: 
+      bathyToPlot:
       fname:  output file name
 
     Returns:
@@ -606,7 +677,7 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
     stats_dict = {}
     if isinstance(p_dict['obs'], np.ma.masked_array) and ~p_dict['obs'].mask.any():
         p_dict['obs'] = np.array(p_dict['obs'])
-    stats_dict = statsBryant(p_dict['obs'], p_dict['model'])
+    stats_dict = sb.statsBryant(p_dict['obs'], p_dict['model'])
     stats_dict['m_mean'] = np.nanmean(p_dict['model'])
     stats_dict['o_mean'] = np.nanmean(p_dict['obs'])
     # the below are calculated in statsBryant... this keeps all statistics calcs in the same place
@@ -1641,7 +1712,7 @@ def alt_PlotData(name, mod_time, mod_times, THREDDS='FRF'):
       mod_time: start time of the model
       time: array of model datetimes
       mod: array of model observations at that instrument location corresponding to variable "comp_time"
-      mod_times: 
+      mod_times:
       THREDDS:  (Default value = 'FRF')
 
     Returns:
@@ -1774,7 +1845,7 @@ def lidar_PlotData(time, THREDDS='FRF'):
     """
 
     Args:
-      time: 
+      time:
       THREDDS:  (Default value = 'FRF')
 
     Returns:
