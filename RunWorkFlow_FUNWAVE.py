@@ -9,8 +9,9 @@ from frontback import frontBackFUNWAVE
 from getdatatestbed import getDataFRF
 from testbedutils import fileHandling
 
-def Master_SWASH_run(inputDict):
-    """This function will run CMS with any version prefix given start, end, and timestep
+
+def Master_FUNWAVE_run(inputDict):
+    """This function will run FUNWAVE with any version prefix given start, end, and timestep
 
     Args:
       inputDict: a dictionary that is read from the input yaml
@@ -64,8 +65,8 @@ def Master_SWASH_run(inputDict):
     fileHandling.checkVersionPrefix(model, inputDict)
     # ______________________________Get data to run model  _____________________________
     # begin model data gathering
-    go = getDataFRF.getObs(d1, d2)                  # initialize get observation class
-    gdTB = getDataFRF.getDataTestBed(d1, d2)        # for bathy data gathering
+    go = getDataFRF.getObs(projectStart, projectEnd)                  # initialize get observation class
+    gdTB = getDataFRF.getDataTestBed(projectStart, projectEnd)        # for bathy data gathering
     rawspec = go.getWaveSpec(gaugenumber= '8m-array')
     rawWL = go.getWL()
     bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])
@@ -78,8 +79,10 @@ def Master_SWASH_run(inputDict):
             timeStamp = ''.join(timeSegment.split(':'))
             datadir = os.path.join(path_prefix, timeStamp)  # moving to the new simulation's folder
             pickleSaveFname = os.path.join(datadir, timeStamp + '_io.pickle')
+
+            print("estas en la linea 83 de run ")
             if generateFlag == True:
-                fIO = frontBackFUNWAVE.FunwaveSimSetup(timeSegment, inputDict=inputDict)
+                fIO = frontBackFUNWAVE.FunwaveSimSetup(timeSegment,rawWL,rawspec,bathy,inputDict=inputDict)
 
             if runFlag == True:        # run model
                 os.chdir(datadir)      # changing locations to where input files should be made
@@ -140,4 +143,4 @@ if __name__ == "__main__":
         raise IOError('Input YAML file required.  See yaml_files/TestBedExampleInputs/FUNWAVE_Input_example for '
                       'example yaml file.')
 
-    Master_SWASH_run(inputDict=inputDict)
+    Master_FUNWAVE_run(inputDict=inputDict)
