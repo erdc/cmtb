@@ -6,6 +6,7 @@ import glob
 import numpy as np
 from scipy import interpolate
 import pandas as pd
+import pickle
 
 start = DT.datetime(2018, 2, 27)
 end =   DT.datetime(2018, 3, 20,3)
@@ -75,8 +76,18 @@ for tt in range(bathy['elevation'].shape[0]):
         plt.savefig('bathyFusion_{}to{}.png'.format(topoDate, bathyDate))
         key = "t_{}_b{}".format(topoDate, bathyDate)
         saveBathy[key] = cubicProfile
-
-
+        
+        # now save
+        out = {'xFRF':      cubicX,
+               'yFRF':      yLoc,
+               'elevation': cubicProfile,
+               'time':      DT.datetime.strptime(topoDate, '%Y-%m-%d'),
+               'lat':       -999,
+               'lon':       -999}
+        outfname = "bathyPickle_{}.pickle".format(topoDate)
+        with open(outfname, 'wb') as fid:
+            pickle.dump(out, fid,  protocol=pickle.HIGHEST_PROTOCOL)
+        
 ###### test spline method code
 origBathyProfile = bathy['elevation'][tt, bathy['yFRF']==yLoc].squeeze()
 origbathyX = bathy['xFRF']

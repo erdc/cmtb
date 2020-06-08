@@ -137,6 +137,7 @@ if __name__ == "__main__":
                 a = yaml.safe_load(fid)
             inputDict.update(a)
     except:
-        raise IOError('Input YAML file required.  See yaml_files/TestBedExampleInputs/CMS_Input_example for example yaml file.')
+        raise IOError('Input YAML file required.  See yaml_files/TestBedExampleInputs/FUNWAVE_Input_example for '
+                      'example yaml file.')
 
     Master_SWASH_run(inputDict=inputDict)
