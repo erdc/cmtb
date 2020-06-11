@@ -33,9 +33,6 @@ def Master_FUNWAVE_run(inputDict):
     model = inputDict.get('modelName', 'FUNWAVE').lower()
     inputDict['path_prefix'] = os.path.join(workingDir, model, version_prefix)
     path_prefix = inputDict['path_prefix']
-    # data check
-    prefixList = np.array(['base', 'ts'])
-    assert (version_prefix.lower() == prefixList).any(), "Please enter a valid version prefix\n Prefix assigned = %s must be in List %s" % (version_prefix, prefixList)
 
     # ______________________ Logging  ____________________________
     # auto generated Log file using start_end timeSegment
@@ -69,7 +66,12 @@ def Master_FUNWAVE_run(inputDict):
     gdTB = getDataFRF.getDataTestBed(projectStart, projectEnd)        # for bathy data gathering
     rawspec = go.getWaveSpec(gaugenumber= '8m-array')
     rawWL = go.getWL()
-    bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])
+    if version_prefix in ['freq']:
+        #load specific date/time of interest
+        with open('bathyPickle_{}.pickle'.format(projectStart.strftime("%Y-%m-%d")), 'rb') as fid:
+            bathy = pickle.load(fid)
+    else:
+        bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])
 
     # _____________________________ RUN LOOP ___________________________________________
     
@@ -80,9 +82,8 @@ def Master_FUNWAVE_run(inputDict):
             datadir = os.path.join(path_prefix, timeStamp)  # moving to the new simulation's folder
             pickleSaveFname = os.path.join(datadir, timeStamp + '_io.pickle')
 
-            print("estas en la linea 83 de run ")
             if generateFlag == True:
-                fIO = frontBackFUNWAVE.FunwaveSimSetup(timeSegment,rawWL,rawspec,bathy,inputDict=inputDict)
+                fIO = frontBackFUNWAVE.FunwaveSimSetup(timeSegment, rawWL, rawspec, bathy, inputDict=inputDict)
 
             if runFlag == True:        # run model
                 os.chdir(datadir)      # changing locations to where input files should be made
