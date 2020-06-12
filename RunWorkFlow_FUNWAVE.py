@@ -68,7 +68,7 @@ def Master_FUNWAVE_run(inputDict):
     rawWL = go.getWL()
     if version_prefix in ['freq']:
         #load specific date/time of interest
-        with open('bathyPickle_{}.pickle'.format(projectStart.strftime("%Y-%m-%d")), 'rb') as fid:
+        with open('yaml_files/FUNWAVE/bathyPickle_{}.pickle'.format(projectStart.strftime("%Y-%m-%d")), 'rb') as fid:
             bathy = pickle.load(fid)
     else:
         bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])
