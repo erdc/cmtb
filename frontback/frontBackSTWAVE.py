@@ -22,7 +22,7 @@ from testbedutils import sblib as sb
 from testbedutils import fileHandling
 from subprocess import check_output
 
-def STsimSetup(startTime, inputDict,allWind , allWL, allWave, loc_dict=None):
+def STsimSetup(startTime, inputDict,allWind , allWL, allWave, bathy, loc_dict=None):
     """This Function is the master call for the  data preparation for the Coastal Model STWAVE runs.
     
     It is designed to be handed data then utilize prep_datalib for model pre-processing. All Files are labeled by
@@ -44,22 +44,19 @@ def STsimSetup(startTime, inputDict,allWind , allWL, allWave, loc_dict=None):
 
     """
     # unpack dictionary -- Required
-    version_prefix = inputDict['version_prefix']
+    version_prefix = inputDict['modelSettings']['version_prefix']
     timerun =  inputDict['simulationDuration']
     plotFlag = inputDict.get('plotFlag', True)
     background_grid_nested = inputDict['modelSettings']['gridDEP_nested']
     background_grid_parent = inputDict['modelSettings']['gridDEP_parent']
-    if inputDict['workingDirectory'].endswith(inputDict['version_prefix']):
-        path_prefix = inputDict['workingDirectory']
-    else:
-        path_prefix = os.path.join(inputDict['workingDirectory'], inputDict['version_prefix'])
-        
-    if 'ForcedSurveyDate' in inputDict['modelSettings']:
-        ForcedSurveyDate = inputDict['modelSettings']['ForcedSurveyDate']
-        FSDpieces = ForcedSurveyDate.split('-')
-        ForcedSurveyDate = DT.datetime(int(FSDpieces[0]), int(FSDpieces[1]), int(FSDpieces[2]))
-    else:
-        ForcedSurveyDate = None
+    path_prefix = inputDict['path_prefix']
+    
+    # if 'ForcedSurveyDate' in inputDict['modelSettings']:
+    #     ForcedSurveyDate = inputDict['modelSettings']['ForcedSurveyDate']
+    #     FSDpieces = ForcedSurveyDate.split('-')
+    #     ForcedSurveyDate = DT.datetime(int(FSDpieces[0]), int(FSDpieces[1]), int(FSDpieces[2]))
+    # else:
+    #     ForcedSurveyDate = None
     if not os.path.isfile(background_grid_parent):
         raise EnvironmentError('check your background Grid parent file name')
     if not os.path.isfile(background_grid_nested):
@@ -73,13 +70,11 @@ def STsimSetup(startTime, inputDict,allWind , allWL, allWave, loc_dict=None):
     numNest = 3  # number of points to use as nesting seed
 
     # ___________________define version parameters_________________________________
-    if version_prefix == 'FP':
+    if version_prefix.lower() == 'fp':
         full = True # full plane
-    elif version_prefix == 'HP':
+    elif version_prefix.lower() in ['hp', 'cbhp']:
         full = False  # half plane
-    elif version_prefix == 'CBHP':
-        full = False  # half plane
-    elif version_prefix in ['CB', 'CBThresh', 'CBT1', 'CBT2']:
+    elif version_prefix.lower() in ['cb', 'cbthresh', 'cbt1', 'cbt2']:
         background_grid_nested = inputDict['gridDEP_nested'].replace('5', '10') # make this dummy proof
         assert startTime[10] == 'T', 'End time for simulation runs must be in the format YYYY-MM-DDThh:mm:ssZ'
         full = False # cbathy simulations run in half plane
@@ -97,14 +92,11 @@ def STsimSetup(startTime, inputDict,allWind , allWL, allWave, loc_dict=None):
     # __________________initalize needed classes ___________________________________
     prepdata = STPD.PrepDataTools()
     stio = inputOutput.stwaveIO('')  # initializing io here so grid text can be written out
-    gtb = getDataFRF.getDataTestBed(d1, d2)  # this should be relocated to operational servers
     
     ###################################################################################################################
     #######################   Begin Gathering Data      ###############################################################
     ###################################################################################################################
     ## _____________WAVES____________________________
-    print("_________________\nGathering Wave Data")
-    # retrieve waves
     if 'time' not in rawspec:
         print("\n++++\nThere's STILL No Wave data between %s and %s \n++++\n" % (d1, d2))
         return -1, -1 ## abort runs
@@ -115,21 +107,20 @@ def STsimSetup(startTime, inputDict,allWind , allWL, allWave, loc_dict=None):
     # ____________ BATHY ______________________
     ofnameDep = os.path.join(path_prefix, dateString, '{}nested.dep'.format(dateString))
     # warnings.warn('GetData bathy is in get model data!')
-    bathy = gtb.getBathyIntegratedTransect(method=1, ForcedSurveyDate=ForcedSurveyDate)
     gridNodesNested = prepdata.GetOriginalGridFromSTWAVE(background_grid_nested[:-4]+'.sim', background_grid_nested)
 
-    if version_prefix in ['FP', 'HP', 'CBHP']:
+    if version_prefix.lower() in ['fp', 'hp', 'cbhp']:
         # get data first
-        bathy = gtb.getBathyIntegratedTransect(method=1, ForcedSurveyDate=ForcedSurveyDate)
+        # bathy = gtb.getBathyIntegratedTransect(method=1, ForcedSurveyDate=ForcedSurveyDate)
         # first find the nodes of the grid
         gridName='version_%s_SurveyDate_%s_SurveyNumber_%d' %(version_prefix, bathy['time'].strftime('%Y-%m-%d'), bathy['surveyNumber'])
 
-    elif version_prefix == 'CB':
-        bathy = gtb.getBathyIntegratedTransect(method=1, ForcedSurveyDate=ForcedSurveyDate, cBKF=True)
+    elif version_prefix.lower() == 'cb':
+        # bathy = gtb.getBathyIntegratedTransect(method=1, ForcedSurveyDate=ForcedSurveyDate, cBKF=True)
         gridName='version_{}_SurveyDate_{}'.format(version_prefix, bathy['time'].strftime('%Y-%m-%dT%H%M%SZ'))
 
-    elif version_prefix == 'CBThresh':
-        bathy = gtb.getBathyIntegratedTransect(method=1, ForcedSurveyDate=ForcedSurveyDate, cBKF_T=True)
+    elif version_prefix.lower() == 'cbthresh':
+        # bathy = gtb.getBathyIntegratedTransect(method=1, ForcedSurveyDate=ForcedSurveyDate, cBKF_T=True)
         gridName='version_{}_SurveyDate_{}'.format(version_prefix, bathy['time'].strftime('%Y-%m-%dT%H%M%SZ'))
 
     print('Sim start: %s\nSim End: %s\nSim bathy chosen: %s' % (d1, d2, bathy['time']))
@@ -683,3 +674,6 @@ def STanalyze(startTime, inputDict):
                                 # os.remove(fieldOfname)
                                 os.remove(outFileName)
                                 raise RuntimeError('The Model Is not validating its offshore boundary condition')
+    # writing data out for UQ effort. Starting with parent domain (can complicate further as necessary)
+    outData = regionalDataLib 
+    return outData

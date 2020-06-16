@@ -7,7 +7,7 @@ import numpy as np
 from frontback.frontBackSTWAVE import STanalyze, STsimSetup
 import os, getopt, sys, shutil, glob, platform, logging, yaml
 from testbedutils import fileHandling
-from getdatatestbed.getDataFRF import getObs
+from getdatatestbed import getDataFRF
 
 def Master_STWAVE_run(inputDict):
     """This will run STWAVE with any version prefix given start, end, and timestep
@@ -51,7 +51,7 @@ def Master_STWAVE_run(inputDict):
     FRFgaugelocsFile = inputDict.get('sensorLocPkl', 'ArchiveFolder/frf_sensor_locations.pkl')
 
 
-###################################################################################################################
+    ###################################################################################################################
     #######################   doing Data check and setting up input vars  #############################################
     ###################################################################################################################
 
@@ -64,8 +64,10 @@ def Master_STWAVE_run(inputDict):
     if 'ForcedSurveyDate' in list(inputDict.keys()):
         workingDirectory = os.path.join(workingDir, model.lower(), version_prefix, 'SingleBathy_{}'.format(
                                                                         inputDict['modelSettings']['ForcedSurveyDate']))
+        ForcedSurveyDate =  inputDict['modelSettings']['ForcedSurveyDate']
     else:
         workingDirectory = os.path.join(workingDir, model.lower(), version_prefix)
+        ForcedSurveyDate = None
     inputDict['path_prefix'] = workingDirectory
     # ______________________ Logging  ____________________________
     LOG_FILENAME = fileHandling.logFileLogic(workingDirectory, version_prefix, startTime, endTime, log=False)
@@ -77,11 +79,14 @@ def Master_STWAVE_run(inputDict):
 
     # ______________________________gather all data _____________________________
     if generateFlag == True:
-        go = getObs(projectStart, projectEnd)  # initialize get observation
+        go = getDataFRF.getObs(projectStart, projectEnd)  # initialize get observation
         rawspec = go.getWaveSpec(gaugenumber='waverider-26m', specOnly=True)
         rawWL = go.getWL()
         rawwind = go.getWind(gaugenumber=0)
         loc_dict = go.get_sensor_locations(datafile=FRFgaugelocsFile, window_days=14)
+        gtb = getDataFRF.getDataTestBed(projectStart, projectEnd)  # this should be relocated to operational servers
+        bathy = gtb.getBathyIntegratedTransect(method=1, ForcedSurveyDate=ForcedSurveyDate)
+
     # ________________________________________________ RUN LOOP ________________________________________________
     # run the process through each of the above dates
     errors, errorDates, curdir = [], [], os.getcwd()
@@ -91,7 +96,7 @@ def Master_STWAVE_run(inputDict):
         try:
             datadir = os.path.join(workingDirectory, ''.join(time.split(':')))  # moving to the new simulation's folder
             if generateFlag == True:
-                [nproc_par, nproc_nest] = STsimSetup(time, inputDict, rawwind, rawWL, rawspec, loc_dict)
+                [nproc_par, nproc_nest] = STsimSetup(time, inputDict, rawwind, rawWL, rawspec, bathy, loc_dict)
 
                 if nproc_par == -1 or nproc_nest == -1:
                     print('************************\nNo Data available\naborting run\n***********************')
@@ -123,7 +128,7 @@ def Master_STWAVE_run(inputDict):
             # run analyze and archive script
             os.chdir(curdir)  # change back after runing simulation locally
             if analyzeFlag == True:
-                STanalyze(time, inputDict)
+                beachWaves = STanalyze(time, inputDict)
             if pFlag == True and DT.date.today() == endTime.date():
                 print('**\n Moving Plots! \n &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&')
                 # move files
