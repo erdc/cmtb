@@ -1,0 +1,26 @@
+# # # # # # # # # # # #
+# Data control        #
+# # # # # # # # # # # #
+plotFlag: True            # turn plotting on
+generateFlag: True        # generate simulation input files (go get data, process, and write files)
+runFlag: True             # run the simulation
+analyzeFlag: False         # post process simulations (read files, post process data, make netCDF files, plot if desired)
+bathyLoc: integrated_bathy                  # bathymetry source.  OPTIONAL: defaults to FRF
+########################
+#simulations parameters#
+########################
+startTime: '2018-02-28T00:00:00Z'           # project start time
+endTime:   '2018-02-28T01:00:00Z'           # project End time
+simulationDuration: 1                       # duration in hours how frequently to get new data, size of individual simulations
+modelExecutable: /home/gaby/cmtb/bin/funwave-general   # path to the model
+########################
+# path stuff           #
+########################
+modelSettings:
+  model: funwave
+  version_prefix: freq                        # controls switched with int the code
+  grid: 1D             # grid format (1D or 2D)
+  #dx = 0.5
+  #dy = 0.5
+  nf: 100              # number of frequency bins if version_prefix is 'freq'
+
