@@ -35,6 +35,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     """
     # begin by setting up input parameters
     model = inputDict['modelSettings'].get('model')
+    grid = inputDict['modelSettings'].get('grid').lower()
     timerun = inputDict.get('simulationDuration', 1)
     plotFlag = inputDict.get('plotFlag', True)
     # this raises error if not present (intended)
@@ -58,11 +59,18 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     print('_________________\nGetting Wave Data')
     assert 'time' in rawspec, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
     # preprocess wave spectra
+
+
     if version_prefix.lower() == 'base':
-        wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['nf'])
-        ## TODO: @Gaby Make sure this prep's for swash, maybe we need a new function called prep_FUNWAVE_spec
+        wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
+        print('Debug Gaby:',wavepacket.keys())
     else:
-        raise NotImplementedError('pre-process TS data ')
+        #raise NotImplementedError('pre-process TS data ')
+        print('\n\nDebug Gaby: Stating prep_SWASH_spec\n\n')
+        wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
+
+        print('\nDebug Gaby: the Wavepacket dict keys are', wavepacket.keys())
+        print('\n\nDebug Gaby: Finished prep_SWASH_spec\n\n')
     # _____________WINDS______________________
     print('_________________\nSkipping Wind')
     ## ___________WATER LEVEL__________________
@@ -70,7 +78,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     try:
         # get water level data
         # average WL
-        WLpacket = prepdata.prep_WL(rawWL, wavepacket['epochtime'])
+        WLpacket = prepdata.prep_WL(rawWL, rawWL['epochtime'])
         #TODO: @Gaby check that the WL is prepared the same way for this model (are bathy's positive/negative?)
         # we can also add a "model" keyword argument to the above functions
         # this goes with all of the models/functions
@@ -79,10 +87,16 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
             np.size(WLpacket['time']), sum(WLpacket['flag'])))
     except (RuntimeError, TypeError):
         WLpacket = None
-        
+
     ### ____________ Get bathy grid from thredds ________________
-    swsinfo, gridDict = prepdata.prep_SwashBathy(wavepacket['xFRF'], wavepacket['yFRF'], bathy, dx=1, dy=1,
-                                                 yBounds=[944, 947])  # non-inclusive index if you want 3 make 4 wide
+    if grid.lower() == '1d':
+        swsinfo, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'], bathy, dx=1, dy=1,
+                                                yBounds=[944, 947])  # non-inclusive index if you want 3 make 4 wide
+        print('1D grid')
+    else:
+        swsinfo, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'][0], bathy, dx=1, dy=1,
+                                                         yBounds=[944, 947])  # non-inclusive index if you
+        print('2D grid')
     # TODO: @Gaby, check the bathy input (i'll make you a pickle for our bathy's) but we'll have to have a prep
     #  function for the normal process (ie do we manually shift the bathy for WL or does funwave do that for us,
     #  are there other preprocessing steps needed?
