@@ -22,6 +22,7 @@ def Master_FUNWAVE_run(inputDict):
     """
     ## unpack Dictionary
     version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
+    grid = inputDict['modelSettings'].get('grid').lower()
     endTime = inputDict['endTime']
     startTime = inputDict['startTime']
     simulationDuration = inputDict['simulationDuration']
@@ -66,6 +67,7 @@ def Master_FUNWAVE_run(inputDict):
     gdTB = getDataFRF.getDataTestBed(projectStart, projectEnd)        # for bathy data gathering
     rawspec = go.getWaveSpec(gaugenumber= '8m-array')
     rawWL = go.getWL()
+
     if version_prefix in ['freq']:
         #load specific date/time of interest
         with open('grids/FUNWAVE/bathyPickle_{}.pickle'.format(projectStart.strftime("%Y-%m-%d")), 'rb') as fid:
@@ -73,6 +75,7 @@ def Master_FUNWAVE_run(inputDict):
     else:
         bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])
 
+    #print('\n\n',bathy.keys(),len(bathy['xFRF']),bathy['yFRF'])
     # _____________________________ RUN LOOP ___________________________________________
     
     for timeSegment in dateStringList:
