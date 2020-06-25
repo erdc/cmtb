@@ -41,6 +41,8 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     # this raises error if not present (intended)
     version_prefix = inputDict['modelSettings']['version_prefix'].lower()
     path_prefix = inputDict['path_prefix']  # data super directory
+    dx = inputDict.get('dx', 0.5)
+    dy = inputDict.get('dy', 0.5)
     # ______________________________________________________________________________
     # here is where we set something that would handle 3D mode or time series mode, might set flags for preprocessing below
     fileHandling.checkVersionPrefix(model=model, inputDict=inputDict)
@@ -90,13 +92,12 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
 
     ### ____________ Get bathy grid from thredds ________________
     if grid.lower() == '1d':
-        swsinfo, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'], bathy, dx=1, dy=1,
-                                                yBounds=[944, 947])  # non-inclusive index if you want 3 make 4 wide
-        print('1D grid')
+        swsinfo, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'], bathy,
+                                                    dy, dx,yBounds=[944, 947])  # non-inclusive index if you
     else:
-        swsinfo, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'][0], bathy, dx=1, dy=1,
-                                                         yBounds=[944, 947])  # non-inclusive index if you
-        print('2D grid')
+        swsinfo, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'][0], bathy,
+                                                     dy,dx,yBounds=[944, 947])  # non-inclusive index if you
+
     # TODO: @Gaby, check the bathy input (i'll make you a pickle for our bathy's) but we'll have to have a prep
     #  function for the normal process (ie do we manually shift the bathy for WL or does funwave do that for us,
     #  are there other preprocessing steps needed?
@@ -112,7 +113,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     ## TODO: @gaby, you can change anything you need here, may save some of the write input requirements (eg px, py,
     # maybe others)
     fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WLpacket[
-        'avgWL'], equilbTime=wavepacket['spinUp'], Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'], Dm=wavepacket[
+        'avgWL'], equilbTime=0, Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'], Dm=wavepacket[
         'waveDm'], px = px, py=py)
 
     #TODO: change the below functions to write 1D simulation files with appropriate input information.  In other
