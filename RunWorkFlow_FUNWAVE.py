@@ -38,7 +38,7 @@ def Master_FUNWAVE_run(inputDict):
     # ______________________ Logging  ____________________________
     # auto generated Log file using start_end timeSegment
     LOG_FILENAME = fileHandling.logFileLogic(outDataBase=path_prefix, version_prefix=version_prefix, startTime=startTime,
-                                             endTime=endTime)
+                                             endTime=endTime, log = False)
     # ____________________________________________________________
     # establishing the resolution of the input datetime
     try:
@@ -79,11 +79,11 @@ def Master_FUNWAVE_run(inputDict):
     # _____________________________ RUN LOOP ___________________________________________
     
     for timeSegment in dateStringList:
-        fileHandling.makeCMTBfileStructure(path_prefix=path_prefix, date_str=timeSegment)
         try:
-            timeStamp = ''.join(timeSegment.split(':'))
-            datadir = os.path.join(path_prefix, timeStamp)  # moving to the new simulation's folder
-            pickleSaveFname = os.path.join(datadir, timeStamp + '_io.pickle')
+            dateString = ''.join(timeSegment.split(':'))
+            fileHandling.makeCMTBfileStructure(path_prefix=path_prefix, date_str=dateString)
+            datadir = os.path.join(path_prefix, dateString)  # moving to the new simulation's folder
+            pickleSaveFname = os.path.join(datadir, dateString + '_io.pickle')
 
             if generateFlag == True:
                 fIO = frontBackFUNWAVE.FunwaveSimSetup(timeSegment, rawWL, rawspec, bathy, inputDict=inputDict)
@@ -106,7 +106,7 @@ def Master_FUNWAVE_run(inputDict):
 
             if analyzeFlag == True:
                 print('**\nBegin Analyze Script %s ' % DT.datetime.now())
-                fIO.path_prefix = os.path.join(workingDir, model, version_prefix, timeStamp)
+                fIO.path_prefix = os.path.join(workingDir, model, version_prefix, dateString)
                 frontBackFUNWAVE.FunwaveAnalyze(timeSegment, inputDict, fIO)
 
             if plotFlag is True and DT.date.today() == projectEnd:
