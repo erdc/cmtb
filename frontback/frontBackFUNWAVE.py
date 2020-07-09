@@ -112,6 +112,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     nprocessors = px * py  # now calculated on init
     ## TODO: @gaby, you can change anything you need here, may save some of the write input requirements (eg px, py,
     # maybe others)
+
     fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WLpacket[
         'avgWL'], equilbTime=0, Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'], Dm=wavepacket[
         'waveDm'], px = px, py=py)
@@ -120,9 +121,17 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     # words the dictionaries here that are input to your write functions, need to come out of the "prep" functions
     # above.  For this we'll have to modify the "prep" functions to do that.   I'm happy to help point you to where
     # you need to modify as needed.
-    fio.write_sws(swsinfo)
-    fio.write_spec1D(wavepacket['freqbins'], wavepacket['fspec'])
-    fio.write_bot(gridDict['h'])
+    #fio.write_sws(swsinfo)
+
+    ## write spectra
+    if grid.lower() == '1d':
+        phase = wavepacket['amp1d']
+        fio.Write_1D_Spectra_File(wavepacket, phase)
+    else:
+        phase = wavepacket['amp2d']
+        fio.Write_2D_Spectra_File(wavepacket, phase)
+
+    #fio.write_bot(gridDict['h'])
     # now write QA/QC flag
     fio.flags = None
     pickleName = os.path.join(path_prefix, date_str,'.pickle')
