@@ -46,6 +46,7 @@ def Master_STWAVE_run(inputDict):
     workingDir = inputDict['workingDirectory']
     generateFlag = inputDict['generateFlag']
     runFlag = inputDict['runFlag']
+    runNested = inputDict['modelSettings'].get('runNested', True)
     analyzeFlag = inputDict['analyzeFlag']
     pFlag = inputDict['plotFlag']
     FRFgaugelocsFile = inputDict.get('sensorLocPkl', 'ArchiveFolder/frf_sensor_locations.pkl')
@@ -66,7 +67,7 @@ def Master_STWAVE_run(inputDict):
                                                                         inputDict['modelSettings']['ForcedSurveyDate']))
         ForcedSurveyDate =  inputDict['modelSettings']['ForcedSurveyDate']
     else:
-        workingDirectory = os.path.join(workingDir, model.lower(), version_prefix)
+        workingDirectory = os.path.join(workingDir, 'waveModels', model.lower(), version_prefix)
         ForcedSurveyDate = None
     inputDict['path_prefix'] = workingDirectory
     # ______________________ Logging  ____________________________
@@ -115,16 +116,17 @@ def Master_STWAVE_run(inputDict):
                     import multiprocessing
                     count = multiprocessing.cpu_count()  # Max out computer cores
                     parent = check_output('mpiexec -n {} {} {}.sim'.format(count, executableLocation, ''.join(time.split(':'))), shell=True)
-                try:
-                    assert os.path.isfile(hostfile), 'Check hostfile path'
-                    child = check_output('mpiexec -n {} -f {} {} {}nested.sim'.format(nproc_nest, hostfile, executableLocation, ''.join(time.split(':'))), shell=True)
-                except AssertionError:
-                    import multiprocessing
-                    count = multiprocessing.cpu_count()
-                    if count > nproc_nest:
-                        count = nproc_nest # lower the processors called for to match sim file (otherwise will throw segfault)
-                    child = check_output('mpiexec -n {} {} {}nested.sim'.format(count, executableLocation, ''.join(time.split(':'))), shell=True)
-                    print(('  Simulations took {}'.format(DT.datetime.now() - t)))
+                if runNested is not False:
+                    try:
+                        assert os.path.isfile(hostfile), 'Check hostfile path'
+                        child = check_output('mpiexec -n {} -f {} {} {}nested.sim'.format(nproc_nest, hostfile, executableLocation, ''.join(time.split(':'))), shell=True)
+                    except AssertionError:
+                        import multiprocessing
+                        count = multiprocessing.cpu_count()
+                        if count > nproc_nest:
+                            count = nproc_nest # lower the processors called for to match sim file (otherwise will throw segfault)
+                        child = check_output('mpiexec -n {} {} {}nested.sim'.format(count, executableLocation, ''.join(time.split(':'))), shell=True)
+                print(('  Simulations took {:.2f} hours'.format((DT.datetime.now() - t).total_seconds()/3600)))
             # run analyze and archive script
             os.chdir(curdir)  # change back after runing simulation locally
             if analyzeFlag == True:

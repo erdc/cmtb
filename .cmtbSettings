@@ -1,3 +1,2 @@
 workingDirectory: data               # this is the directory where simulation files and QA/QC plots are made and existing architecture takes over
-modelExecutable:  bin/cms            # path to the model            REQUIRED
 netCDFdir: /thredds_data             # this is the base directory where netCDF files are output
