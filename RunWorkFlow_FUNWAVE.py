@@ -72,58 +72,74 @@ def Master_FUNWAVE_run(inputDict):
         #load specific date/time of interest
         with open('grids/FUNWAVE/bathyPickle_{}.pickle'.format(projectStart.strftime("%Y-%m-%d")), 'rb') as fid:
             bathy = pickle.load(fid)
+        with open('grids/FUNWAVE/phases.pickle', 'rb') as fid:
+            phases = pickle.load(fid)
+        freqList = ['df-0.007500', 'df-0.001000', 'df-0.000500', 'df-0.000100', 'df-0.000050', 'df-0.000010']
+                    #[.0075, 0.005, 0.0025, 0.001, 0.00075, 0.0005, 0.00025, 0.0001,0.00005,0.00001, 0.000005]
+        ensembleMemebers = np.arange(0,10)
+        
+        # check to make sure keys got into pickle appropriately
+        for dfKey in freqList:
+            if any(phase.startswith(dfKey)for phase in phases.keys()):
+                print('  {} key not in pickle'.format(dfKey))
+            for i in range(100):
+                if len(phases['phase_{}_{}'.format(dfKey, i)]) == 0:
+                    print('failed phase_{}_{}'.format(dfKey, i))
+
     else:
         bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])
 
-    #print('\n\n',bathy.keys(),len(bathy['xFRF']),bathy['yFRF'])
     # _____________________________ RUN LOOP ___________________________________________
+    for dfKey in freqList:                      # loop through frequency members
+        for enMb in ensembleMemebers:           # loop through ensemble members
+            print("  RUNNING {}  with ensemble number {}".format(dfKey, enMb))
+            inputDict['phases'] = phases['phase_{}_{}'.format(dfKey, enMb)]
+            assert len(inputDict['phases']) == len(phases['phase_{}_freq'.format(dfKey)]), "some how picked the wrong phase"
+            try:
+                dateString = 'phase_{}_{}'.format(dfKey, enMb) #projectStart.strftime("%Y%m%dT%H%M%SZ")
+                fileHandling.makeCMTBfileStructure(path_prefix=path_prefix, date_str=dateString)
+                datadir = os.path.join(path_prefix, dateString)  # moving to the new simulation's folder
+                pickleSaveFname = os.path.join(datadir, dateString + '_io.pickle')
+                
+                if generateFlag == True:
+                    fIO = frontBackFUNWAVE.FunwaveSimSetup(dateString, rawWL, rawspec, bathy, inputDict=inputDict)
     
-    for timeSegment in dateStringList:
-        try:
-            dateString = ''.join(timeSegment.split(':'))
-            fileHandling.makeCMTBfileStructure(path_prefix=path_prefix, date_str=dateString)
-            datadir = os.path.join(path_prefix, dateString)  # moving to the new simulation's folder
-            pickleSaveFname = os.path.join(datadir, dateString + '_io.pickle')
+                if runFlag == True:        # run model
+                    os.chdir(datadir)      # changing locations to where input files should be made
+                    dt = time.time()
+                    print('Running Simulation started with {} processors'.format(fIO.nprocess))
+                    _ = check_output("mpirun -n {} {} INPUT".format(fIO.nprocess, os.path.join(curdir, inputDict[
+                        'modelExecutable'])), shell=True)
+                    fIO.simulationWallTime = time.time() - dt
+                    print('Simulation took {:.1} seconds'.format(fIO.simulationWallTime))
+                    os.chdir(curdir)
+                    with open(pickleSaveFname, 'wb') as fid:
+                        pickle.dump(fIO, fid, protocol=pickle.HIGHEST_PROTOCOL)
+    
+                else:   # assume there is a saved pickle of input/output that was generated before
+                    with open(pickleSaveFname, 'rb') as fid:
+                        fIO = pickle.load(fid)
+    
+                if analyzeFlag == True:
+                    print('**\nBegin Analyze Script %s ' % DT.datetime.now())
+                    fIO.path_prefix = os.path.join(workingDir, model, version_prefix, dateString)
+                    frontBackFUNWAVE.FunwaveAnalyze(dateString, inputDict, fIO)
 
-            if generateFlag == True:
-                fIO = frontBackFUNWAVE.FunwaveSimSetup(timeSegment, rawWL, rawspec, bathy, inputDict=inputDict)
+                if plotFlag is True and DT.date.today() == projectEnd:
+                    print('  TODO tar simulation files after generating netCDF')
+                    # move files
+                    moveFnames = glob.glob(curdir + 'cmtb*.png')
+                    moveFnames.extend(glob.glob(curdir + 'cmtb*.gif'))
+                    for file in moveFnames:
+                        shutil.move(file,  '/mnt/gaia/cmtb')
+                        print('moved %s ' % file)
+                print('------------------Model Run: SUCCESSS-----------------------------------------')
 
-            if runFlag == True:        # run model
-                os.chdir(datadir)      # changing locations to where input files should be made
-                dt = time.time()
-                print('Running Simulation started with {} processors'.format(fIO.nprocess))
-                _ = check_output("mpirun -n {} {} INPUT".format(fIO.nprocess, os.path.join(curdir, inputDict[
-                    'modelExecutable'])), shell=True)
-                fIO.simulationWallTime = time.time() - dt
-                print('Simulation took {:.1} seconds'.format(fIO.simulationWallTime))
-                os.chdir(curdir)
-                with open(pickleSaveFname, 'wb') as fid:
-                    pickle.dump(fIO, fid, protocol=pickle.HIGHEST_PROTOCOL)
-
-            else:   # assume there is a saved pickle of input/output that was generated before
-                with open(pickleSaveFname, 'rb') as fid:
-                    fIO = pickle.load(fid)
-
-            if analyzeFlag == True:
-                print('**\nBegin Analyze Script %s ' % DT.datetime.now())
-                fIO.path_prefix = os.path.join(workingDir, model, version_prefix, dateString)
-                frontBackFUNWAVE.FunwaveAnalyze(timeSegment, inputDict, fIO)
-
-            if plotFlag is True and DT.date.today() == projectEnd:
-                print('  TODO tar simulation files after generating netCDF')
-                # move files
-                moveFnames = glob.glob(curdir + 'cmtb*.png')
-                moveFnames.extend(glob.glob(curdir + 'cmtb*.gif'))
-                for file in moveFnames:
-                    shutil.move(file,  '/mnt/gaia/cmtb')
-                    print('moved %s ' % file)
-            print('------------------Model Run: SUCCESSS-----------------------------------------')
-
-        except Exception as e:
-            print('<< ERROR >> HAPPENED IN THIS TIME STEP ')
-            print(e)
-            logging.exception('\nERROR FOUND @ %s\n' %timeSegment, exc_info=True)
-            os.chdir(curdir)  # change back to main directory (no matter where the simulation failed)
+            except Exception as e:
+                print('<< ERROR >> HAPPENED IN THIS TIME STEP ')
+                print(e)
+                logging.exception('\nERROR FOUND @ %s\n' %timeSegment, exc_info=True)
+                os.chdir(curdir)  # change back to main directory (no matter where the simulation failed)
 
 
 if __name__ == "__main__":

@@ -43,24 +43,26 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     path_prefix = inputDict['path_prefix']  # data super directory
     dx = inputDict.get('dx', 0.5)
     dy = inputDict.get('dy', 0.5)
+    nf = inputDict.get('nf', 100)
+    phases = inputDict.get('phases', None)
     # ______________________________________________________________________________
     # here is where we set something that would handle 3D mode or time series mode, might set flags for preprocessing below
     fileHandling.checkVersionPrefix(model=model, inputDict=inputDict)
     # _______________________________________________________________________________
     # set times
-    d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
-    d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
-    date_str = d1.strftime('%Y-%m-%dT%H%M%SZ')
+    # d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
+    # d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
+    date_str = startTime #d1.strftime('%Y-%m-%dT%H%M%SZ')
     prepdata = STPD.PrepDataTools()  # for preprocessing
 
     # __________________Make Working Data Directories_____________________________________________
-    print("Model Time Start : %s  Model Time End:  %s" % (d1, d2))
     print("OPERATIONAL files will be place in {} folder".format(os.path.join(path_prefix, date_str)))
 
     # _____________WAVES____________________________
     print('_________________\nGetting Wave Data')
-    assert 'time' in rawspec, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
+    assert 'time' in rawspec, "\n++++\nThere's No Wave data"
     # preprocess wave spectra
+<<<<<<< HEAD
 
 
     if version_prefix.lower() == 'base':
@@ -70,34 +72,30 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
         #raise NotImplementedError('pre-process TS data ')
         wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
 
+=======
+    print('\n\nDebug Gaby: Stating prep_SWASH_spec\n\n')
+    wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=nf, phases=phases)
+    print('\nDebug Gaby: the Wavepacket dict keys are', wavepacket.keys())
+    print('\n\nDebug Gaby: Finished prep_SWASH_spec\n\n')
+    
+>>>>>>> a215e6b7d3a562ba55cbef9409bc79a3534b7d28
     # _____________WINDS______________________
     print('_________________\nSkipping Wind')
+    
     ## ___________WATER LEVEL__________________
     print('_________________\nGetting Water Level Data')
     try:
-        # get water level data
-        # average WL
-        WLpacket = prepdata.prep_WL(rawWL, rawWL['epochtime'])
-        #TODO: @Gaby check that the WL is prepared the same way for this model (are bathy's positive/negative?)
-        # we can also add a "model" keyword argument to the above functions
-        # this goes with all of the models/functions
-        
-        print('number of WL records %d, with %d interpolated points' % (
-            np.size(WLpacket['time']), sum(WLpacket['flag'])))
+        WLpacket = prepdata.prep_WL(rawWL, rawWL['epochtime']) # time average WL
     except (RuntimeError, TypeError):
         WLpacket = None
 
     ### ____________ Get bathy grid from thredds ________________
-    if grid.lower() == '1d':
-        swsinfo, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'], bathy,
-                                                    dy, dx,yBounds=[944, 947])  # non-inclusive index if you
-    else:
-        swsinfo, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'][0], bathy,
-                                                     dy,dx,yBounds=[944, 947])  # non-inclusive index if you
-
-    # TODO: @Gaby, check the bathy input (i'll make you a pickle for our bathy's) but we'll have to have a prep
-    #  function for the normal process (ie do we manually shift the bathy for WL or does funwave do that for us,
-    #  are there other preprocessing steps needed?
+    # if grid.lower() == '1d':
+    _, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'], bathy, dy, dx,
+                                           yBounds=[944, 947])  # non-inclusive index for yBounds
+    # else:
+    #     swsinfo, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'][0], bathy,
+    #                                                  dy,dx,yBounds=[944, 947])  # non-inclusive index if you
     
     # _____________ begin writing files _________________________
     # set some of the class instance variables before writing input files
@@ -112,21 +110,18 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
 
     fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WLpacket[
         'avgWL'], equilbTime=0, Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'], Dm=wavepacket[
-        'waveDm'], px = px, py=py)
+        'waveDm'], px = px, py=py, nprocessors=nprocessors)
 
     #TODO: change the below functions to write 1D simulation files with appropriate input information.  In other
     # words the dictionaries here that are input to your write functions, need to come out of the "prep" functions
     # above.  For this we'll have to modify the "prep" functions to do that.   I'm happy to help point you to where
     # you need to modify as needed.
-    #fio.write_sws(swsinfo)
 
     ## write spectra
     if grid.lower() == '1d':
-        phase = wavepacket['amp1d']
-        fio.Write_1D_Spectra_File(wavepacket, phase)
+        fio.Write_1D_Spectra_File(wavepacket)
     else:
-        phase = wavepacket['amp2d']
-        fio.Write_2D_Spectra_File(wavepacket, phase)
+        fio.Write_2D_Spectra_File(wavepacket, wavepacket['amp2d'])
 
     ## write input file
     print('Debug Gaby: inputDict keys are...',inputDict.keys())
