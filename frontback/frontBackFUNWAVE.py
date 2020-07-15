@@ -65,14 +65,11 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
 
     if version_prefix.lower() == 'base':
         wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
-        print('Debug Gaby:',wavepacket.keys())
+
     else:
         #raise NotImplementedError('pre-process TS data ')
-        print('\n\nDebug Gaby: Stating prep_SWASH_spec\n\n')
         wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
 
-        print('\nDebug Gaby: the Wavepacket dict keys are', wavepacket.keys())
-        print('\n\nDebug Gaby: Finished prep_SWASH_spec\n\n')
     # _____________WINDS______________________
     print('_________________\nSkipping Wind')
     ## ___________WATER LEVEL__________________
@@ -130,6 +127,10 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     else:
         phase = wavepacket['amp2d']
         fio.Write_2D_Spectra_File(wavepacket, phase)
+
+    ## write input file
+    print('Debug Gaby: inputDict keys are...',inputDict.keys())
+    fio.Write_InputFile(inputDict)
 
     #fio.write_bot(gridDict['h'])
     # now write QA/QC flag
