@@ -83,10 +83,11 @@ def Master_SWASH_run(inputDict):
 
     # ________________________________________________ RUN LOOP ________________________________________________
     for timeSegment in dateStringList:
-        fileHandling.makeCMTBfileStructure(path_prefix=path_prefix, date_str=timeSegment)
+#        fileHandling.makeCMTBfileStructure(path_prefix=path_prefix, date_str=timeSegment)
         try:
             timeStamp = ''.join(timeSegment.split(':'))
             datadir = os.path.join(path_prefix, timeStamp)  # moving to the new simulation's folder
+            fileHandling.makeCMTBfileStructure(path_prefix=path_prefix,date_str=timeStamp)
             pickleSaveFname = os.path.join(datadir, timeStamp + '_io.pickle')
             if generateFlag == True:
                 SWIO = SwashSimSetup(timeSegment, inputDict=inputDict)
