@@ -162,8 +162,8 @@ def STsimSetup(startTime, inputDict,allWind , allWL, allWave, bathy, loc_dict=No
     for _, gauge in enumerate(['waverider-26m', 'waverider-17m', 'awac-11m', '8m-array', 'awac-6m', 'awac-4.5m',
                                 'adop-3.5m', 'xp200m', 'xp150m', 'xp125m']):
         ii = np.argwhere(gauge == dataLocations['Sensor']).squeeze()
-        coord = gp.FRFcoord(dataLocations['Lat'][ii], dataLocations['Lon'][ii],coordType='LL')
-        print(' added: {} at xFRF {} yFRF {}'.format(gauge, coord['xFRF'], coord['yFRF']))
+        coord = gp.FRFcoord(dataLocations['Lon'][ii], dataLocations['Lat'][ii], coordType='LL')
+        print(' save point added: {} at xFRF {:.1f} yFRF {:.1f}'.format(gauge, coord['xFRF'], coord['yFRF']))
         statloc.append([coord['StateplaneE'], coord['StateplaneN']])
     statloc = np.array(statloc)
 
