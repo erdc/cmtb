@@ -62,23 +62,12 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     print('_________________\nGetting Wave Data')
     assert 'time' in rawspec, "\n++++\nThere's No Wave data"
     # preprocess wave spectra
-<<<<<<< HEAD
 
-
-    if version_prefix.lower() == 'base':
-        wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
-
-    else:
-        #raise NotImplementedError('pre-process TS data ')
-        wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
-
-=======
     print('\n\nDebug Gaby: Stating prep_SWASH_spec\n\n')
     wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=nf, phases=phases)
     print('\nDebug Gaby: the Wavepacket dict keys are', wavepacket.keys())
     print('\n\nDebug Gaby: Finished prep_SWASH_spec\n\n')
     
->>>>>>> a215e6b7d3a562ba55cbef9409bc79a3534b7d28
     # _____________WINDS______________________
     print('_________________\nSkipping Wind')
     
@@ -108,9 +97,9 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     ## TODO: @gaby, you can change anything you need here, may save some of the write input requirements (eg px, py,
     # maybe others)
 
-    fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WLpacket[
-        'avgWL'], equilbTime=0, Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'], Dm=wavepacket[
-        'waveDm'], px = px, py=py, nprocessors=nprocessors)
+    fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WLpacket['avgWL'],
+                    equilbTime=0, Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'], Dm=wavepacket['waveDm'],
+                    px=px, py=py, nprocessors=nprocessors)
 
     #TODO: change the below functions to write 1D simulation files with appropriate input information.  In other
     # words the dictionaries here that are input to your write functions, need to come out of the "prep" functions
@@ -124,7 +113,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
         fio.Write_2D_Spectra_File(wavepacket, wavepacket['amp2d'])
 
     ## write input file
-    print('Debug Gaby: inputDict keys are...',inputDict.keys())
+    print('Debug Gaby: inputDict keys are...{}'.format(inputDict.keys()))
     fio.Write_InputFile(inputDict)
 
     #fio.write_bot(gridDict['h'])
