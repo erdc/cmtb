@@ -71,7 +71,7 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
 
     # ____________ BATHY   _____________________________________________
     bathy = gdTB.getBathyIntegratedTransect(method=1)
-    _ = ww3io.readWW3_msh(inputDict['modelSettings']['grid'])
+    _ = ww3io.load_msh(inputDict['modelSettings']['grid'])
     gridNodes = sb.Bunch({'points':ww3io.points})              # we will remove this when meshio is working as expected
 
     if plotFlag: bathyPlotFname = os.path.join(path_prefix, dateString, 'figures', dateString+'_bathy.png');

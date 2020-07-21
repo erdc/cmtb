@@ -72,7 +72,7 @@ def Master_ww3_run(inputDict):
     # run the process through each of the above dates
     errors, errorDates, curdir = [], [], os.getcwd()
     for time in dateStringList:
-        print('Beginning Simulation {}'.format(DT.datetime.now()))
+        print('Beginning to setup simulation {}'.format(DT.datetime.now()))
         try:
             timeStamp = ''.join(time.split(':'))
             datadir = os.path.join(workingDirectory, timeStamp)  # moving to the new simulation's
