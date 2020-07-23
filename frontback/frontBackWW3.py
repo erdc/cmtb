@@ -80,10 +80,10 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
 
     # ____________________________ set model save points _______________________________________________________________
     # _________________________ Create observation locations ___________________________________________________________
-    sys.path.append('/home/spike/repos/TDSlocationGrabber')
+    sys.path.append('/home/thesser/data/cmtb/TDSlocationGrabber')
     from frfTDSdataCrawler import query
     print('  TODO: handle TDS location grabber')
-    dataLocations = query(d1, d2, inputName='/home/spike/repos/TDSlocationGrabber/database', type='waves')
+    dataLocations = query(d1, d2, inputName='/home/thesser/data/cmtb/TDSlocationGrabber/database', type='waves')
     # # get gauge nodes x/y new idea: put gauges into input/output instance for the model, then we can save it
     gaugelocs = []
     for ii, gauge in enumerate(dataLocations['Sensor']):
@@ -99,6 +99,7 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
     if np.median(bathy.points) > 0: scaleFac = -1
     else: scaleFac = -1
     # write grid file
+    scaleFac = 1.0
     ww3io.writeWW3_grid(grid_inbindFname=inputDict['modelSettings']['grid'].split('.')[0]+'.inbnd',
                         spectrumNTH=wavepacket['spec2d'].shape[2], spectrumNK=wavepacket['spec2d'].shape[1],
                         unstSF=scaleFac)
@@ -107,9 +108,9 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
     ww3io.write_msh(points=bathy.points, cell_data=ww3io.cell_data)        # write gmesh using manual function
     # write name list file -- shouldn't change
     ww3io.writeWW3_namelist()                                              # will write with defaults with no input args
-    specListFileName = ww3io.writeWW3_speclist(ofname='spec.list', specFiles=specFname)   # write specFile
+    specListFileName = ww3io.writeWW3_speclist(ofname=os.path.join(path_prefix,dateString,'spec.list'), specFiles=specFname.rsplit('/')[-1])   # write specFile
     # write files used as spectral boundary
-    ww3io.writeWW3_bouncfile(specListFilename=specListFileName)                           # write boundary files
+    ww3io.writeWW3_bouncfile(specListFilename=specListFileName.rsplit('/')[-1])                           # write boundary files
     ww3io.writeWW3_shel(d1, d2, windpacket, WLpacket, outputInterval=1800)                # write shel file
     ww3io.writeWW3_ounf()                                                                 # process field data file
     ww3io.writeWW3_ounp()                                                                 # process point data file
