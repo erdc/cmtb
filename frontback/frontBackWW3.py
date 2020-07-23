@@ -80,10 +80,10 @@ def ww3simSetup(startTime, inputDict, allWind , allWL, allWave, gaugelocs=None):
 
     # ____________________________ set model save points _______________________________________________________________
     # _________________________ Create observation locations ___________________________________________________________
-    sys.path.append('/home/spike/repos/TDSlocationGrabber')
+    sys.path.append('/Users/rdchlth9/Codes/cmtb_spike/TDSlocationGrabber')
     from frfTDSdataCrawler import query
     print('  TODO: handle TDS location grabber')
-    dataLocations = query(d1, d2, inputName='/home/spike/repos/TDSlocationGrabber/database', type='waves')
+    dataLocations = query(d1, d2, inputName='/Users/rdchlth9/Codes/cmtb_spike/TDSlocationGrabber/database', type='waves')
     # # get gauge nodes x/y new idea: put gauges into input/output instance for the model, then we can save it
     gaugelocs = []
     for ii, gauge in enumerate(dataLocations['Sensor']):
