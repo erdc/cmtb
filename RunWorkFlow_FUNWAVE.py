@@ -34,28 +34,21 @@ def Master_FUNWAVE_run(inputDict):
     model = inputDict.get('modelName', 'FUNWAVE').lower()
     inputDict['path_prefix'] = os.path.join(workingDir, model, version_prefix)
     path_prefix = inputDict['path_prefix']
-
+    ensembleMemebers = inputDict['modelSettings'].get('ensembleNumber', np.arange(0,1))
+    
     # ______________________ Logging  ____________________________
     # auto generated Log file using start_end timeSegment
     LOG_FILENAME = fileHandling.logFileLogic(outDataBase=path_prefix, version_prefix=version_prefix, startTime=startTime,
-                                             endTime=endTime, log = False)
+                                             endTime=endTime, log=False)
     # ____________________________________________________________
     # establishing the resolution of the input datetime
-    try:
-        projectEnd = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ')
-        projectStart = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
-    except ValueError:
-        assert len(endTime) == 10, 'Your Time does not fit convention, check T/Z and input format'
-
+    projectEnd = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ')
+    projectStart = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     # This is the portion that creates a list of simulation end times
-    dt_DT = DT.timedelta(0, simulationDuration * 60 * 60)  # timestep in datetime
+    # dt_DT = DT.timedelta(0, simulationDuration * 60 * 60)  # timestep in datetime
     # make List of Datestring items, for simulations
-    dateStartList = [projectStart]
-    dateStringList = [dateStartList[0].strftime("%Y-%m-%dT%H:%M:%SZ")]
-    for i in range(int(np.ceil((projectEnd-projectStart).total_seconds()/dt_DT.total_seconds()))-1):
-        dateStartList.append(dateStartList[-1] + dt_DT)
-        dateStringList.append(dateStartList[-1].strftime("%Y-%m-%dT%H:%M:%SZ"))
-
+    dateStartList, dateStringList, projectStart, projectEnd = fileHandling.createTimeInfo(projectStart, projectEnd,
+                                                                              simulationDuration=simulationDuration)
     errors, errorDates = [],[]
     curdir = os.getcwd()
     # ______________________________decide process and run _____________________________
@@ -74,10 +67,9 @@ def Master_FUNWAVE_run(inputDict):
             bathy = pickle.load(fid)
         with open('grids/FUNWAVE/phases.pickle', 'rb') as fid:
             phases = pickle.load(fid)
-        freqList = ['df-0.007500', 'df-0.001000', 'df-0.000500', 'df-0.000100', 'df-0.000050', 'df-0.000010']
+        freqList = [ 'df-0.000500', 'df-0.000100', 'df-0.000050', 'df-0.000010'] # 'df-0.007500', 'df-0.001000',
                     #[.0075, 0.005, 0.0025, 0.001, 0.00075, 0.0005, 0.00025, 0.0001,0.00005,0.00001, 0.000005]
-        ensembleMemebers = np.arange(0,10)
-        
+        ensembleMemebers = [int(i) for i in ensembleMemebers.split(',')]
         # check to make sure keys got into pickle appropriately
         for dfKey in freqList:
             if any(phase.startswith(dfKey)for phase in phases.keys()):
@@ -102,6 +94,7 @@ def Master_FUNWAVE_run(inputDict):
                 pickleSaveFname = os.path.join(datadir, dateString + '_io.pickle')
                 
                 if generateFlag == True:
+                    inputDict['nf'] = len(np.arange(0.04, 0.3, float(dfKey[3:])))
                     fIO = frontBackFUNWAVE.FunwaveSimSetup(dateString, rawWL, rawspec, bathy, inputDict=inputDict)
     
                 if runFlag == True:        # run model
@@ -138,7 +131,7 @@ def Master_FUNWAVE_run(inputDict):
             except Exception as e:
                 print('<< ERROR >> HAPPENED IN THIS TIME STEP ')
                 print(e)
-                logging.exception('\nERROR FOUND @ %s\n' %timeSegment, exc_info=True)
+                logging.exception('\nERROR FOUND', exc_info=True)
                 os.chdir(curdir)  # change back to main directory (no matter where the simulation failed)
 
 
