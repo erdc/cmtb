@@ -78,7 +78,7 @@ def SwashSimSetup(startTime, inputDict):
     assert 'time' in rawspec, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
     # preprocess wave spectra
     if version_prefix.lower() == 'base':
-        wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix)
+        wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, runDuration=runtime)
     else:
         raise NotImplementedError('pre-process TS data ')
     # _____________WINDS______________________
