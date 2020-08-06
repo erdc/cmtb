@@ -34,7 +34,7 @@ def Master_FUNWAVE_run(inputDict):
     model = inputDict.get('modelName', 'FUNWAVE').lower()
     inputDict['path_prefix'] = os.path.join(workingDir, model, version_prefix)
     path_prefix = inputDict['path_prefix']
-    ensembleMemebers = inputDict['modelSettings'].get('ensembleNumber', np.arange(0,1))
+    ensembleNumber = inputDict['modelSettings'].get('ensembleNumber', np.arange(0,1))
     
     # ______________________ Logging  ____________________________
     # auto generated Log file using start_end timeSegment
@@ -69,7 +69,9 @@ def Master_FUNWAVE_run(inputDict):
             phases = pickle.load(fid)
         freqList = [ 'df-0.000500', 'df-0.000100', 'df-0.000050', 'df-0.000010'] # 'df-0.007500', 'df-0.001000',
                     #[.0075, 0.005, 0.0025, 0.001, 0.00075, 0.0005, 0.00025, 0.0001,0.00005,0.00001, 0.000005]
-        ensembleMemebers = [int(i) for i in ensembleMemebers.split(',')]
+
+
+        ensembleNumber = [int(i) for i in ensembleNumber.split(',')]
         # check to make sure keys got into pickle appropriately
         for dfKey in freqList:
             if any(phase.startswith(dfKey)for phase in phases.keys()):
@@ -83,7 +85,7 @@ def Master_FUNWAVE_run(inputDict):
 
     # _____________________________ RUN LOOP ___________________________________________
     for dfKey in freqList:                      # loop through frequency members
-        for enMb in ensembleMemebers:           # loop through ensemble members
+        for enMb in ensembleNumber:           # loop through ensemble members
             print("  RUNNING {}  with ensemble number {}".format(dfKey, enMb))
             inputDict['phases'] = phases['phase_{}_{}'.format(dfKey, enMb)]
             assert len(inputDict['phases']) == len(phases['phase_{}_freq'.format(dfKey)]), "some how picked the wrong phase"
