@@ -84,7 +84,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     ### ____________ Get bathy grid from thredds ________________
 
     if grid.lower() == '1d':
-        ybounds = [944,947] ##
+        ybounds = [bathy['yFRF']-3*dy,bathy['yFRF']+3*dy] ##
     else:
         ybounds = [600,1100]
 
