@@ -64,27 +64,15 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     # preprocess wave spectra
 
 
+    #if version_prefix.lower() == 'base':
+    #   wavepacket1 = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
 
+    #else:
+    #    #raise NotImplementedError('pre-process TS data ')
+    #    wavepacket1 = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
 
-    if version_prefix.lower() == 'base':
-        wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
-
-    else:
-        #raise NotImplementedError('pre-process TS data ')
-        wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
-
-
-
-
-
-    print('\n\nDebug Gaby: Stating prep_SWASH_spec\n\n')
+    print("\n\nDEBUG GABY: line 75 of frontBackFUNWAVE repeats wavepacket when it was already used on lines 68/72 (depending on the if statement)\n\n")
     wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=nf, phases=phases)
-    print('\nDebug Gaby: the Wavepacket dict keys are', wavepacket.keys())
-    print('\n\nDebug Gaby: Finished prep_SWASH_spec\n\n')
-    
-
-
-
 
     # _____________WINDS______________________
     print('_________________\nSkipping Wind')
@@ -97,10 +85,14 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
         WLpacket = None
 
     ### ____________ Get bathy grid from thredds ________________
-    # if grid.lower() == '1d':
+    if grid.lower() == '1d':
+        ybounds = [944,947]
+    else:
+        ybounds = [600,1100]
+
     _, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'], bathy, dy, dx,
-                                           yBounds=[944, 947])  # non-inclusive index for yBounds
-    # else:
+                                           yBounds=ybounds)  # non-inclusive index for yBounds
+
     #     swsinfo, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'][0], bathy,
     #                                                  dy,dx,yBounds=[944, 947])  # non-inclusive index if you
     
