@@ -116,10 +116,10 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
 
     ## write spectra
     if grid.lower() == '1d':
-        fio.Write_1D_Bathy(gridDict['elevation'])
+        fio.Write_1D_Bathy(dx,dy,gridDict['elevation'])
         fio.Write_1D_Spectra_File(wavepacket)
     else:
-        fio.Write_2D_Bathy(gridDict['elevation'])
+        fio.Write_2D_Bathy(dx,dy,gridDict['elevation'])
         fio.Write_2D_Spectra_File(wavepacket, wavepacket['amp2d'])
 
     ## write input file
