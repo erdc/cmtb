@@ -79,23 +79,18 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     
     ## ___________WATER LEVEL__________________
     print('_________________\nGetting Water Level Data')
-    try:
-        WLpacket = prepdata.prep_WL(rawWL, rawWL['epochtime']) # time average WL
-    except (RuntimeError, TypeError):
-        WLpacket = None
+    WLpacket = prepdata.prep_WL(rawWL, rawWL['epochtime']) # time average WL
 
     ### ____________ Get bathy grid from thredds ________________
+
     if grid.lower() == '1d':
-        ybounds = [944,947]
+        ybounds = [944,947] ##
     else:
         ybounds = [600,1100]
 
     _, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'], bathy, dy, dx,
                                            yBounds=ybounds)  # non-inclusive index for yBounds
 
-    #     swsinfo, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'][0], bathy,
-    #                                                  dy,dx,yBounds=[944, 947])  # non-inclusive index if you
-    
     # _____________ begin writing files _________________________
     # set some of the class instance variables before writing input files
     # TODO: @Gaby, calculate nprocessors (px * py), i think this is based on the grid, so you can use the output from
