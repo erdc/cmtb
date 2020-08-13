@@ -88,6 +88,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     else:
         ybounds = [600,1100]
 
+    print("DEBUG GABY: ybounds =",ybounds)
     _, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'], bathy,ybounds)  # non-inclusive index for yBounds
 
     # _____________ begin writing files _________________________
