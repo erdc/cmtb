@@ -93,17 +93,19 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     _, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'], bathy.copy(), ybounds)  #
     # del bathy  # was carrying bathy to super function
 
+
     # _____________ begin writing files _________________________
     # set some of the class instance variables before writing input files
     # TODO: @Gaby, calculate nprocessors (px * py), i think this is based on the grid, so you can use the output from
     #  prep_FunwaveBathy
 
     [Nglob,Mglob] = gridDict['elevation'].shape
-    px = np.floor(gridDict['elevation'].shape[0]/100)  # or something to this effect
-    py = np.floor(gridDict['elevation'].shape[1]/100)  # or something to this effect
+    px = np.floor(Mglob / 150)
+    if grid.lower() == '1d':
+        py = 1
+    else:
+        py = np.floor(Nglob / 150)
     nprocessors = px * py  # now calculated on init
-    ## TODO: @gaby, you can change anything you need here, may save some of the write input requirements (eg px, py,
-    # maybe others)
 
 
     fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WLpacket['avgWL'],
@@ -116,7 +118,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     # above.  For this we'll have to modify the "prep" functions to do that.   I'm happy to help point you to where
     # you need to modify as needed.
 
-    ## write spectra
+    ## write spectra, depth, and station files
     if grid.lower() == '1d':
         fio.Write_1D_Bathy(dx, dy, gridDict['elevation'])
         fio.Write_1D_Spectra_File(wavepacket)
