@@ -80,6 +80,9 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     ## ___________WATER LEVEL__________________
     print('_________________\nGetting Water Level Data')
     WLpacket = prepdata.prep_WL(rawWL, rawWL['epochtime']) # time average WL
+    ## find WL corresponding to wanted date:
+    WL_index = np.where(WLpacket['time']==wavepacket['time'])[0][0]
+    WL = WLpacket['avgWL'][WL_index]
 
     ### ____________ Get bathy grid from thredds ________________
 
@@ -106,7 +109,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     nprocessors = px * py  # now calculated on init
 
 
-    fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WLpacket['avgWL'],
+    fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WL,
                     equilbTime=0, Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'], Dm=wavepacket['waveDm'],
                     px=px, py=py, nprocessors=nprocessors,Mglob=Mglob,Nglob=Nglob)
 
