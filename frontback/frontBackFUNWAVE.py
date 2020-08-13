@@ -84,12 +84,11 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     ### ____________ Get bathy grid from thredds ________________
 
     if grid.lower() == '1d':
-        ybounds = [bathy['yFRF']-3*dy,bathy['yFRF']+3*dy] ##
+        ybounds = [bathy['yFRF']-1.5*dy,bathy['yFRF']+1.5*dy] ## should take a look at this
     else:
         ybounds = [600,1100]
 
-    _, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'], bathy, dy, dx,
-                                           yBounds=ybounds)  # non-inclusive index for yBounds
+    _, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'], bathy,ybounds)  # non-inclusive index for yBounds
 
     # _____________ begin writing files _________________________
     # set some of the class instance variables before writing input files
