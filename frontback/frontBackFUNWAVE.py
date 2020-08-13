@@ -86,14 +86,16 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
 
     ### ____________ Get bathy grid from thredds ________________
 
-    if grid.lower() == '1d':
-        ybounds = [bathy['yFRF']-1.5*dy,bathy['yFRF']+1.5*dy] ## should take a look at this
+    if grid.lower() == '1d':    # non-inclusive index for yBounds
+        ybounds = [bathy['yFRF']-1.5*dy,bathy['yFRF']+1.5*dy]# [bathy['yFRF']-dy, bathy['yFRF']+dy]  ## should take a
+        # look at this
     else:
         ybounds = [600,1100]
 
-    print("\n\nDEBUG GABY: ybounds =",ybounds,"\n\n")
+    print("DEBUG GABY: ybounds =", ybounds)
+    _, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'], bathy.copy(), ybounds)  #
+    # del bathy  # was carrying bathy to super function
 
-    _, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'], bathy,ybounds)  # non-inclusive index for yBounds
 
     # _____________ begin writing files _________________________
     # set some of the class instance variables before writing input files
@@ -121,10 +123,10 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
 
     ## write spectra, depth, and station files
     if grid.lower() == '1d':
-        fio.Write_1D_Bathy(dx,dy,gridDict['elevation'])
+        fio.Write_1D_Bathy(dx, dy, gridDict['elevation'])
         fio.Write_1D_Spectra_File(wavepacket)
     else:
-        fio.Write_2D_Bathy(dx,dy,gridDict['elevation'])
+        fio.Write_2D_Bathy(dx, dy, gridDict['elevation'])
         fio.Write_2D_Spectra_File(wavepacket, wavepacket['amp2d'])
 
     ## write input file

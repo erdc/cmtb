@@ -96,6 +96,7 @@ def Master_FUNWAVE_run(inputDict):
                 pickleSaveFname = os.path.join(datadir, dateString + '_io.pickle')
                 
                 if generateFlag == True:
+                    # assigning min/max frequency bands with resolution of df key
                     inputDict['nf'] = len(np.arange(0.04, 0.3, float(dfKey[3:])))
                     fIO = frontBackFUNWAVE.FunwaveSimSetup(dateString, rawWL, rawspec, bathy, inputDict=inputDict)
     
