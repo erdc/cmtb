@@ -104,8 +104,7 @@ def Master_FUNWAVE_run(inputDict):
                     os.chdir(datadir)      # changing locations to where input files should be made
                     dt = time.time()
                     print('Running Simulation started with {} processors'.format(fIO.nprocess))
-                    _ = check_output("mpirun -n {} {} INPUT".format(fIO.nprocess, os.path.join(curdir, inputDict[
-                        'modelExecutable'])), shell=True)
+                    _ = check_output("mpirun -n {} {} INPUT".format(int(fIO.nprocess), os.path.join(curdir, inputDict['modelExecutable'])), shell=True)
                     fIO.simulationWallTime = time.time() - dt
                     print('Simulation took {:.1} seconds'.format(fIO.simulationWallTime))
                     os.chdir(curdir)
