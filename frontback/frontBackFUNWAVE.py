@@ -71,7 +71,6 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     #    #raise NotImplementedError('pre-process TS data ')
     #    wavepacket1 = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
 
-    print("\n\nDEBUG GABY: line 75 of frontBackFUNWAVE repeats wavepacket when it was already used on lines 68/72 (depending on the if statement)\n\n")
     wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=nf, phases=phases)
 
     # _____________WINDS______________________
@@ -80,6 +79,9 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     ## ___________WATER LEVEL__________________
     print('_________________\nGetting Water Level Data')
     WLpacket = prepdata.prep_WL(rawWL, rawWL['epochtime']) # time average WL
+    # find WL corresponding to wanted date:
+    WL_index = np.where(WLpacket['time']==wavepacket['time'])[0][0]
+    WL = WLpacket['avgWL'][WL_index]
 
     ### ____________ Get bathy grid from thredds ________________
 
@@ -89,7 +91,6 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     else:
         ybounds = [600,1100]
 
-    print("DEBUG GABY: ybounds =", ybounds)
     _, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'], bathy.copy(), ybounds)  #
 
     # _____________ begin writing files _________________________
@@ -106,7 +107,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     nprocessors = px * py  # now calculated on init
 
 
-    fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WLpacket['avgWL'],
+    fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WL,
                     equilbTime=0, Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'], Dm=wavepacket['waveDm'],
                     px=px, py=py, nprocessors=nprocessors,Mglob=Mglob,Nglob=Nglob)
 
