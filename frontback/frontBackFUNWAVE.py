@@ -91,8 +91,6 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
 
     print("DEBUG GABY: ybounds =", ybounds)
     _, gridDict = prepdata.prep_SwashBathy(bathy['xFRF'][0], bathy['yFRF'], bathy.copy(), ybounds)  #
-    # del bathy  # was carrying bathy to super function
-
 
     # _____________ begin writing files _________________________
     # set some of the class instance variables before writing input files
