@@ -121,10 +121,10 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
 
     ## write spectra, depth, and station files
     if grid.lower() == '1d':
-        fio.Write_1D_Bathy(gridDict['elevation'],gridDict['xFRF'])
+        fio.Write_1D_Bathy(gridDict['elevation'],gridDict['xFRF'],gridDict['yFRF'])
         fio.Write_1D_Spectra_File(wavepacket)
     else:
-        fio.Write_2D_Bathy(gridDict['elevation'],gridDict['xFRF'])
+        fio.Write_2D_Bathy(gridDict['elevation'],gridDict['xFRF'],gridDict['yFRF'])
         fio.Write_2D_Spectra_File(wavepacket, wavepacket['amp2d'])
 
     ## write input file
@@ -164,7 +164,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     # the below should error if not included in input Dict
     path_prefix = inputDict['path_prefix']  # for organizing data
     simulationDuration = inputDict['simulationDuration']
-    model = inputDict.get('modelName', 'SWASH').lower()
+    model = inputDict.get('modelName', 'FUNWAVE').lower()
     # _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
     # establishing the resolution of the input datetime
     d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
