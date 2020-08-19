@@ -219,10 +219,9 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     ##################################  plotting #########################################################################
     ######################################################################################################################
     ######################################################################################################################
-    if not os.path.exists(os.path.join(path_prefix,datestring, 'figures')):
-        os.makedirs(os.path.join(path_prefix,datestring, 'figures'))  # make the directory for the simulation plots
+    fileHandling.makeCMTBfileStructure(path_prefix,date_str=datestring)
     figureBaseFname = 'CMTB_waveModels_{}_{}_'.format(model, version_prefix)
-    from matplotlib import pyplot as plt
+
     # make function for processing timeseries data
     # TODO: @Gaby, these should look familiar!
     fspec, freqs = sbwave.timeSeriesAnalysis1D(simData['time'].squeeze(), simData['eta'].squeeze(), bandAvg=6)
@@ -243,32 +242,8 @@ def FunwaveAnalyze(startTime, inputDict, fio):
         imgList = glob.glob(os.path.join(path_prefix, datestring, 'figures', '*.png'))
         [os.remove(ff) for ff in imgList]
         tstart = DT.datetime.now()
-
-        ############### write a parallel data load function ##################
-        dataOut = []
-        def parallel_generateCrossShoreTimeSeries(tidx):
-            ## generate a function that operates with only one input, can access local variable space
-            timeStep = simData['time'][tidx]
-            ofPlotName = os.path.join(path_prefix, datestring, 'figures',
-                                      figureBaseFname + 'TS_' + timeStep.strftime('%Y%m%dT%H%M%S%fZ') + '.png')
-            oP.generate_CrossShoreTimeseries(ofPlotName, simData['eta'][tidx].squeeze(), -simData['elevation'],
-                                             simData['xFRF'])
-            dataOut.append(ofPlotName)
-        ############### make TS plot in parallel -- has bugs   #########################################################
-        #nprocessors = multiprocessing.cpu_count()/2                  # process plots with half the number on the
-        # machine
-        # pool = multiprocessing.Pool(nprocessors)                   # open multiprocessing pool
-        # _ = pool.map(parallel_generateCrossShoreTimeSeries, range(0, len(simData['time']), nSubSample))
-        # pool.close()
-        #
-        # print('Took {} long to make all the plots in parallel {} processors'.format(DT.datetime.now() - tstart, nprocessors))
-        # ### now make gif of waves moving across shore*
-        # imgList = sorted(glob.glob(os.path.join(path_prefix, datestring, 'figures', figureBaseFname + '*TS_*.png')))
-        # sb.makegif(imgList,
-        #            os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS_{}.gif'.format(datestring)),
-        #            dt=0.1)
-        # print('Took {} long to make the movie and all the plots '.format(DT.datetime.now() - tstart))
-        #$$$$$$ in Seriel $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+        # TODO: write a parallel data plotting function
+        #### in Seriel $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
         for tidx in np.arange(0, len(simData['time']), nSubSample).astype(int):
             ofPlotName = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS_' + simData['time'][tidx].strftime('%Y%m%dT%H%M%S%fZ') +'.png')
             oP.generate_CrossShoreTimeseries(ofPlotName, simData['eta'][tidx].squeeze(), -simData['elevation'], simData['xFRF'])
@@ -279,14 +254,14 @@ def FunwaveAnalyze(startTime, inputDict, fio):
         tarOutFile = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS.tar.gz')
         sb.myTarMaker(tarOutFile, imgList)
 
-        ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TempFname.png')
+        ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'crossShoreSummary.png')
         oP.plotCrossShoreSummaryTS(ofname, simData['xFRF'], simData['elevation'], total,
                                SeaSwellStats, IGstats, setup=setup, WL=WL)
         ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + '_spectrograph.png')
         oP.crossShoreSpectrograph(ofname, simData['xFRF'], freqs, fspec)
         ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + '_surfaceTimeseries.png')
         oP.crossShoreSurfaceTS2D(ofname, simData['eta'], simData['xFRF'], simData['time'])
-
+        print("plotting took {} minutes".format((DT.datetime.now()-tstart).total_seconds()/60))
     ##################################################################################################################
     ######################        Make NETCDF files       ############################################################
     ##################################################################################################################
@@ -321,17 +296,18 @@ def FunwaveAnalyze(startTime, inputDict, fio):
                'NI': len(simData['xFRF']),
                'NJ': simData['velocityU'].shape[1],}  # should automatically adjust for 2D simulations
 
-    TdsFldrBase = os.path.join(Thredds_Base, fldrArch)
-    NCpath = sb.makeNCdir(Thredds_Base, os.path.join(version_prefix, 'Field'), datestring, model=model)
-    # make the name of this nc file
-    NCname = 'CMTB-waveModels_{}_{}_Field_{}.nc'.format(model, version_prefix, datestring)
-    fieldOfname = os.path.join(NCpath, NCname)
+    fieldOfname = fileHandling.makeTDSfileStructure(Thredds_Base, fldrArch, datestring, 'Field')
+    # TdsFldrBase = os.path.join(Thredds_Base, fldrArch)
+    # NCpath = sb.makeNCdir(Thredds_Base, os.path.join(version_prefix, 'Field'), datestring, model=model)
+    # # make the name of this nc file
+    # NCname = 'CMTB-waveModels_{}_{}_Field_{}.nc'.format(model, version_prefix, datestring)
+    # fieldOfname = os.path.join(NCpath, NCname)
 
-    if not os.path.exists(TdsFldrBase):
-        os.makedirs(TdsFldrBase)  # make the directory for the thredds data output
-    if not os.path.exists(os.path.join(TdsFldrBase, 'Field', 'Field.ncml')):
-        inputOutput.makencml(os.path.join(TdsFldrBase, 'Field', 'Field.ncml'))  # remake the ncml if its not there
-    # make file name strings
+    # if not os.path.exists(TdsFldrBase):
+    #     os.makedirs(TdsFldrBase)  # make the directory for the thredds data output
+    # if not os.path.exists(os.path.join(TdsFldrBase, 'Field', 'Field.ncml')):
+    #     inputOutput.makencml(os.path.join(TdsFldrBase, 'Field', 'Field.ncml'))  # remake the ncml if its not there
+    # # make file name strings
     flagfname = os.path.join(fpath, 'Flags{}.out.txt'.format(datestring))  # startTime # the name of flag file
     fieldYaml = 'yaml_files/waveModels/{}/{}_global.yml'.format(model, model)  # field
     varYaml = 'yaml_files/waveModels/{}/{}_var.yml'.format(model, model)

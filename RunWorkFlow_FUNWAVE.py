@@ -16,6 +16,12 @@ def Master_FUNWAVE_run(inputDict):
     Args:
       inputDict: a dictionary that is read from the input yaml
 
+    Keyword Args:
+        modelSettings:
+            'version_prefix'
+            'ensembleNumber': values for ensembles to run (default = np.arange(1))
+        hostfile: hostfile (default = '/home/number/cmtb/hostfile-IB_funwave')
+
     Returns:
       None
 
@@ -35,7 +41,7 @@ def Master_FUNWAVE_run(inputDict):
     inputDict['path_prefix'] = os.path.join(workingDir, model, version_prefix)
     path_prefix = inputDict['path_prefix']
     ensembleNumber = inputDict['modelSettings'].get('ensembleNumber', np.arange(0,1))
-    
+    hostfile = inputDict.get('hostFile', '/home/number/cmtb/hostfile-IB_funwave')
     # ______________________ Logging  ____________________________
     # auto generated Log file using start_end timeSegment
     LOG_FILENAME = fileHandling.logFileLogic(outDataBase=path_prefix, version_prefix=version_prefix, startTime=startTime,
@@ -70,7 +76,6 @@ def Master_FUNWAVE_run(inputDict):
         freqList = [ 'df-0.000500']#,'df-0.000100', 'df-0.000050', 'df-0.000010'] # 'df-0.007500', 'df-0.001000',
                     #[.0075, 0.005, 0.0025, 0.001, 0.00075, 0.0005, 0.00025, 0.0001,0.00005,0.00001, 0.000005]
 
-
         ensembleNumber = [int(i) for i in ensembleNumber.split(',')]
         # check to make sure keys got into pickle appropriately
         for dfKey in freqList:
@@ -104,9 +109,11 @@ def Master_FUNWAVE_run(inputDict):
                     os.chdir(datadir)      # changing locations to where input files should be made
                     dt = time.time()
                     print('Running Simulation started with {} processors'.format(fIO.nprocess))
-                    _ = check_output("mpirun -n {} {} input.txt".format(int(fIO.nprocess), os.path.join(curdir, inputDict['modelExecutable'])), shell=True)
+
+                    _ = check_output("mpiexec -n {} -f {} {} INPUT".format(int(fIO.nprocess), hostfile,
+                                                        os.path.join(curdir, inputDict['modelExecutable'])), shell=True)
                     fIO.simulationWallTime = time.time() - dt
-                    print('Simulation took {:.1} seconds'.format(fIO.simulationWallTime))
+                    print('Simulation took {:.1} minutes'.format(fIO.simulationWallTime/60))
                     os.chdir(curdir)
                     with open(pickleSaveFname, 'wb') as fid:
                         pickle.dump(fIO, fid, protocol=pickle.HIGHEST_PROTOCOL)
