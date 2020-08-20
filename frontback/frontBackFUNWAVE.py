@@ -156,6 +156,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     """
     print("check docstrings for Analyze and preprocess")
     # ___________________define Global Variables__________________________________
+    print("\n\nDEBUG GABY: starting FUNWAVEAnalyze function!!\n\n")
 
     plotFlag = inputDict.get('plotFlag', True)
     version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
@@ -164,31 +165,32 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     # the below should error if not included in input Dict
     path_prefix = inputDict['path_prefix']  # for organizing data
     simulationDuration = inputDict['simulationDuration']
-    model = inputDict.get('modelName', 'FUNWAVE').lower()
+    model = inputDict.get('modelName', 'funwave').lower()
     # _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
     # establishing the resolution of the input datetime
-    d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
-    d2 = d1 + DT.timedelta(0, simulationDuration * 3600, 0)
-    datestring = d1.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
-    fpath = os.path.join(path_prefix, datestring)
+    #d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
+    #d2 = d1 + DT.timedelta(0, simulationDuration * 3600, 0)
+
+    d1 = inputDict['startTime']
+    d2 = inputDict['endTime']
+    datestring = d1   #.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
+    fpath = path_prefix #os.path.join(path_prefix, datestring)
 
     #_____________________________________________________________________________
     #_____________________________________________________________________________
 
     print('\nBeggining of Analyze Script\nLooking for file in ' + fpath)
     print('\nData Start: %s  Finish: %s' % (d1, d2))
-    prepdata = STPD.PrepDataTools()         # initializing instance for rotation scheme
-    SeaSwellCutoff = 0.05
-    nSubSample = 5                          # data are output at high rate, how often do we want to plot
 
     ######################################################################################################################
     ######################################################################################################################
     ##################################   Load Data Here / Massage Data Here   ############################################
     ######################################################################################################################
     ######################################################################################################################
-    matfile = os.path.join(fpath, ''.join(fio.ofileNameBase.split('-')) + '.mat')
-    print('Loading files ')
-    simData, simMeta = fio.loadSwash_Mat(fname=matfile)  # load all files
+
+    outputFolder = os.path.join(fpath, ''.join(fio.ofileNameBase.split('-')),'output')
+    print('Loading files ',outputFolder)
+    simData, simMeta = fio.loadFUNWAVE_stations(fname=outputFolder)  # load all files
     ######################################################################################################################
     #################################   obtain total water level   #######################################################
     ######################################################################################################################

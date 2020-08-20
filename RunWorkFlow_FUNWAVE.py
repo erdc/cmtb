@@ -110,8 +110,8 @@ def Master_FUNWAVE_run(inputDict):
                     dt = time.time()
                     print('Running Simulation started with {} processors'.format(fIO.nprocess))
 
-                    _ = check_output("mpiexec -n {} -f {} {} INPUT".format(int(fIO.nprocess), hostfile,
-                                                        os.path.join(curdir, inputDict['modelExecutable'])), shell=True)
+                    #_ = check_output("mpiexec -n {} -f {} {} INPUT".format(int(fIO.nprocess), hostfile,
+                    #                                    os.path.join(curdir, inputDict['modelExecutable'])), shell=True)
                     fIO.simulationWallTime = time.time() - dt
                     print('Simulation took {:.1} minutes'.format(fIO.simulationWallTime/60))
                     os.chdir(curdir)
@@ -121,7 +121,7 @@ def Master_FUNWAVE_run(inputDict):
                 else:   # assume there is a saved pickle of input/output that was generated before
                     with open(pickleSaveFname, 'rb') as fid:
                         fIO = pickle.load(fid)
-    
+
                 if analyzeFlag == True:
                     print('**\nBegin Analyze Script %s ' % DT.datetime.now())
                     fIO.path_prefix = os.path.join(workingDir, model, version_prefix, dateString)
