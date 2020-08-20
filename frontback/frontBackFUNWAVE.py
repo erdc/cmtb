@@ -156,7 +156,6 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     """
     print("check docstrings for Analyze and preprocess")
     # ___________________define Global Variables__________________________________
-    print("\n\nDEBUG GABY: starting FUNWAVEAnalyze function!!\n\n")
 
     plotFlag = inputDict.get('plotFlag', True)
     version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
@@ -190,11 +189,14 @@ def FunwaveAnalyze(startTime, inputDict, fio):
 
     outputFolder = os.path.join(fpath, ''.join(fio.ofileNameBase.split('-')),'output')
     print('Loading files ',outputFolder)
-    simData, simMeta = fio.loadFUNWAVE_stations(fname=outputFolder)  # load all files
+    #simData, simMeta = fio.loadFUNWAVE_stations(fname=outputFolder)  # load all files
+    simData = fio.loadFUNWAVE_stations(fname=outputFolder)  # load all files
     ######################################################################################################################
     #################################   obtain total water level   #######################################################
     ######################################################################################################################
     #TODO: @Gaby, we'll use chuans/mine runup ID code here and save the runup time series data.
+
+    print("\n\nDEBUG GABY: ending loadFUNWAVE_stations function ran sucessfully!!!!\n\n")
     eta = simData['eta'].squeeze()
 
     # now adapting Chuan's runup code, here we use 0.08 m for runup threshold
