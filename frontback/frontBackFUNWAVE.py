@@ -227,12 +227,17 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     figureBaseFname = 'CMTB_waveModels_{}_{}_'.format(model, version_prefix)
 
     # make function for processing timeseries data
-    # TODO: @Gaby, these should look familiar!
-    cutRampingTime = 1200 # wich equals 600sec for dt = 0.5sec
+    # TODO: @Gaby, these should look familiar! ... yup, It does XD
+    cutRampingTime = 1200 # which equals 600sec (10min) for dt = 0.5sec
     data = simData['eta'].squeeze()[cutRampingTime:,:]
-    timeData = simData['time'].squeeze()[cutRampingTime:]
+
+    time = []
+    for i in range(len(simData['time'].squeeze()[cutRampingTime:])): ## change time from float to datetime
+        dt_i = DT.timedelta(seconds =simData['time'].squeeze()[cutRampingTime:][dt_i])
+        time.append(d1+dt_i)
+
     SeaSwellCutoff = 0.05 # cutoff between sea/swell and IG
-    fspec, freqs = sbwave.timeSeriesAnalysis1D(timeData,data, bandAvg=6,WindowLength=20)
+    fspec, freqs = sbwave.timeSeriesAnalysis1D(np.asarray(time),data, bandAvg=6,WindowLength=20)
     total = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=None)
     SeaSwellStats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=SeaSwellCutoff, highFreq=None)
     IGstats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=SeaSwellCutoff)
