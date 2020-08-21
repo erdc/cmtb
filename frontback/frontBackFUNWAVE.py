@@ -233,11 +233,11 @@ def FunwaveAnalyze(startTime, inputDict, fio):
 
     time = []
     for i in range(len(simData['time'].squeeze()[cutRampingTime:])): ## change time from float to datetime
-        dt_i = DT.timedelta(seconds =simData['time'].squeeze()[cutRampingTime:][dt_i])
+        dt_i = DT.timedelta(seconds =simData['time'].squeeze()[cutRampingTime:][i])
         time.append(d1+dt_i)
 
     SeaSwellCutoff = 0.05 # cutoff between sea/swell and IG
-    fspec, freqs = sbwave.timeSeriesAnalysis1D(np.asarray(time),data, bandAvg=6,WindowLength=20)
+    fspec, freqs = sbwave.timeSeriesAnalysis1D(np.asarray(time),data, bandAvg=6) #,WindowLength=20)
     total = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=None)
     SeaSwellStats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=SeaSwellCutoff, highFreq=None)
     IGstats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=SeaSwellCutoff)
