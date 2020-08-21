@@ -170,9 +170,9 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     #d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     #d2 = d1 + DT.timedelta(0, simulationDuration * 3600, 0)
 
-    d1 = inputDict['startTime']
-    d2 = inputDict['endTime']
-    datestring = d1   #.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
+    d1 = DT.datetime.strptime(inputDict['startTime'], '%Y-%m-%dT%H:%M:%SZ')
+    d2 = DT.datetime.strptime(inputDict['endTime'], '%Y-%m-%dT%H:%M:%SZ')
+    datestring = d1.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
     fpath = path_prefix #os.path.join(path_prefix, datestring)
 
     #_____________________________________________________________________________
@@ -228,11 +228,15 @@ def FunwaveAnalyze(startTime, inputDict, fio):
 
     # make function for processing timeseries data
     # TODO: @Gaby, these should look familiar!
-    fspec, freqs = sbwave.timeSeriesAnalysis1D(simData['time'].squeeze(), simData['eta'].squeeze(), bandAvg=6)
+    cutRampingTime = 1200 # wich equals 600sec for dt = 0.5sec
+    data = simData['eta'].squeeze()[cutRampingTime:,:]
+    timeData = simData['time'].squeeze()[cutRampingTime:]
+    SeaSwellCutoff = 0.05 # cutoff between sea/swell and IG
+    fspec, freqs = sbwave.timeSeriesAnalysis1D(timeData,data, bandAvg=6,WindowLength=20)
     total = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=None)
     SeaSwellStats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=SeaSwellCutoff, highFreq=None)
     IGstats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=SeaSwellCutoff)
-    HsTS = 4 * np.std(simData['eta'].squeeze(), axis=0)
+    HsTS = 4 * np.std(data, axis=0)
 
     #############################################################################################################
     ####################################### loop over tS plt ####################################################
