@@ -189,12 +189,11 @@ def FunwaveAnalyze(startTime, inputDict, fio):
 
     outputFolder = os.path.join(fpath, ''.join(fio.ofileNameBase.split('-')),'output')
     print('Loading files ',outputFolder)
-    #simData, simMeta = fio.loadFUNWAVE_stations(fname=outputFolder)  # load all files
-    simData = fio.loadFUNWAVE_stations(fname=outputFolder)  # load all files
+    simData, simMeta = fio.loadFUNWAVE_stations(fname=outputFolder)  # load all files
+
     ######################################################################################################################
     #################################   obtain total water level   #######################################################
     ######################################################################################################################
-    #TODO: @Gaby, we'll use chuans/mine runup ID code here and save the runup time series data.
 
     print("\n\nDEBUG GABY: ending loadFUNWAVE_stations function ran sucessfully!!!!\n\n")
     eta = simData['eta'].squeeze()
@@ -237,7 +236,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
         time.append(d1+dt_i)
 
     SeaSwellCutoff = 0.05 # cutoff between sea/swell and IG
-    fspec, freqs = sbwave.timeSeriesAnalysis1D(np.asarray(time),data, bandAvg=6) #,WindowLength=20)
+    fspec, freqs = sbwave.timeSeriesAnalysis1D(np.asarray(time),data, bandAvg=3)#6,WindowLength=20)
     total = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=None)
     SeaSwellStats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=SeaSwellCutoff, highFreq=None)
     IGstats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=SeaSwellCutoff)
@@ -246,8 +245,8 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     #############################################################################################################
     ####################################### loop over tS plt ####################################################
     #############################################################################################################
-    setup = np.mean(simData['eta'], axis=0).squeeze()
     WL = simMeta['WL'] #added in editing, should possibly be changed?
+    setup = np.mean(simData['eta'] + WL, axis=0).squeeze()
     if plotFlag == True:
         #TODO: @gaby, here  we'll be making QA/QC plots
         from plotting import operationalPlots as oP
