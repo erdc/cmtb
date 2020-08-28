@@ -109,9 +109,10 @@ def Master_FUNWAVE_run(inputDict):
                     os.chdir(datadir)      # changing locations to where input files should be made
                     dt = time.time()
                     print('Running Simulation started with {} processors'.format(fIO.nprocess))
-
-                    _ = check_output("mpiexec -n {} -f {} {} INPUT".format(int(fIO.nprocess), hostfile,
-                                                        os.path.join(curdir, inputDict['modelExecutable'])), shell=True)
+                    executionString = "mpiexec -n {} -f {} {} INPUT".format(int(fIO.nprocess), hostfile,
+                                                        os.path.join(curdir, inputDict['modelExecutable']))
+                    print(executionString)
+                    _ = check_output(executionString, shell=True)
                     fIO.simulationWallTime = time.time() - dt
                     print('Simulation took {:.1} minutes'.format(fIO.simulationWallTime/60))
                     os.chdir(curdir)

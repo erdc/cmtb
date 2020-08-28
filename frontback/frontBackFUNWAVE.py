@@ -115,7 +115,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
                     px=px, py=py, nprocessors=nprocessors,Mglob=Mglob,Nglob=Nglob)
 
     ## write spectra, depth, and station files
-    fio.Write_1D_Bathy(Dep=gridDict['elevation'], dx=np.median(np.diff(gridDict['xFRF'])), dy=np.median(np.diff(gridDict['yFRF'])))
+    fio.Write_1D_Bathy(Dep=gridDict['elevation'], xFRF=gridDict['xFRF'], yFRF=gridDict['yFRF'])
     if grid.lower() == '1d':
         fio.Write_1D_Spectra_File(wavepacket)
     else:
