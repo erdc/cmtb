@@ -73,7 +73,7 @@ def Master_FUNWAVE_run(inputDict):
             bathy = pickle.load(fid)
         with open('grids/FUNWAVE/phases.pickle', 'rb') as fid:
             phases = pickle.load(fid)
-        freqList = [ 'df-0.000500']#,'df-0.000100', 'df-0.000050', 'df-0.000010'] # 'df-0.007500', 'df-0.001000',
+        freqList = [ 'df-0.000500','df-0.000100', 'df-0.000050', 'df-0.000010'] # 'df-0.007500', 'df-0.001000',
                     #[.0075, 0.005, 0.0025, 0.001, 0.00075, 0.0005, 0.00025, 0.0001,0.00005,0.00001, 0.000005]
 
         ensembleNumber = [int(i) for i in ensembleNumber.split(',')]
@@ -110,8 +110,8 @@ def Master_FUNWAVE_run(inputDict):
                     dt = time.time()
                     print('Running Simulation started with {} processors'.format(fIO.nprocess))
 
-                    #_ = check_output("mpiexec -n {} -f {} {} INPUT".format(int(fIO.nprocess), hostfile,
-                    #                                    os.path.join(curdir, inputDict['modelExecutable'])), shell=True)
+                    _ = check_output("mpiexec -n {} -f {} {} INPUT".format(int(fIO.nprocess), hostfile,
+                                                        os.path.join(curdir, inputDict['modelExecutable'])), shell=True)
                     fIO.simulationWallTime = time.time() - dt
                     print('Simulation took {:.1} minutes'.format(fIO.simulationWallTime/60))
                     os.chdir(curdir)
