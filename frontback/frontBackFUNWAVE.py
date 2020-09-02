@@ -236,6 +236,8 @@ def FunwaveAnalyze(startTime, inputDict, fio):
         time.append(d1+dt_i)
 
     SeaSwellCutoff = 0.05 # cutoff between sea/swell and IG
+    nSubSample = 5
+
     fspec, freqs = sbwave.timeSeriesAnalysis1D(np.asarray(time),data, bandAvg=3)#6,WindowLength=20)
     total = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=None)
     SeaSwellStats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=SeaSwellCutoff, highFreq=None)
