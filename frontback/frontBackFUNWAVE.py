@@ -106,25 +106,19 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
         py = 1
     else:
         py = np.floor(Nglob / 150)
+    if px <48:
+        px = 48
     nprocessors = px * py  # now calculated on init
-
 
     fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WL,
                     equilbTime=0, Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'], Dm=wavepacket['waveDm'],
                     px=px, py=py, nprocessors=nprocessors,Mglob=Mglob,Nglob=Nglob)
 
-
-    #TODO: change the below functions to write 1D simulation files with appropriate input information.  In other
-    # words the dictionaries here that are input to your write functions, need to come out of the "prep" functions
-    # above.  For this we'll have to modify the "prep" functions to do that.   I'm happy to help point you to where
-    # you need to modify as needed.
-
     ## write spectra, depth, and station files
+    fio.Write_1D_Bathy(Dep=gridDict['elevation'], xFRF=gridDict['xFRF'], yFRF=gridDict['yFRF'])
     if grid.lower() == '1d':
-        fio.Write_1D_Bathy(gridDict['elevation'],gridDict['xFRF'],gridDict['yFRF'])
         fio.Write_1D_Spectra_File(wavepacket)
     else:
-        fio.Write_2D_Bathy(gridDict['elevation'],gridDict['xFRF'],gridDict['yFRF'])
         fio.Write_2D_Spectra_File(wavepacket, wavepacket['amp2d'])
 
     ## write input file
