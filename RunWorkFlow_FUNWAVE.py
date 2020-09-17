@@ -64,8 +64,7 @@ def Master_FUNWAVE_run(inputDict):
     # begin model data gathering
     go = getDataFRF.getObs(projectStart, projectEnd)                  # initialize get observation class
     gdTB = getDataFRF.getDataTestBed(projectStart, projectEnd)        # for bathy data gathering
-    rawspec = go.getWaveSpec(gaugenumber= '8m-array')
-    rawWL = go.getWL()
+
 
     if version_prefix in ['freq']:
         #load specific date/time of interest
@@ -95,13 +94,16 @@ def Master_FUNWAVE_run(inputDict):
             inputDict['phases'] = phases['phase_{}_{}'.format(dfKey, enMb)]
             assert len(inputDict['phases']) == len(phases['phase_{}_freq'.format(dfKey)]), "some how picked the wrong phase"
             try:
-                dateString = 'phase_{}_{}'.format(dfKey, enMb) #projectStart.strftime("%Y%m%dT%H%M%SZ")
+                dateString = os.path.join(dateStartList[0].strftime('%Y-%m-%dH%M%SZ'),'phase_{}_{}'.format(dfKey, enMb)) #'phase_{}_{}'.format(dfKey, enMb) #projectStart.strftime("%Y%m%dT%H%M%SZ")
                 fileHandling.makeCMTBfileStructure(path_prefix=path_prefix, date_str=dateString)
                 datadir = os.path.join(path_prefix, dateString)  # moving to the new simulation's folder
-                pickleSaveFname = os.path.join(datadir, dateString + '_io.pickle')
-                
+                pickleSaveFname = os.path.join(datadir, 'phase_{}_{}'.format(dfKey, enMb)+'_io.pickle')
+
                 if generateFlag == True:
                     # assigning min/max frequency bands with resolution of df key
+                    rawspec = go.getWaveSpec(gaugenumber='8m-array')
+                    rawWL = go.getWL()
+
                     inputDict['nf'] = len(np.arange(0.04, 0.3, float(dfKey[3:])))
                     fIO = frontBackFUNWAVE.FunwaveSimSetup(dateString, rawWL, rawspec, bathy, inputDict=inputDict)
     
@@ -112,7 +114,7 @@ def Master_FUNWAVE_run(inputDict):
                     executionString = "mpiexec -n {} -f {} {} INPUT".format(int(fIO.nprocess), hostfile,
                                                         os.path.join(curdir, inputDict['modelExecutable']))
                     print(executionString)
-                    _ = check_output(executionString, shell=True)
+                    #_ = check_output(executionString, shell=True)
                     fIO.simulationWallTime = time.time() - dt
                     print('Simulation took {:.1} minutes'.format(fIO.simulationWallTime/60))
                     os.chdir(curdir)
@@ -120,7 +122,10 @@ def Master_FUNWAVE_run(inputDict):
                         pickle.dump(fIO, fid, protocol=pickle.HIGHEST_PROTOCOL)
     
                 else:   # assume there is a saved pickle of input/output that was generated before
-                    with open(pickleSaveFname, 'rb') as fid:
+
+                    #with open(pickleSaveFname, 'rb') as fid: ## DEBUG Gaby: this is so i can use hpc simulaton
+                    wepa = "/home/gaby/cmtb/data/funwave/freq/FRF1D-520NF_5915654/phase_df-0.005000_1_io.pickle"
+                    with open(wepa, 'rb') as fid:
                         fIO = pickle.load(fid)
 
                 if analyzeFlag == True:

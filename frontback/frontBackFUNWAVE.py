@@ -52,7 +52,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     # set times
     # d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     # d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
-    date_str = startTime #d1.strftime('%Y-%m-%dT%H%M%SZ')
+    date_str = startTime #d1T%.strftime('%Y-%m-%dH%M%SZ')
     prepdata = STPD.PrepDataTools()  # for preprocessing
 
     # __________________Make Working Data Directories_____________________________________________
@@ -115,10 +115,11 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
                     px=px, py=py, nprocessors=nprocessors,Mglob=Mglob,Nglob=Nglob)
 
     ## write spectra, depth, and station files
-    fio.Write_1D_Bathy(Dep=gridDict['elevation'], xFRF=gridDict['xFRF'], yFRF=gridDict['yFRF'])
     if grid.lower() == '1d':
+        fio.Write_1D_Bathy(Dep=gridDict['elevation'], xFRF=gridDict['xFRF'], yFRF=gridDict['yFRF'])
         fio.Write_1D_Spectra_File(wavepacket)
     else:
+        fio.Write_2D_Bathy(Dep=gridDict['elevation'], xFRF=gridDict['xFRF'], yFRF=gridDict['yFRF'])
         fio.Write_2D_Spectra_File(wavepacket, wavepacket['amp2d'])
 
     ## write input file
