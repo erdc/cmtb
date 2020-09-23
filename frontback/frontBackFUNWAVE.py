@@ -258,18 +258,18 @@ def FunwaveAnalyze(startTime, inputDict, fio):
             ofPlotName = os.path.join(figPath, figureBaseFname + 'TS_' + time[tidx].strftime('%Y%m%dT%H%M%S%fZ') +'.png')
             oP.generate_CrossShoreTimeseries(ofPlotName, simData['eta'][tidx].squeeze(), -simData['elevation'], simData['xFRF'])
         # now make gif of waves moving across shore
-        imgList = sorted(glob.glob(os.path.join(path_prefix, datestring, 'figures', '*_TS_*.png')))
+        imgList = sorted(glob.glob((os.path.join(figPath, '*_TS_*.png')))) #sorted(glob.glob(os.path.join(path_prefix, datestring, 'figures', '*_TS_*.png')))
         dt = np.median(np.diff(time)).microseconds / 1000000
-        sb.makeMovie(os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS_{}.avi'.format(datestring)), imgList, fps=nSubSample*dt)
-        tarOutFile = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS.tar.gz')
+        sb.makeMovie(os.path.join(figPath, figureBaseFname + 'TS_{}.avi'.format(datestring)), imgList, fps=nSubSample*dt)
+        tarOutFile = os.path.join(figPath, figureBaseFname + 'TS.tar.gz')
         sb.myTarMaker(tarOutFile, imgList)
 
-        ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'crossShoreSummary.png')
+        ofname = os.path.join(figPath, figureBaseFname + 'crossShoreSummary.png')
         oP.plotCrossShoreSummaryTS(ofname, simData['xFRF'], simData['elevation'], total,
                                SeaSwellStats, IGstats, setup=setup, WL=WL)
-        ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + '_spectrograph.png')
+        ofname = os.path.join(figPath, figureBaseFname + '_spectrograph.png')
         oP.crossShoreSpectrograph(ofname, simData['xFRF'], freqs, fspec)
-        ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + '_surfaceTimeseries.png')
+        ofname = os.path.join(figPath, figureBaseFname + '_surfaceTimeseries.png')
         oP.crossShoreSurfaceTS2D(ofname, simData['eta'], simData['xFRF'], simData['time'])
         print("plotting took {} minutes".format((DT.datetime.now()-tstart).total_seconds()/60))
     ##################################################################################################################
