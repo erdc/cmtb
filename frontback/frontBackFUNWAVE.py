@@ -254,9 +254,18 @@ def FunwaveAnalyze(startTime, inputDict, fio):
         # TODO: write a parallel data plotting function
         #### in Seriel $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
         for tidx in np.arange(0, len(simData['time']), nSubSample).astype(int):
+            bottomIn = -simData['elevation']
+            dataIn = simData['eta'][tidx].squeeze()
+
+            if np.median(bottomIn) > 0:
+                bottomIn = -bottomIn
+            ###########################
+            shoreline = np.where(bottomIn > dataIn)[-1][-1]
+            dataIn[:shoreline] = float("NAN")
+
             figPath = os.path.join(fpath,fio.ofileNameBase,'figures')
             ofPlotName = os.path.join(figPath, figureBaseFname + 'TS_' + time[tidx].strftime('%Y%m%dT%H%M%S%fZ') +'.png')
-            oP.generate_CrossShoreTimeseries(ofPlotName, simData['eta'][tidx].squeeze(), -simData['elevation'], simData['xFRF'])
+            oP.generate_CrossShoreTimeseries(ofPlotName, dataIn, bottomIn, simData['xFRF'])
         # now make gif of waves moving across shore
         imgList = sorted(glob.glob((os.path.join(figPath, '*_TS_*.png')))) #sorted(glob.glob(os.path.join(path_prefix, datestring, 'figures', '*_TS_*.png')))
         dt = np.median(np.diff(time)).microseconds / 1000000
@@ -291,11 +300,11 @@ def FunwaveAnalyze(startTime, inputDict, fio):
                'station_name': '{} Field Data'.format(model),
                'tsTime': tsTime,
                'waveHsIG': np.reshape(IGstats['Hm0'], (1, len(simData['xFRF']))),
-               'eta': np.swapaxes(simData['eta'], 0, 1),
+               'eta': simData['eta'],
                'totalWaterLevel': maxRunup,
                'totalWaterLevelTS': np.reshape(runup, (1, len(runup))),
-               'velocityU': np.swapaxes(simData['velocityU'], 0, 1),
-               'velocityV': np.swapaxes(simData['velocityV'], 0, 1),
+               'velocityU': simData['velocityU'],
+               'velocityV': simData['velocityV'],
                'waveHs': np.reshape(SeaSwellStats['Hm0'], (1, len(simData['xFRF']))), # or from HsTS??
                'xFRF': simData['xFRF'],
                'yFRF': simData['yFRF'][0],
@@ -304,7 +313,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
                'DX': np.median(np.diff(simData['xFRF'])).astype(int),
                'DY': 1,    # must be adjusted for 2D simulations
                'NI': len(simData['xFRF']),
-               'NJ': simData['velocityU'].shape[1],}  # should automatically adjust for 2D simulations
+               'NJ': 3,}  # should automatically adjust for 2D simulations
 
     fieldOfname = fileHandling.makeTDSfileStructure(Thredds_Base, fldrArch, datestring, 'Field')
     # TdsFldrBase = os.path.join(Thredds_Base, fldrArch)
