@@ -1913,6 +1913,9 @@ def generate_CrossShoreTimeseries(ofname, dataIn, bottomIn, xIn, **kwargs):
     beachColor = 'wheat'
     skyColor = 'aquamarine'
     waterColor = 'deepskyblue'
+    if np.median(bottomIn) > 0:
+        bottomIn = -bottomIn
+    ###########################
 
     plt.figure(figsize=figsize)
     ax1 = plt.subplot(111)
