@@ -1913,11 +1913,7 @@ def generate_CrossShoreTimeseries(ofname, dataIn, bottomIn, xIn, **kwargs):
     beachColor = 'wheat'
     skyColor = 'aquamarine'
     waterColor = 'deepskyblue'
-    if np.median(bottomIn) > 0:
-        bottomIn = -bottomIn
-    ###########################
-    shoreline = np.where(bottomIn>dataIn)[-1][-1]
-    dataIn[:shoreline] = float("NAN")
+
     plt.figure(figsize=figsize)
     ax1 = plt.subplot(111)
     ax1.set_facecolor(skyColor)
