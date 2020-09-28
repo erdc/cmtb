@@ -254,17 +254,18 @@ def FunwaveAnalyze(startTime, inputDict, fio):
         # TODO: write a parallel data plotting function
         #### in Seriel $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
         for tidx in np.arange(0, len(simData['time']), nSubSample).astype(int):
+            figPath = os.path.join(fpath,fio.ofileNameBase,'figures')
+            ofPlotName = os.path.join(figPath, figureBaseFname + 'TS_' + time[tidx].strftime('%Y%m%dT%H%M%S%fZ') +'.png')
+
             bottomIn = -simData['elevation']
             dataIn = simData['eta'][tidx].squeeze()
 
             if np.median(bottomIn) > 0:
                 bottomIn = -bottomIn
-            ###########################
-            shoreline = np.where(bottomIn > dataIn)[-1][-1]
+
+            shoreline= np.where(dataIn > bottomIn)[-1][-1]
             dataIn[:shoreline] = float("NAN")
 
-            figPath = os.path.join(fpath,fio.ofileNameBase,'figures')
-            ofPlotName = os.path.join(figPath, figureBaseFname + 'TS_' + time[tidx].strftime('%Y%m%dT%H%M%S%fZ') +'.png')
             oP.generate_CrossShoreTimeseries(ofPlotName, dataIn, bottomIn, simData['xFRF'])
         # now make gif of waves moving across shore
         imgList = sorted(glob.glob((os.path.join(figPath, '*_TS_*.png')))) #sorted(glob.glob(os.path.join(path_prefix, datestring, 'figures', '*_TS_*.png')))
@@ -305,15 +306,15 @@ def FunwaveAnalyze(startTime, inputDict, fio):
                'totalWaterLevelTS': np.reshape(runup, (1, len(runup))),
                'velocityU': simData['velocityU'],
                'velocityV': simData['velocityV'],
-               'waveHs': np.reshape(SeaSwellStats['Hm0'], (1, len(simData['xFRF']))), # or from HsTS??
+               'waveHs': np.reshape(SeaSwellStats['Hm0'], (1, len(simData['xFRF']))),  # or from HsTS??
                'xFRF': simData['xFRF'],
                'yFRF': simData['yFRF'][0],
                'runTime': np.expand_dims(fio.simulationWallTime, axis=0),
                'nProcess': np.expand_dims(fio.nprocess, axis=0),
-               'DX': np.median(np.diff(simData['xFRF'])).astype(int),
-               'DY': 1,    # must be adjusted for 2D simulations
-               'NI': len(simData['xFRF']),
-               'NJ': 3,}  # should automatically adjust for 2D simulations
+               'DX': np.expand_dims(fio.DX, axis=0),
+               'DY': np.expand_dims(fio.DY, axis=0),  # must be adjusted for 2D simulations
+               'NI': np.expand_dims(fio.Mglob, axis=0),
+               'NJ': np.expand_dims(fio.Nglob, axis=0), }  # should automatically adjust for 2D simulations
 
     fieldOfname = fileHandling.makeTDSfileStructure(Thredds_Base, fldrArch, datestring, 'Field')
     # TdsFldrBase = os.path.join(Thredds_Base, fldrArch)
