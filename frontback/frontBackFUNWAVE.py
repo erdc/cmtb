@@ -101,7 +101,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     [Nglob,Mglob] = gridDict['elevation'].shape
     px = np.floor(Mglob / 150)
     if grid.lower() == '1d':
-        py = 1
+        py = 3
     else:
         py = np.floor(Nglob / 150)
     nprocessors = px * py  # now calculated on init
@@ -290,7 +290,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     ##################################################################################################################
     ##################################################################################################################
 
-    #TODO: @Gaby, the last st   ep, we'll be making netCDF files.  I'd like to loop matt and ty and maybe mike in here
+    #TODO: @Gaby, the last step, we'll be making netCDF files.  I'd like to loop matt and ty and maybe mike in here
     # as we're going to be doing this for the LAB and it'd be nice to establish the "correct" format right off the
     # bat here for FUNWAVE, then they can absorb what we generate to implement directly into the model. we have a
     # tool to make netCDF files and it basically works by taking the model output and putting it into a dictionary.

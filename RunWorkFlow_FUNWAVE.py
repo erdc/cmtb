@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import multiprocessing
+
 import matplotlib
 matplotlib.use('Agg')
 import os, getopt, sys, shutil, glob, logging, yaml, time, pickle
@@ -104,9 +106,13 @@ def Master_FUNWAVE_run(inputDict):
                     os.chdir(datadir)      # changing locations to where input files should be made
                     dt = time.time()
                     print('Running Simulation started with {} processors'.format(fIO.nprocess))
-                    _ = check_output("mpirun -n {} {} INPUT".format(int(fIO.nprocess), os.path.join(curdir, inputDict['modelExecutable'])), shell=True)
+                    count = multiprocessing.cpu_count()
+                    if count < fIO.nprocess:
+                        fIO.nprocess = count
+                    _ = check_output("mpirun -n {} {} input.txt".format(int(fIO.nprocess), os.path.join(curdir,
+                                                                            inputDict['modelExecutable'])), shell=True)
                     fIO.simulationWallTime = time.time() - dt
-                    print('Simulation took {:.1} seconds'.format(fIO.simulationWallTime))
+                    print('Simulation took {:.1} hours'.format(fIO.simulationWallTime/60))
                     os.chdir(curdir)
                     with open(pickleSaveFname, 'wb') as fid:
                         pickle.dump(fIO, fid, protocol=pickle.HIGHEST_PROTOCOL)
