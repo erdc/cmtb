@@ -18,6 +18,12 @@ def Master_FUNWAVE_run(inputDict):
     Args:
       inputDict: a dictionary that is read from the input yaml
 
+    Keyword Args:
+        modelSettings:
+            'version_prefix'
+            'ensembleNumber': values for ensembles to run (default = np.arange(1))
+        hostfile: hostfile (default = '/home/number/cmtb/hostfile-IB_funwave')
+
     Returns:
       None
 
@@ -37,7 +43,7 @@ def Master_FUNWAVE_run(inputDict):
     inputDict['path_prefix'] = os.path.join(workingDir, model, version_prefix)
     path_prefix = inputDict['path_prefix']
     ensembleNumber = inputDict['modelSettings'].get('ensembleNumber', np.arange(0,1))
-    
+    hostfile = inputDict.get('hostFile', '/home/number/cmtb/hostfile-IB_funwave')
     # ______________________ Logging  ____________________________
     # auto generated Log file using start_end timeSegment
     LOG_FILENAME = fileHandling.logFileLogic(outDataBase=path_prefix, version_prefix=version_prefix, startTime=startTime,
@@ -60,8 +66,7 @@ def Master_FUNWAVE_run(inputDict):
     # begin model data gathering
     go = getDataFRF.getObs(projectStart, projectEnd)                  # initialize get observation class
     gdTB = getDataFRF.getDataTestBed(projectStart, projectEnd)        # for bathy data gathering
-    rawspec = go.getWaveSpec(gaugenumber= '8m-array')
-    rawWL = go.getWL()
+
 
     if version_prefix in ['freq']:
         #load specific date/time of interest
@@ -69,9 +74,8 @@ def Master_FUNWAVE_run(inputDict):
             bathy = pickle.load(fid)
         with open('grids/FUNWAVE/phases.pickle', 'rb') as fid:
             phases = pickle.load(fid)
-        freqList = [ 'df-0.000500']#,'df-0.000100', 'df-0.000050', 'df-0.000010'] # 'df-0.007500', 'df-0.001000',
+        freqList = [ 'df-0.000500','df-0.000100', 'df-0.000050', 'df-0.000010'] # 'df-0.007500', 'df-0.001000',
                     #[.0075, 0.005, 0.0025, 0.001, 0.00075, 0.0005, 0.00025, 0.0001,0.00005,0.00001, 0.000005]
-
 
         ensembleNumber = [int(i) for i in ensembleNumber.split(',')]
         # check to make sure keys got into pickle appropriately
@@ -92,35 +96,44 @@ def Master_FUNWAVE_run(inputDict):
             inputDict['phases'] = phases['phase_{}_{}'.format(dfKey, enMb)]
             assert len(inputDict['phases']) == len(phases['phase_{}_freq'.format(dfKey)]), "some how picked the wrong phase"
             try:
-                dateString = 'phase_{}_{}'.format(dfKey, enMb) #projectStart.strftime("%Y%m%dT%H%M%SZ")
+                dateString = os.path.join(dateStartList[0].strftime('%Y-%m-%dH%M%SZ'),'phase_{}_{}'.format(dfKey, enMb)) #'phase_{}_{}'.format(dfKey, enMb) #projectStart.strftime("%Y%m%dT%H%M%SZ")
                 fileHandling.makeCMTBfileStructure(path_prefix=path_prefix, date_str=dateString)
                 datadir = os.path.join(path_prefix, dateString)  # moving to the new simulation's folder
-                pickleSaveFname = os.path.join(datadir, dateString + '_io.pickle')
-                
+                pickleSaveFname = os.path.join(datadir, 'phase_{}_{}'.format(dfKey, enMb)+'_io.pickle')
+
                 if generateFlag == True:
                     # assigning min/max frequency bands with resolution of df key
+                    rawspec = go.getWaveSpec(gaugenumber='8m-array')
+                    rawWL = go.getWL()
+
                     inputDict['nf'] = len(np.arange(0.04, 0.3, float(dfKey[3:])))
                     fIO = frontBackFUNWAVE.FunwaveSimSetup(dateString, rawWL, rawspec, bathy, inputDict=inputDict)
     
                 if runFlag == True:        # run model
                     os.chdir(datadir)      # changing locations to where input files should be made
                     dt = time.time()
-                    print('Running Simulation started with {} processors'.format(fIO.nprocess))
+
                     count = multiprocessing.cpu_count()
                     if count < fIO.nprocess:
                         fIO.nprocess = count
-                    _ = check_output("mpirun -n {} {} input.txt".format(int(fIO.nprocess), os.path.join(curdir,
-                                                                            inputDict['modelExecutable'])), shell=True)
+                    print('Running Simulation with {} processors'.format(fIO.nprocess))
+                    executionString = "mpiexec -n {} -f {} {} INPUT".format(int(fIO.nprocess), hostfile,
+                                                                    os.path.join(curdir, inputDict['modelExecutable']))
+                    _ = check_output("mpirun -n {} {} input.txt".format(executionString), shell=True)
                     fIO.simulationWallTime = time.time() - dt
                     print('Simulation took {:.1} hours'.format(fIO.simulationWallTime/60))
+
                     os.chdir(curdir)
                     with open(pickleSaveFname, 'wb') as fid:
                         pickle.dump(fIO, fid, protocol=pickle.HIGHEST_PROTOCOL)
     
                 else:   # assume there is a saved pickle of input/output that was generated before
-                    with open(pickleSaveFname, 'rb') as fid:
+
+                    #with open(pickleSaveFname, 'rb') as fid: ## DEBUG Gaby: this is so i can use hpc simulaton
+                    wepa = "/home/gaby/cmtb/data/funwave/freq/FRF1D-520NF_5915654/phase_df-0.005000_1_io.pickle"
+                    with open(wepa, 'rb') as fid:
                         fIO = pickle.load(fid)
-    
+
                 if analyzeFlag == True:
                     print('**\nBegin Analyze Script %s ' % DT.datetime.now())
                     fIO.path_prefix = os.path.join(workingDir, model, version_prefix, dateString)

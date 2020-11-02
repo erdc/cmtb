@@ -52,7 +52,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     # set times
     # d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     # d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
-    date_str = startTime #d1.strftime('%Y-%m-%dT%H%M%SZ')
+    date_str = startTime #d1T%.strftime('%Y-%m-%dH%M%SZ')
     prepdata = STPD.PrepDataTools()  # for preprocessing
 
     # __________________Make Working Data Directories_____________________________________________
@@ -104,25 +104,20 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
         py = 3
     else:
         py = np.floor(Nglob / 150)
+    if px <48:
+        px = 48
     nprocessors = px * py  # now calculated on init
-
 
     fio = funwaveIO(fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix, WL=WL,
                     equilbTime=0, Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'], Dm=wavepacket['waveDm'],
                     px=px, py=py, nprocessors=nprocessors,Mglob=Mglob,Nglob=Nglob)
 
-
-    #TODO: change the below functions to write 1D simulation files with appropriate input information.  In other
-    # words the dictionaries here that are input to your write functions, need to come out of the "prep" functions
-    # above.  For this we'll have to modify the "prep" functions to do that.   I'm happy to help point you to where
-    # you need to modify as needed.
-
     ## write spectra, depth, and station files
     if grid.lower() == '1d':
-        fio.Write_1D_Bathy(dx, dy, gridDict['elevation'])
+        fio.Write_1D_Bathy(Dep=gridDict['elevation'], xFRF=gridDict['xFRF'], yFRF=gridDict['yFRF'])
         fio.Write_1D_Spectra_File(wavepacket)
     else:
-        fio.Write_2D_Bathy(dx, dy, gridDict['elevation'])
+        fio.Write_2D_Bathy(Dep=gridDict['elevation'], xFRF=gridDict['xFRF'], yFRF=gridDict['yFRF'])
         fio.Write_2D_Spectra_File(wavepacket, wavepacket['amp2d'])
 
     ## write input file
@@ -162,35 +157,38 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     # the below should error if not included in input Dict
     path_prefix = inputDict['path_prefix']  # for organizing data
     simulationDuration = inputDict['simulationDuration']
-    model = inputDict.get('modelName', 'SWASH').lower()
+    model = inputDict.get('modelName', 'funwave').lower()
     # _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
     # establishing the resolution of the input datetime
-    d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
-    d2 = d1 + DT.timedelta(0, simulationDuration * 3600, 0)
+    #d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
+    #d2 = d1 + DT.timedelta(0, simulationDuration * 3600, 0)
+
+    d1 = DT.datetime.strptime(inputDict['startTime'], '%Y-%m-%dT%H:%M:%SZ')
+    d2 = DT.datetime.strptime(inputDict['endTime'], '%Y-%m-%dT%H:%M:%SZ')
     datestring = d1.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
-    fpath = os.path.join(path_prefix, datestring)
+    fpath = path_prefix #os.path.join(path_prefix, datestring)
 
     #_____________________________________________________________________________
     #_____________________________________________________________________________
 
     print('\nBeggining of Analyze Script\nLooking for file in ' + fpath)
     print('\nData Start: %s  Finish: %s' % (d1, d2))
-    prepdata = STPD.PrepDataTools()         # initializing instance for rotation scheme
-    SeaSwellCutoff = 0.05
-    nSubSample = 5                          # data are output at high rate, how often do we want to plot
 
     ######################################################################################################################
     ######################################################################################################################
     ##################################   Load Data Here / Massage Data Here   ############################################
     ######################################################################################################################
     ######################################################################################################################
-    matfile = os.path.join(fpath, ''.join(fio.ofileNameBase.split('-')) + '.mat')
-    print('Loading files ')
-    simData, simMeta = fio.loadSwash_Mat(fname=matfile)  # load all files
+
+    outputFolder = os.path.join(fpath,fio.ofileNameBase,'output')
+    print('Loading files ',outputFolder)
+    simData, simMeta = fio.loadFUNWAVE_stations(fname=outputFolder)  # load all files
+
     ######################################################################################################################
     #################################   obtain total water level   #######################################################
     ######################################################################################################################
-    #TODO: @Gaby, we'll use chuans/mine runup ID code here and save the runup time series data.
+
+    print("\n\nDEBUG GABY: ending loadFUNWAVE_stations function ran sucessfully!!!!\n\n")
     eta = simData['eta'].squeeze()
 
     # now adapting Chuan's runup code, here we use 0.08 m for runup threshold
@@ -217,23 +215,33 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     ##################################  plotting #########################################################################
     ######################################################################################################################
     ######################################################################################################################
-    if not os.path.exists(os.path.join(path_prefix,datestring, 'figures')):
-        os.makedirs(os.path.join(path_prefix,datestring, 'figures'))  # make the directory for the simulation plots
+    fileHandling.makeCMTBfileStructure(path_prefix,date_str=datestring)
     figureBaseFname = 'CMTB_waveModels_{}_{}_'.format(model, version_prefix)
-    from matplotlib import pyplot as plt
+
     # make function for processing timeseries data
-    # TODO: @Gaby, these should look familiar!
-    fspec, freqs = sbwave.timeSeriesAnalysis1D(simData['time'].squeeze(), simData['eta'].squeeze(), bandAvg=6)
+    # TODO: @Gaby, these should look familiar! ... yup, It does XD
+    cutRampingTime = 1200 # which equals 600sec (10min) for dt = 0.5sec
+    data = simData['eta'].squeeze()[cutRampingTime:,:]
+
+    time = []
+    for i in range(len(simData['time'].squeeze()[cutRampingTime:])): ## change time from float to datetime
+        dt_i = DT.timedelta(seconds =simData['time'].squeeze()[cutRampingTime:][i])
+        time.append(d1+dt_i)
+
+    SeaSwellCutoff = 0.05 # cutoff between sea/swell and IG
+    nSubSample = 5
+
+    fspec, freqs = sbwave.timeSeriesAnalysis1D(np.asarray(time),data, bandAvg=3)#6,WindowLength=20)
     total = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=None)
     SeaSwellStats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=SeaSwellCutoff, highFreq=None)
     IGstats = sbwave.stats1D(fspec=fspec, frqbins=freqs, lowFreq=None, highFreq=SeaSwellCutoff)
-    HsTS = 4 * np.std(simData['eta'].squeeze(), axis=0)
+    HsTS = 4 * np.std(data, axis=0)
 
     #############################################################################################################
     ####################################### loop over tS plt ####################################################
     #############################################################################################################
-    setup = np.mean(simData['eta'], axis=0).squeeze()
     WL = simMeta['WL'] #added in editing, should possibly be changed?
+    setup = np.mean(simData['eta'] + WL, axis=0).squeeze()
     if plotFlag == True:
         #TODO: @gaby, here  we'll be making QA/QC plots
         from plotting import operationalPlots as oP
@@ -241,50 +249,37 @@ def FunwaveAnalyze(startTime, inputDict, fio):
         imgList = glob.glob(os.path.join(path_prefix, datestring, 'figures', '*.png'))
         [os.remove(ff) for ff in imgList]
         tstart = DT.datetime.now()
-
-        ############### write a parallel data load function ##################
-        dataOut = []
-        def parallel_generateCrossShoreTimeSeries(tidx):
-            ## generate a function that operates with only one input, can access local variable space
-            timeStep = simData['time'][tidx]
-            ofPlotName = os.path.join(path_prefix, datestring, 'figures',
-                                      figureBaseFname + 'TS_' + timeStep.strftime('%Y%m%dT%H%M%S%fZ') + '.png')
-            oP.generate_CrossShoreTimeseries(ofPlotName, simData['eta'][tidx].squeeze(), -simData['elevation'],
-                                             simData['xFRF'])
-            dataOut.append(ofPlotName)
-        ############### make TS plot in parallel -- has bugs   #########################################################
-        #nprocessors = multiprocessing.cpu_count()/2                  # process plots with half the number on the
-        # machine
-        # pool = multiprocessing.Pool(nprocessors)                   # open multiprocessing pool
-        # _ = pool.map(parallel_generateCrossShoreTimeSeries, range(0, len(simData['time']), nSubSample))
-        # pool.close()
-        #
-        # print('Took {} long to make all the plots in parallel {} processors'.format(DT.datetime.now() - tstart, nprocessors))
-        # ### now make gif of waves moving across shore*
-        # imgList = sorted(glob.glob(os.path.join(path_prefix, datestring, 'figures', figureBaseFname + '*TS_*.png')))
-        # sb.makegif(imgList,
-        #            os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS_{}.gif'.format(datestring)),
-        #            dt=0.1)
-        # print('Took {} long to make the movie and all the plots '.format(DT.datetime.now() - tstart))
-        #$$$$$$ in Seriel $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+        # TODO: write a parallel data plotting function
+        #### in Seriel $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
         for tidx in np.arange(0, len(simData['time']), nSubSample).astype(int):
-            ofPlotName = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS_' + simData['time'][tidx].strftime('%Y%m%dT%H%M%S%fZ') +'.png')
-            oP.generate_CrossShoreTimeseries(ofPlotName, simData['eta'][tidx].squeeze(), -simData['elevation'], simData['xFRF'])
+            figPath = os.path.join(fpath,fio.ofileNameBase,'figures')
+            ofPlotName = os.path.join(figPath, figureBaseFname + 'TS_' + time[tidx].strftime('%Y%m%dT%H%M%S%fZ') +'.png')
+
+            bottomIn = -simData['elevation']
+            dataIn = simData['eta'][tidx].squeeze()
+
+            if np.median(bottomIn) > 0:
+                bottomIn = -bottomIn
+
+            shoreline= np.where(dataIn > bottomIn)[-1][-1]
+            dataIn[:shoreline] = float("NAN")
+
+            oP.generate_CrossShoreTimeseries(ofPlotName, dataIn, bottomIn, simData['xFRF'])
         # now make gif of waves moving across shore
-        imgList = sorted(glob.glob(os.path.join(path_prefix, datestring, 'figures', '*_TS_*.png')))
-        dt = np.median(np.diff(simData['time'])).microseconds / 1000000
-        sb.makeMovie(os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS_{}.avi'.format(datestring)), imgList, fps=nSubSample*dt)
-        tarOutFile = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TS.tar.gz')
+        imgList = sorted(glob.glob((os.path.join(figPath, '*_TS_*.png')))) #sorted(glob.glob(os.path.join(path_prefix, datestring, 'figures', '*_TS_*.png')))
+        dt = np.median(np.diff(time)).microseconds / 1000000
+        sb.makeMovie(os.path.join(figPath, figureBaseFname + 'TS_{}.avi'.format(datestring)), imgList, fps=nSubSample*dt)
+        tarOutFile = os.path.join(figPath, figureBaseFname + 'TS.tar.gz')
         sb.myTarMaker(tarOutFile, imgList)
 
-        ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + 'TempFname.png')
+        ofname = os.path.join(figPath, figureBaseFname + 'crossShoreSummary.png')
         oP.plotCrossShoreSummaryTS(ofname, simData['xFRF'], simData['elevation'], total,
                                SeaSwellStats, IGstats, setup=setup, WL=WL)
-        ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + '_spectrograph.png')
+        ofname = os.path.join(figPath, figureBaseFname + '_spectrograph.png')
         oP.crossShoreSpectrograph(ofname, simData['xFRF'], freqs, fspec)
-        ofname = os.path.join(path_prefix, datestring, 'figures', figureBaseFname + '_surfaceTimeseries.png')
+        ofname = os.path.join(figPath, figureBaseFname + '_surfaceTimeseries.png')
         oP.crossShoreSurfaceTS2D(ofname, simData['eta'], simData['xFRF'], simData['time'])
-
+        print("plotting took {} minutes".format((DT.datetime.now()-tstart).total_seconds()/60))
     ##################################################################################################################
     ######################        Make NETCDF files       ############################################################
     ##################################################################################################################
@@ -304,32 +299,33 @@ def FunwaveAnalyze(startTime, inputDict, fio):
                'station_name': '{} Field Data'.format(model),
                'tsTime': tsTime,
                'waveHsIG': np.reshape(IGstats['Hm0'], (1, len(simData['xFRF']))),
-               'eta': np.swapaxes(simData['eta'], 0, 1),
+               'eta': simData['eta'],
                'totalWaterLevel': maxRunup,
                'totalWaterLevelTS': np.reshape(runup, (1, len(runup))),
-               'velocityU': np.swapaxes(simData['velocityU'], 0, 1),
-               'velocityV': np.swapaxes(simData['velocityV'], 0, 1),
-               'waveHs': np.reshape(SeaSwellStats['Hm0'], (1, len(simData['xFRF']))), # or from HsTS??
+               'velocityU': simData['velocityU'],
+               'velocityV': simData['velocityV'],
+               'waveHs': np.reshape(SeaSwellStats['Hm0'], (1, len(simData['xFRF']))),  # or from HsTS??
                'xFRF': simData['xFRF'],
                'yFRF': simData['yFRF'][0],
                'runTime': np.expand_dims(fio.simulationWallTime, axis=0),
                'nProcess': np.expand_dims(fio.nprocess, axis=0),
-               'DX': np.median(np.diff(simData['xFRF'])).astype(int),
-               'DY': 1,    # must be adjusted for 2D simulations
-               'NI': len(simData['xFRF']),
-               'NJ': simData['velocityU'].shape[1],}  # should automatically adjust for 2D simulations
+               'DX': np.expand_dims(fio.DX, axis=0),
+               'DY': np.expand_dims(fio.DY, axis=0),  # must be adjusted for 2D simulations
+               'NI': np.expand_dims(fio.Mglob, axis=0),
+               'NJ': np.expand_dims(fio.Nglob, axis=0), }  # should automatically adjust for 2D simulations
 
-    TdsFldrBase = os.path.join(Thredds_Base, fldrArch)
-    NCpath = sb.makeNCdir(Thredds_Base, os.path.join(version_prefix, 'Field'), datestring, model=model)
-    # make the name of this nc file
-    NCname = 'CMTB-waveModels_{}_{}_Field_{}.nc'.format(model, version_prefix, datestring)
-    fieldOfname = os.path.join(NCpath, NCname)
+    fieldOfname = fileHandling.makeTDSfileStructure(Thredds_Base, fldrArch, datestring, 'Field')
+    # TdsFldrBase = os.path.join(Thredds_Base, fldrArch)
+    # NCpath = sb.makeNCdir(Thredds_Base, os.path.join(version_prefix, 'Field'), datestring, model=model)
+    # # make the name of this nc file
+    # NCname = 'CMTB-waveModels_{}_{}_Field_{}.nc'.format(model, version_prefix, datestring)
+    # fieldOfname = os.path.join(NCpath, NCname)
 
-    if not os.path.exists(TdsFldrBase):
-        os.makedirs(TdsFldrBase)  # make the directory for the thredds data output
-    if not os.path.exists(os.path.join(TdsFldrBase, 'Field', 'Field.ncml')):
-        inputOutput.makencml(os.path.join(TdsFldrBase, 'Field', 'Field.ncml'))  # remake the ncml if its not there
-    # make file name strings
+    # if not os.path.exists(TdsFldrBase):
+    #     os.makedirs(TdsFldrBase)  # make the directory for the thredds data output
+    # if not os.path.exists(os.path.join(TdsFldrBase, 'Field', 'Field.ncml')):
+    #     inputOutput.makencml(os.path.join(TdsFldrBase, 'Field', 'Field.ncml'))  # remake the ncml if its not there
+    # # make file name strings
     flagfname = os.path.join(fpath, 'Flags{}.out.txt'.format(datestring))  # startTime # the name of flag file
     fieldYaml = 'yaml_files/waveModels/{}/{}_global.yml'.format(model, model)  # field
     varYaml = 'yaml_files/waveModels/{}/{}_var.yml'.format(model, model)
