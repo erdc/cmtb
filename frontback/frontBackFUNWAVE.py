@@ -182,13 +182,21 @@ def FunwaveAnalyze(startTime, inputDict, fio):
 
     outputFolder = os.path.join(fpath,fio.ofileNameBase,'output')
     print('Loading files ',outputFolder)
-    simData, simMeta = fio.loadFUNWAVE_stations(fname=outputFolder)  # load all files
+
+    ## upload depth file
+    depthFile = os.path.join(outputFolder, 'dep.out')
+    try:
+        Depth1D = fio.readasciidepthfile(depthFile)
+    except:
+        Depth1D = fio.readbinarydepthfile(depthFile)
+
+    simData, simMeta = fio.loadFUNWAVE_stations(Depth1D,fname=outputFolder)  # load all files
 
     ######################################################################################################################
     #################################   obtain total water level   #######################################################
     ######################################################################################################################
 
-    print("\n\nDEBUG GABY: ending loadFUNWAVE_stations function ran sucessfully!!!!\n\n")
+
     eta = simData['eta'].squeeze()
 
     # now adapting Chuan's runup code, here we use 0.08 m for runup threshold
@@ -252,19 +260,22 @@ def FunwaveAnalyze(startTime, inputDict, fio):
         # TODO: write a parallel data plotting function
         #### in Seriel $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
         for tidx in np.arange(0, len(simData['time']), nSubSample).astype(int):
-            figPath = os.path.join(fpath,fio.ofileNameBase,'figures')
-            ofPlotName = os.path.join(figPath, figureBaseFname + 'TS_' + time[tidx].strftime('%Y%m%dT%H%M%S%fZ') +'.png')
+            if tidx <= np.shape(time)[0]:
 
-            bottomIn = -simData['elevation']
-            dataIn = simData['eta'][tidx].squeeze()
+                figPath = os.path.join(fpath,fio.ofileNameBase,'figures')
+                print("Debug Gaby: ",tidx,np.shape(time)[0],len(np.arange(0, len(simData['time']), nSubSample).astype(int)))
+                ofPlotName = os.path.join(figPath, figureBaseFname + 'TS_' + time[tidx].strftime('%Y%m%dT%H%M%S%fZ') +'.png')
 
-            if np.median(bottomIn) > 0:
-                bottomIn = -bottomIn
+                bottomIn = -simData['elevation']
+                dataIn = simData['eta'][tidx].squeeze()
 
-            shoreline= np.where(dataIn > bottomIn)[-1][-1]
-            dataIn[:shoreline] = float("NAN")
+                if np.median(bottomIn) > 0:
+                    bottomIn = -bottomIn
 
-            oP.generate_CrossShoreTimeseries(ofPlotName, dataIn, bottomIn, simData['xFRF'])
+                shoreline= np.where(dataIn > bottomIn)[-1][-1]
+                dataIn[:shoreline] = float("NAN")
+
+                oP.generate_CrossShoreTimeseries(ofPlotName, dataIn, bottomIn, simData['xFRF'])
         # now make gif of waves moving across shore
         imgList = sorted(glob.glob((os.path.join(figPath, '*_TS_*.png')))) #sorted(glob.glob(os.path.join(path_prefix, datestring, 'figures', '*_TS_*.png')))
         dt = np.median(np.diff(time)).microseconds / 1000000
