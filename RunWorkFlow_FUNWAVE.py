@@ -41,6 +41,7 @@ def Master_FUNWAVE_run(inputDict):
     plotFlag = inputDict['plotFlag']
     model = inputDict.get('modelName', 'FUNWAVE').lower()
     inputDict['path_prefix'] = os.path.join(workingDir, model, version_prefix)
+
     path_prefix = inputDict['path_prefix']
     ensembleNumber = inputDict['modelSettings'].get('ensembleNumber', np.arange(0,1))
     hostfile = inputDict.get('hostFile', '/home/number/cmtb/hostfile-IB_funwave')
@@ -96,7 +97,7 @@ def Master_FUNWAVE_run(inputDict):
             inputDict['phases'] = phases['phase_{}_{}'.format(dfKey, enMb)]
             assert len(inputDict['phases']) == len(phases['phase_{}_freq'.format(dfKey)]), "some how picked the wrong phase"
             try:
-                dateString = os.path.join(dateStartList[0].strftime('%Y-%m-%dH%M%SZ'),'phase_{}_{}'.format(dfKey, enMb)) #'phase_{}_{}'.format(dfKey, enMb) #projectStart.strftime("%Y%m%dT%H%M%SZ")
+                dateString = os.path.join(dateStartList[0].strftime('%Y-%m-%dT%H%M%SZ'),'phase_{}_{}'.format(dfKey, enMb)) #'phase_{}_{}'.format(dfKey, enMb) #projectStart.strftime("%Y%m%dT%H%M%SZ")
                 fileHandling.makeCMTBfileStructure(path_prefix=path_prefix, date_str=dateString)
                 datadir = os.path.join(path_prefix, dateString)  # moving to the new simulation's folder
                 pickleSaveFname = os.path.join(datadir, 'phase_{}_{}'.format(dfKey, enMb)+'_io.pickle')
@@ -119,9 +120,11 @@ def Master_FUNWAVE_run(inputDict):
                     print('Running Simulation with {} processors'.format(fIO.nprocess))
                     executionString = "mpiexec -n {} -f {} {} INPUT".format(int(fIO.nprocess), hostfile,
                                                                     os.path.join(curdir, inputDict['modelExecutable']))
-                    _ = check_output("mpirun -n {} {} input.txt".format(executionString), shell=True)
-                    fIO.simulationWallTime = time.time() - dt
-                    print('Simulation took {:.1} hours'.format(fIO.simulationWallTime/60))
+
+
+                    #_ = check_output("mpirun -n {} {} input.txt".format(executionString), shell=True)
+                    #fIO.simulationWallTime = time.time() - dt
+                    #print('Simulation took {:.1} hours'.format(fIO.simulationWallTime/60))
 
                     os.chdir(curdir)
                     with open(pickleSaveFname, 'wb') as fid:
@@ -129,9 +132,9 @@ def Master_FUNWAVE_run(inputDict):
     
                 else:   # assume there is a saved pickle of input/output that was generated before
 
-                    #with open(pickleSaveFname, 'rb') as fid: ## DEBUG Gaby: this is so i can use hpc simulaton
-                    wepa = "/home/gaby/cmtb/data/funwave/freq/FRF1D-520NF_5915654/phase_df-0.005000_1_io.pickle"
-                    with open(wepa, 'rb') as fid:
+                    with open(pickleSaveFname, 'rb') as fid: ## DEBUG Gaby: this is so i can use hpc simulaton
+                    #wepa = "/home/gaby/cmtb/data/funwave/freq/FRF1D-520NF_5915654/phase_df-0.005000_1_io.pickle"
+                    #with open(wepa, 'rb') as fid:
                         fIO = pickle.load(fid)
 
                 if analyzeFlag == True:

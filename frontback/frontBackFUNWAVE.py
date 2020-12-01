@@ -260,7 +260,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
         # TODO: write a parallel data plotting function
         #### in Seriel $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
         for tidx in np.arange(0, len(simData['time']), nSubSample).astype(int):
-            if tidx <= np.shape(time)[0]:
+            if tidx-1 <= np.shape(time)[0]:
 
                 figPath = os.path.join(fpath,fio.ofileNameBase,'figures')
                 print("Debug Gaby: ",tidx,np.shape(time)[0],len(np.arange(0, len(simData['time']), nSubSample).astype(int)))
