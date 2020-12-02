@@ -185,10 +185,16 @@ def FunwaveAnalyze(startTime, inputDict, fio):
 
     ## upload depth file
     depthFile = os.path.join(outputFolder, 'dep.out')
-    try:
-        Depth1D = fio.readasciidepthfile(depthFile)
-    except:
-        Depth1D = fio.readbinarydepthfile(depthFile)
+    if os.path.exists(depthFile)==True:
+        try:
+            Depth1D = fio.readasciidepthfile(depthFile)
+        except:
+            Depth1D = fio.readbinarydepthfile(depthFile)
+    else:
+        try:
+            Depth1D = fio.readasciidepthfile(os.path.join(fpath,fio.ofileNameBase,'depth.txt'))
+        except:
+            Depth1D = fio.readbinarydepthfile(os.path.join(fpath,fio.ofileNameBase,'depth.txt'))
 
     simData, simMeta = fio.loadFUNWAVE_stations(Depth1D,fname=outputFolder)  # load all files
 
