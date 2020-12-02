@@ -254,16 +254,15 @@ def FunwaveAnalyze(startTime, inputDict, fio):
         #TODO: @gaby, here  we'll be making QA/QC plots
         from plotting import operationalPlots as oP
         ## remove images before making them if reprocessing
-        imgList = glob.glob(os.path.join(path_prefix, datestring, 'figures', '*.png'))
+        imgList = glob.glob(os.path.join(fpath,fio.ofileNameBase, 'figures', '*.png'))
         [os.remove(ff) for ff in imgList]
         tstart = DT.datetime.now()
         # TODO: write a parallel data plotting function
         #### in Seriel $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
         for tidx in np.arange(0, len(simData['time']), nSubSample).astype(int):
-            if tidx-1 <= np.shape(time)[0]:
+            if tidx < np.shape(time)[0]:
 
                 figPath = os.path.join(fpath,fio.ofileNameBase,'figures')
-                print("Debug Gaby: ",tidx,np.shape(time)[0],len(np.arange(0, len(simData['time']), nSubSample).astype(int)))
                 ofPlotName = os.path.join(figPath, figureBaseFname + 'TS_' + time[tidx].strftime('%Y%m%dT%H%M%S%fZ') +'.png')
 
                 bottomIn = -simData['elevation']
@@ -272,7 +271,8 @@ def FunwaveAnalyze(startTime, inputDict, fio):
                 if np.median(bottomIn) > 0:
                     bottomIn = -bottomIn
 
-                shoreline= np.where(dataIn > bottomIn)[-1][-1]
+                shoreline= np.where(dataIn > bottomIn)[0][0]
+                print('shoreline =',simData['xFRF'][shoreline])
                 dataIn[:shoreline] = float("NAN")
 
                 oP.generate_CrossShoreTimeseries(ofPlotName, dataIn, bottomIn, simData['xFRF'])
