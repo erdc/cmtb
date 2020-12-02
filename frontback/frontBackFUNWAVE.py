@@ -272,7 +272,6 @@ def FunwaveAnalyze(startTime, inputDict, fio):
                     bottomIn = -bottomIn
 
                 shoreline= np.where(dataIn > bottomIn)[0][0]
-                print('shoreline =',simData['xFRF'][shoreline])
                 dataIn[:shoreline] = float("NAN")
 
                 oP.generate_CrossShoreTimeseries(ofPlotName, dataIn, bottomIn, simData['xFRF'])
