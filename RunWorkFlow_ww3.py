@@ -63,7 +63,7 @@ def Master_ww3_run(inputDict):
     fileHandling.displayStartInfo(projectStart, projectEnd, version_prefix, LOG_FILENAME, model)
     # ______________________________gather all data _____________________________
     if generateFlag == True:
-        go = getObs(projectStart, projectEnd, server='CHL')  # initialize get observation
+        go = getObs(projectStart, projectEnd)  # initialize get observation
         rawspec = go.getWaveSpec(gaugenumber='waverider-26m', specOnly=True)
         rawWL = go.getWL()
         rawwind = go.getWind(gaugenumber=0)
