@@ -76,38 +76,32 @@ def Master_ww3_run(inputDict):
         try:
             timeStamp = ''.join(time.split(':'))
             datadir = os.path.join(workingDirectory, timeStamp)  # moving to the new simulation's
-            pickleSaveName = os.path.join(datadir, timeStamp + '_ww3io.pickle')
-            if generateFlag == True:
-                ww3io = frontBackWW3.ww3simSetup(time, inputDict=inputDict, allWind=rawwind, allWL=rawWL,
-                                                 allWave=rawspec)
-
-            if runFlag == True:    # run model
-                from prepdata import writeRunRead as wrr
-                wrr.runSimulation(inputDict['modelExecutable'])
-                os.chdir(datadir)  # changing locations to where input files should be made
-                
-                # run preprocessing scripts and simultaion
-                dt = DT.datetime.now()
-                print('Running {} Simulation starting at {}'.format(model, dt))
-                runString1 = os.path.join(baseDir ,'{}/ww3_grid'.format(inputDict['modelExecutable']))
-                _ = check_output(runString1, shell=True)
-                runString2 = os.path.join(baseDir, '{}/ww3_bounc'.format(inputDict['modelExecutable']))
-                _ = check_output(runString2, shell=True)
-                runString3 = os.path.join(baseDir, '{}/ww3_shel'.format(inputDict['modelExecutable']))
-                _ = check_output(runString3, shell=True)
-                ww3io.simulationWallTime = DT.datetime.now() - dt
-                print('Simulation took {:.1f} minutes'.format(ww3io.simulationWallTime.total_seconds()/60))
-                
-                # post process output data
-                dt = DT.datetime.now()
-                runString3 = os.path.join(baseDir, '{}/ww3_ounf'.format(inputDict['modelExecutable']))
-                _ = check_output(runString3, shell=True)
-                runString3 = os.path.join(baseDir, '{}/ww3_ounp'.format(inputDict['modelExecutable']))
-                _ = check_output(runString3, shell=True)
-                print('Simulation took {:.1f} minutes'.format((DT.datetime.now() - dt).total_seconds()/60))
-                os.chdir(curdir)
-                with open(pickleSaveName, 'wb') as fid:
-                    pickle.dump(ww3io, fid, protocol=pickle.HIGHEST_PROTOCOL)
+            # pickleSaveName = os.path.join(datadir, timeStamp + '_ww3io.pickle')
+            # # if generateFlag == True:
+            #     ww3io = frontBackWW3.ww3simSetup(time, inputDict=inputDict, allWind=rawwind, allWL=rawWL,
+            #                                      allWave=rawspec)
+            #
+            ####### THE NEW WAY!
+            from prepdata import writeRunRead as wrr
+            # load the instance of wrr # TBD later on what will control this
+            # are there other things we need to load?
+            wrrInstance=wrr.ww3IO(path_prefix=datadir, fileNameBase=timeStamp)
+            
+            wavePacket, windPacket, WLpacket, bathyPacket, savepoints, gridFname = frontBackWW3.ww3simSetup(time,
+                                                                                                inputDict=inputDict,
+                                                                                                allWind=rawwind,
+                                                                                                allWL=rawWL,
+                                                                                                allWave=rawspec,
+                                                                                                wrr=wrrInstance)
+            
+            if wrr.generateFiles is True:  # write simulation files
+                wrr.writeAllFiles(wavePacket, windPacket, WLpacket, bathyPacket, gridFname)
+            
+            # run simulation
+            wrr.runSimulation(modelExecutable=inputDict['modelExecutable'])
+            
+            if wrr.readAllFiles is True:  # read all simulation files
+                spatialData, savePointData = wrr.readAllFiles()
 
             if analyzeFlag == True:
                 if generateFlag is False and runFlag is False:
