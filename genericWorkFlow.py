@@ -3,11 +3,11 @@ import matplotlib
 matplotlib.use('Agg')
 import os, getopt, sys, shutil, glob, logging, yaml, re, pickle
 import datetime as DT
-from subprocess import check_output
 import numpy as np
-from frontback import frontBackWW3
+from frontback import frontBackNEW
 from getdatatestbed.getDataFRF import getObs
 from testbedutils import fileHandling
+from prepdata import writeRunRead as wrrClass
 
 def Master_ww3_run(inputDict):
     """This function will run CMS with any version prefix given start, end, and timestep.
@@ -35,10 +35,10 @@ def Master_ww3_run(inputDict):
     # __________________pre-processing checks________________________________
     fileHandling.checkVersionPrefix(model, inputDict)
     # __________________input directories________________________________
-    baseDir = os.getcwd()  # location of working directory
+    cmtbRootDir = os.getcwd()  # location of working directory
     # check executable
-    if inputDict['modelExecutable'].startswith(baseDir):  # change to relative path
-        inputDict['modelExecutable'] = re.sub(baseDir, '', inputDict['modelExecutable'])
+    if inputDict['modelExecutable'].startswith(cmtbRootDir):  # change to relative path
+        inputDict['modelExecutable'] = re.sub(cmtbRootDir, '', inputDict['modelExecutable'])
     workingDirectory = os.path.join(workingDir, model.lower(), version_prefix)
     inputDict['netCDFdir'] = os.path.join(inputDict['netCDFdir'], 'waveModels')
     inputDict['path_prefix'] = workingDirectory
@@ -46,20 +46,8 @@ def Master_ww3_run(inputDict):
     # auto generated Log file using start_end time?
     LOG_FILENAME = fileHandling.logFileLogic(workingDirectory, version_prefix, startTime, endTime, log=log)
     # __________________get time list to loop over________________________________
-    try:
-        projectEnd = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ')
-        projectStart = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
-    except TypeError:  # if input date was parsed as datetime
-        projectEnd = endTime
-        projectStart = startTime
-    # This is the portion that creates a list of simulation end times
-    dt_DT = DT.timedelta(0, simulationDuration * 60 * 60)  # timestep in datetime
-    # make List of Datestring items, for simulations
-    dateStartList = [projectStart]
-    dateStringList = [dateStartList[0].strftime("%Y-%m-%dT%H:%M:%SZ")]
-    for i in range(int(np.ceil((projectEnd-projectStart).total_seconds()/dt_DT.total_seconds()))-1):
-        dateStartList.append(dateStartList[-1] + dt_DT)
-        dateStringList.append(dateStartList[-1].strftime("%Y-%m-%dT%H:%M:%SZ"))
+    dateStartList, dateStringList, projectStart, projectEnd = fileHandling.createTimeInfo(startTime, endTime,
+                                                                                  simulationDuration=simulationDuration)
     fileHandling.displayStartInfo(projectStart, projectEnd, version_prefix, LOG_FILENAME, model)
     # ______________________________gather all data _____________________________
     if generateFlag == True:
@@ -74,44 +62,46 @@ def Master_ww3_run(inputDict):
     for time in dateStringList:
         print('Beginning to setup simulation {}'.format(DT.datetime.now()))
         try:
-            timeStamp = ''.join(time.split(':'))
-            datadir = os.path.join(workingDirectory, timeStamp)  # moving to the new simulation's
+            dateString = ''.join(time.split(':'))
+            datadir = os.path.join(workingDirectory, dateString)  # moving to the new simulation's
             # pickleSaveName = os.path.join(datadir, timeStamp + '_ww3io.pickle')
             # # if generateFlag == True:
             #     ww3io = frontBackWW3.ww3simSetup(time, inputDict=inputDict, allWind=rawwind, allWL=rawWL,
             #                                      allWave=rawspec)
             #
             ####### THE NEW WAY!
-            from prepdata import writeRunRead as wrr
             # load the instance of wrr # TBD later on what will control this
             # are there other things we need to load?
-            wrrInstance=wrr.ww3IO(path_prefix=datadir, fileNameBase=timeStamp)
+            wrr = wrrClass.ww3io(pathPrefix=datadir, fNameBase=dateString, versionPrefix=version_prefix,
+                                 dateString=dateString, startTime=startTime, endTime=endTime, runFlag=runFlag,
+                                 generateFlag=generateFlag, readFlag=analyzeFlag)
             
-            wavePacket, windPacket, WLpacket, bathyPacket, savepoints, gridFname = frontBackWW3.ww3simSetup(time,
+            wavePacket, windPacket, WLpacket, bathyPacket, gridFname, wrr = frontBackNEW.ww3simSetup(time,
                                                                                                 inputDict=inputDict,
                                                                                                 allWind=rawwind,
                                                                                                 allWL=rawWL,
                                                                                                 allWave=rawspec,
-                                                                                                wrr=wrrInstance)
+                                                                                                wrr=wrr)
             
-            if wrr.generateFiles is True:  # write simulation files
-                wrr.writeAllFiles(wavePacket, windPacket, WLpacket, bathyPacket, gridFname)
+            print('TODO: document Packets coming from sim-setup')
+            # write simulation files (if assigned)
+            wrr.writeAllFiles(wavePacket, windPacket, WLpacket, bathyPacket, gridFname)
             
-            # run simulation
+            # run simulation (as appropriate)
             wrr.runSimulation(modelExecutable=inputDict['modelExecutable'])
             
-            if wrr.readAllFiles is True:  # read all simulation files
-                spatialData, savePointData = wrr.readAllFiles()
+            # post process (as appropriate)
+            spatialData, savePointData = wrr.readAllFiles()
 
             if analyzeFlag == True:
                 if generateFlag is False and runFlag is False:
                     try:  # to load the pickle
-                        with open(pickleSaveName, 'rb') as fid:
+                        with open(wrr.pickleSaveName, 'rb') as fid:
                             ww3io = pickle.load(fid)
-                    except (FileNotFoundError):
+                    except(FileNotFoundError):
                         print("couldn't load sim metadata pickle for post-processing: moving to next time")
                         continue
-                frontBackWW3.ww3analyze(time, inputDict=inputDict, ww3io=ww3io)
+                frontBackNEW.ww3analyze(time, inputDict=inputDict, ww3io=ww3io)
 
             # if it's a live run, move the plots to the output directory
             if pFlag == True and DT.date.today() == projectEnd:
@@ -122,7 +112,7 @@ def Master_ww3_run(inputDict):
                 for file in moveFnames:
                     shutil.move(file,  liveFileMoveToDirectory)
                     print('moved {} to {} '.format(file, liveFileMoveToDirectory))
-            print('------------------SUCCESSS-----------------------------------------')
+            print('------------------SUCCESS-----------------------------------------')
 
         except Exception as e:
             print('<< ERROR >> HAPPENED IN THIS TIME STEP ')
