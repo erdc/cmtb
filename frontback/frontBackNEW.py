@@ -35,7 +35,7 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
     
     
 
-    print('TODO: rename these below')
+    print('TODO: rename these unpacked variables [frontbackNew.preprocess]')
     try:
         version_prefix = wrr.versionPrefix
     except:
