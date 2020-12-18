@@ -58,7 +58,7 @@ def Master_ww3_run(inputDict):
 
     # ________________________________________________ RUN LOOP ________________________________________________
     # run the process through each of the above dates
-    errors, errorDates, curdir = [], [], os.getcwd()
+    errors, errorDates = [], []
     for time in dateStringList:
         print('Beginning to setup simulation {}'.format(DT.datetime.now()))
         try:
@@ -104,10 +104,10 @@ def Master_ww3_run(inputDict):
                 frontBackNEW.ww3analyze(time, inputDict=inputDict, ww3io=ww3io)
 
             # if it's a live run, move the plots to the output directory
-            if pFlag == True and DT.date.today() == projectEnd:
+            if pFlag is True and DT.date.today() == projectEnd:
                 # move files
-                moveFnames = glob.glob(curdir + 'cmtb*.png')
-                moveFnames.extend(glob.glob(curdir + 'cmtb*.gif'))
+                moveFnames = glob.glob(cmtbRootDir + 'cmtb*.png')
+                moveFnames.extend(glob.glob(cmtbRootDir + 'cmtb*.gif'))
                 liveFileMoveToDirectory = '/mnt/gaia/cmtb'
                 for file in moveFnames:
                     shutil.move(file,  liveFileMoveToDirectory)
@@ -118,7 +118,7 @@ def Master_ww3_run(inputDict):
             print('<< ERROR >> HAPPENED IN THIS TIME STEP ')
             print(e)
             logging.exception('\nERROR FOUND @ {}\n'.format(time, exc_info=True))
-            os.chdir(curdir)
+            os.chdir(cmtbRootDir)
 
 
 if __name__ == "__main__":
