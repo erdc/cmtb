@@ -32,9 +32,18 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
     # begin by setting up input parameters
     simulationDuration = int(inputDict.get('simulationDuration', 24))
     plotFlag = inputDict.get('plotFlag', True)
-    version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
-    model = inputDict['modelSettings'].get('model', 'ww3').lower()
-    path_prefix = inputDict.get('path_prefix')
+    
+    
+
+    print('TODO: rename these unpacked variables [frontbackNew.preprocess]')
+    try:
+        version_prefix = wrr.versionPrefix
+    except:
+        version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
+
+    plotFlag = inputDict.get('plotFlag', True)
+    pathPrefix = wrr.workingDirectory
+    model = wrr.modelName  # inputDict['modelSettings'].get('model', 'ww3').lower()
     rawspec = allWave
     rawwind = allWind
     rawWL = allWL
@@ -50,11 +59,10 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
     print("Model Time Start : %s  Model Time End:  %s" % (startTime, endTime))
 
     # __________________Make Diretories_____________________________________________
-    fileHandling.makeCMTBfileStructure(path_prefix, dateString)
+    fileHandling.makeCMTBfileStructure(pathPrefix)
 
     # ____________________________ begin model data gathering __________________________________________________________
     gdTB = getDataTestBed(startTime, endTime)        # initialize get data test bed (bathy)
-    ww3io = wrr
     prepdata = PrepDataTools()
 
     # _____________________WAVES, wind, WL ____________________________
@@ -64,33 +72,34 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
                                                                                      rawWind=rawwind)
     # rotate and lower resolution of directional wave spectra
     wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=dateString, plot=plotFlag, full=full, deltaangle=5,
-                                    outputPath=path_prefix, model=model, waveTimeList=waveTimeList)
+                                    outputPath=pathPrefix, model=model, waveTimeList=waveTimeList)
     
     windpacket = prepdata.prep_wind(rawwind, windTimeList, model=model)  # vector average, rotate winds, correct to 10m
     WLpacket = prepdata.prep_WL(rawWL, wlTimeList)                       # scalar average WL
 
     # ____________ BATHY   _____________________________________________
     bathy = gdTB.getBathyIntegratedTransect(method=1)
-    _ = ww3io.load_msh(inputDict['modelSettings']['grid'])
-    gridNodes = sb.Bunch({'points': ww3io.points})              # we will remove this when meshio is working as expected
+    gridNodes = wrr.readWW3_msh(inputDict['modelSettings']['grid'])
+    # gridNodes = sb.Bunch({'points': ww3io.points})              # we will remove this when meshio is working as expected
 
-    if plotFlag: bathyPlotFname = os.path.join(path_prefix, dateString, 'figures', dateString+'_bathy.png');
+    if plotFlag: bathyPlotFname = os.path.join(pathPrefix, 'figures', dateString+'_bathy.png');
     else: bathyPlotFname=False
     bathy = prepdata.prep_Bathy(bathy, gridNodes, unstructured=True, plotFname=bathyPlotFname)
 
     # ____________________________ set model save points _______________________________________________________________
     # _________________________ Create observation locations ___________________________________________________________
-    sys.path.append('./TDSlocationGrabber')
+    TDSloc= '/home/spike/repos/TDSlocationGrabber'
+    sys.path.append(TDSloc)
     from frfTDSdataCrawler import query
-    print('  TODO: handle TDS location grabber')
-    dataLocations = query(startTime, endTime, inputName='./TDSlocationGrabber/database', type='waves')
+    print('  TODO: handle TDS location grabber, maybe put this in get/prep data for now')
+    dataLocations = query(startTime, endTime, inputName=os.path.join(TDSloc, 'database'), type='waves')
 
     # # get gauge nodes x/y new idea: put gauges into input/output instance for the model, then we can save it
     gaugelocs = []
     for ii, gauge in enumerate(dataLocations['Sensor']):
          gaugelocs.append([dataLocations['Lon'][ii], dataLocations['Lat'][ii], gauge])
-    savePoints = gaugelocs
-
+    wrr.savePoints = gaugelocs
+    
     # ____________________________ begin writing model Input ___________________________________________________________
     # ww3io.WL = WLpacket['avgWL']
 
@@ -118,7 +127,7 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
     # ww3io.writeWW3_ounf()                                                                 # process field data file
     # ww3io.writeWW3_ounp()                                                                 # process point data file
     # ww3io.dateString = dateString
-    return wavepacket, windpacket, WLpacket, bathy, savePoints, gridFname
+    return wavepacket, windpacket, WLpacket, bathy, gridFname, wrr
 
 def ww3analyze(startTime, inputDict, ww3io):
     """This runs the post process script for Wave Watch 3.
