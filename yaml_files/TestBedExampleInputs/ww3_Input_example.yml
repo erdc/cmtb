@@ -1,30 +1,25 @@
 # # # # # # # # # # # #
 # Data control        #
 # # # # # # # # # # # #
-THREDDS: FRF  # CHL or FRF                    OPTIONAL: defaults to FRF
-bathyLoc: integrated_bathy      # bathymetry source.  OPTIONAL: defaults to FRF
+plotFlag: True                          # turn plotting on
+generateFlag: True                      # generate simulation input files (go get data, process, and write files)
+runFlag: True                          # run the simulation
+analyzeFlag: True                       # post process simulations (read files, post proces
+bathyLoc: integrated_bathy              # bathymetry source.  OPTIONAL: defaults to integrated_bathy
 ########################
 #simulations parameters#
 ########################
-startTime: '2015-11-01T00:00:00Z'      # project start time
-endTime: '2015-11-02T00:00:00Z'        # project End time
-simulationDuration: 24                 # durationz in hours of each individual simulations
-version_prefix: base                   # controls switched with int the code
-########################
-# path stuff           #
-########################
-# REQUIRED, but doesn't change that often
-# this is the directory where simulation files and QA/QC plots are made and existing architecture takes over
-workingDirectory: '/home/spike/cmtb/data'
-grid: 'grids/ww3/Mesh_interp_Mar2018.msh'     # base grid
-modelExecutable: /home/spike/cmtb/bin/ww3     # path to the model executable
-# this is the base directory where netCDF files are output to
-netCDFdir: /home/spike/thredds_data/waveModels   #optional will default to home/[whoami]/thredds_data -- this needs /
-#########################
-# testbed run control   #
-#########################
-# these are flags to control how the simulations are started and run
-pFlag: True                            # turn plotting on
-generateFlag: True                    # generate simulation input files (go get data, process, and write files)
-runFlag: True                          # run the simulation
-analyzeFlag: True                      # post process simulations (read files, post process data, make netCDF files, plot if desired)
+startTime: 2018-03-02T00:00:00Z           # project start time
+endTime: 2018-04-03T00:00:00Z             # project End time
+simulationDuration: 24                    # duration in hours - how frequently to get new data, size of individual simulations
+modelExecutable: /modelSourceCodes/WW3/model/exe   # path to all appropriate executables (grid, bounc, shel)
+logging: False                            # optional
+verbose: True                             # optional
+modelSettings:
+  model: ww3                                  # model name string, used for filename/path generation
+  version_prefix: base                        # controls switched within the code
+  grid: grids/ww3/Mesh_interp_Mar2018.msh     # base grid sim               REQUIRED
+
+waveSettings:
+  waveFlag: True
+
