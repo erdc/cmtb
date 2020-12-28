@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #!/home/number/anaconda2/bin/python
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import os, getopt, sys, shutil, logging
 import numpy as np
 from subprocess import check_output
@@ -18,26 +18,29 @@ def master_CSHORE_run(inputDict):
 
     Args:
       inputDict: keys are:
-    :key pFlag - plots or not (boolean)
-    :key analyzeFlag - analyze results or not (boolean)
-    :key generateFlag - generate input files or not (boolean)
-    :key runFlag - run the simulation or not (boolean)
-    :key start_date - date I am starting the simulation (format '2018-01-15T00:00:00Z')
-    :key end_date - date I am ending the simulation (format '2018-01-15T00:00:00Z')
-    :key WD - path to the working directory the user wants
-    :key netCDFdir - path to the netCDF save location specified by the user
-    :key THREDDS - which THREDDS server are we using, 'FRF' or 'CHL'
-    :key version_prefix - right now we have 'FIXED', 'MOBILE', or 'MOBILE_RESET'
-    :key duration - how long you want the simulations to run in hours (24 by default)
+        :key pFlag - plots or not (boolean)
+        :key analyzeFlag - analyze results or not (boolean)
+        :key generateFlag - generate input files or not (boolean)
+        :key runFlag - run the simulation or not (boolean)
+        :key start_date - date I am starting the simulation (format '2018-01-15T00:00:00Z')
+        :key end_date - date I am ending the simulation (format '2018-01-15T00:00:00Z')
+        :key WD - path to the working directory the user wants
+        :key netCDFdir - path to the netCDF save location specified by the user
+        :key THREDDS - which THREDDS server are we using, 'FRF' or 'CHL'
+        :key version_prefix - right now we have 'FIXED', 'MOBILE', or 'MOBILE_RESET'
+        :key duration - how long you want the simulations to run in hours (24 by default)
 
     Returns:
       None
 
-    """
 
+    TODO:
+        add post process efficient speed, by looking at survey dates and modifying the date list and simulation time based on that
+
+    """
     version_prefix = inputDict['version_prefix']
-    endTime = inputDict['end_time']
-    startTime = inputDict['start_time']
+    endTime = inputDict['endTime']
+    startTime = inputDict.pop('startTime')
     simulationDuration = inputDict['simulationDuration']
     THREDDS = inputDict['THREDDS']
     workingDir = inputDict['workingDirectory']
@@ -45,6 +48,7 @@ def master_CSHORE_run(inputDict):
     runFlag = inputDict['runFlag']
     analyzeFlag = inputDict['analyzeFlag']
     sorceCodePATH = inputDict['modelExecutable']
+    model = 'CSHORE'
 
     # version check
     prefixList = np.array(['FIXED', 'MOBILE', 'MOBILE_RESET'])
@@ -52,14 +56,10 @@ def master_CSHORE_run(inputDict):
 
     # __________________input vars________________________________
     codeDir = os.getcwd()
-    if workingDir[-1] == '/':
-        outDataBase =os.path.join(workingDir, 'CSHORE', version_prefix)
-    else:
-        outDataBase = os.path.join(workingDir, 'CSHORE', version_prefix)
+    outDataBase =os.path.join(workingDir, model, version_prefix)
 
-    TOD = 0  # 0=start simulations at 0000
-    LOG_FILENAME = os.path.join(inputDict['logfileLoc'], 'CSHORE/%s/logs/CMTB_BatchRun_Log_%s_%s_%s.log' %(version_prefix, version_prefix, startTime.replace(':',''), endTime.replace(':','')))
-    #
+    # _______________ establish logging __________________________
+    LOG_FILENAME = os.path.join(inputDict['logfileLoc'], '{}/{}/logs/CMTB_BatchRun_Log_{}_{}_{}.log'.format(model, version_prefix, version_prefix, startTime.replace(':',''), endTime.replace(':','')))
     # try:
     #     logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
     # except IOError:
@@ -72,8 +72,8 @@ def master_CSHORE_run(inputDict):
     # logging.debug('\n-------------------\nTraceback Error Log for:\n\nSimulation Started: %s\n-------------------\n' % (DT.datetime.now()))
     # ____________________________________________________________
     # establishing the resolution of the input datetime
-    d2 = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(TOD / 24., 0, 0)
-    d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(TOD / 24., 0, 0)
+    d2 = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ')
+    d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
 
     # if the version is MOBILE then I do NOT want to check this, because MOBILE continuously
     # evolves and NEVER resets the bathymetry
@@ -103,21 +103,17 @@ def master_CSHORE_run(inputDict):
             if (b_time > prev_mod_stime) and (Time_O > b_time):
                 d1_N = b_time.replace(microsecond=0, second=0, minute=0, hour=0)
                 if d1_N != b_time:
-                    d1_N = d1_N + DT.timedelta(days=1)
+                    d1 = d1_N + DT.timedelta(days=1).copy()
                     # this means we rounded it down and have to add back a day to start on the 00:00:00 after the survey
 
                 # reset the first day of the simulations to be the day after or of the latest survey
                 # (depending on if the survey time is 00:00:00 or 12:00:00)
-                del d1
-                d1 = d1_N
-                del d1_N
-
         except IOError:
             # this means that this is the first time this has been run, so you don't have to worry about it.
             pass
 
 
-    # This is the portion that creates a list of simulation end times (start times?)
+    # This is the portion that creates a list of simulation start/end times
     dt_DT = DT.timedelta(0, simulationDuration * 60 * 60)  # timestep in datetime
     # make List of Datestring items, for simulations
     a = [d1]
@@ -153,7 +149,7 @@ def master_CSHORE_run(inputDict):
             if runFlag == True:
                 os.chdir(datadir)# changing locations to where data should be downloaded to
                 shutil.copy2(sorceCodePATH, datadir)
-                print('Bathy Interpolation done\n Beginning Simulation')
+                print('Beginning Simulation')
                 check_output(os.path.join('./', sorceCodePATH.split('/')[-1]), shell=True)
                 # as this is written the script has to be in the working directory, not in a sub-folder!
 
@@ -163,16 +159,6 @@ def master_CSHORE_run(inputDict):
                 print('**\nBegin Analyze Script')
                 CSHORE_analysis(startTime=time, inputDict=inputDict)
 
-            # not sure i want this so i commented it out for now
-            """
-            if pFlag == True and DT.date.today() == d2:
-                # move files
-                moveFnames = glob.glob(curdir + 'CMTB*.png')
-                moveFnames.extend(glob.glob(curdir + 'CMTB*.gif'))
-                for file in moveFnames:
-                    shutil.move(file,  '/mnt/gaia/CMTB')
-                    print 'moved %s ' % file
-            """
             print('----------------------SUCCESS--------------------')
         except Exception as e:
             os.chdir(curdir)
@@ -193,27 +179,6 @@ if __name__ == "__main__":
             inputDict = yaml.load(f)
     except:
         raise IOError('Input YAML file required.  See yaml_files/TestBedExampleInputs/CSHORE_Input_example for example yaml file.')
-
-
-    # add in defaults for inputDict
-    if 'THREDDS' not in list(inputDict.keys()):
-        inputDict['THREDDS'] = 'FRF'
-    if 'bathyLoc' not in list(inputDict.keys()):
-        inputDict['bathyLoc'] = 'integrated_bathy'
-    if 'profileNumber' not in list(inputDict.keys()):
-        inputDict['profileNumber'] = 960
-    if 'duration' not in list(inputDict.keys()):
-        inputDict['duration'] = 24
-    if 'generateFlag' not in list(inputDict.keys()):
-        inputDict['generateFlag'] = True
-    if 'pFlag' not in list(inputDict.keys()):
-        inputDict['pFlag'] = False
-    if 'runFlag' not in list(inputDict.keys()):
-        inputDict['runFlag'] = True
-    if 'analyzeFlag' not in list(inputDict.keys()):
-        inputDict['analyzeFlag'] = True
-    if 'logfileLoc' not in list(inputDict.keys()):
-        inputDict['logfileLoc'] = inputDict['workingDirectory']
 
     master_CSHORE_run(inputDict=inputDict)
 
