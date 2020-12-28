@@ -37,10 +37,12 @@ def SwashSimSetup(startTime, inputDict):
     """
     # begin by setting up input parameters
     model = inputDict['modelSettings'].get('model')
-    timerun = inputDict.get('simulationDuration', 1)
+    runtime = inputDict.get('simulationDuration', 1)
     plotFlag = inputDict.get('plotFlag', True)
     # this raises error if not present (intended)
-    version_prefix = inputDict['version_prefix'].lower()
+    version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
+    print(version_prefix)
+#    version_prefix = inputDict['version_prefix'].lower()
     path_prefix = inputDict['path_prefix']  # data super directory
     # ______________________________________________________________________________
     # define version parameters
@@ -52,10 +54,11 @@ def SwashSimSetup(startTime, inputDict):
     # _______________________________________________________________________________
     # set times
     d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
-    d2 = d1 + DT.timedelta(0, timerun * 3600, 0)
+    d2 = d1 + DT.timedelta(0, runtime, 0)
     date_str = d1.strftime('%Y-%m-%dT%H%M%SZ')  # used to be end time
-    timerun = str(timerun)
-
+#    timerun = str(timerun)
+#    runtime = inputDict['runTime']
+    timerun = str(np.ceil(runtime/3600))
     # __________________Make Working Data Directories_____________________________________________
     if not os.path.exists(os.path.join(path_prefix, date_str)):  # if it doesn't exist
         os.makedirs(os.path.join(path_prefix, date_str))  # make the directory
@@ -75,7 +78,7 @@ def SwashSimSetup(startTime, inputDict):
     assert 'time' in rawspec, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
     # preprocess wave spectra
     if version_prefix.lower() == 'base':
-        wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix)
+        wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, runDuration=runtime)
     else:
         raise NotImplementedError('pre-process TS data ')
     # _____________WINDS______________________
@@ -92,16 +95,18 @@ def SwashSimSetup(startTime, inputDict):
     except (RuntimeError, TypeError):
         WLpacket = None
     ### ____________ Get bathy grid from thredds ________________
-
     bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])
     swsinfo, gridDict = prepdata.prep_SwashBathy(wavepacket['xFRF'], wavepacket['yFRF'], bathy, dx=1, dy=1,
                                                  yBounds=[944, 947])  # non-inclusive index if you want 3 make 4 wide
-
     ## begin output
     # set some of the class instance variables before writing SWS file
+    if 'nprocess' in inputDict.keys():
+        nprocess = inputDict['nprocess']
+    else:
+        nprocess = gridDict['h'].shape[0]
     swio = swashIO(WL=WLpacket['avgWL'], equilbTime=wavepacket['spinUp'], Hs=wavepacket['Hs'], Tp=1/wavepacket['peakf'],
                    Dm=wavepacket['waveDm'], fileNameBase=date_str, path_prefix=path_prefix, version_prefix=version_prefix,
-                   nprocess=gridDict['h'].shape[0])   # one compute core per cell in y
+                   nprocess=nprocess, runTime=runtime)   # one compute core per cell in y
 
     # write SWS file first
     swio.write_sws(swsinfo)

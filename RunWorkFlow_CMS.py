@@ -11,16 +11,16 @@ from testbedutils import fileHandling
 from prepdata import inputOutput
 
 def Master_CMS_run(inputDict):
-    """This function will run CMS with any version prefix given start, end, and timestep.
-
+    """This function will run CMS with any version prefix given start, end, and timestep
+    designed to be for unstructured work flow
 
     Args:
-        inputDict:
+      inputDict: a dictionary that is read from the input yaml
+        model(str): available (ww3, cms)
 
     Returns:
 
     """
-
     # first up, need to check which parts I am running
     waveFlag = inputDict['waveSettings'].get('waveFlag', True)
     flowFlag = inputDict['flowSettings'].get('flowFlag', False)   # inputDict.get('flow', False)
@@ -38,7 +38,7 @@ def Master_CMS_run(inputDict):
 
     version_prefix = fileHandling.checkVersionPrefix(model, inputDict)
     inputDict['version_prefix'] = version_prefix          # write prefix to inputDict
-# __________________input directories________________________________
+    # __________________input directories________________________________
     codeDir = os.getcwd()                                 # location of root cmtb directory
     # check executable
     if inputDict['modelExecutable'].startswith(codeDir):  # change to relative fname
@@ -98,6 +98,7 @@ def Master_CMS_run(inputDict):
 
     # This is the portion that creates a list of simulation endTimes
     simDur_DT = DT.timedelta(0, simulationDuration * 60 * 60)  # timestep in datetime
+
     # make List of Datestring items, for simulations
     dateStartList = [projectStart]
     dateStringList = [dateStartList[0].strftime("%Y-%m-%dT%H:%M:%SZ")]
@@ -106,8 +107,18 @@ def Master_CMS_run(inputDict):
         dateStringList.append(dateStartList[-1].strftime("%Y-%m-%dT%H:%M:%SZ"))
     fileHandling.displayStartInfo(projectStart, projectEnd, version_prefix, LOG_FILENAME, model)
 
-    # ________________________________________________ RUNNING LOOP ________________________________________________
-    errors, errorDates, curdir = [], [], codeDir
+    errors, errorDates = [],[]
+    curdir = os.getcwd()
+    # ______________________________decide process and run _____________________________
+    # run the process through each of the above dates
+    print('------------------------------------\n\n************************************\n\n------------------------------------\n\n')
+    print('Master workflow for {} simulations'.format(model))
+    print('Batch Process Start: %s     Finish: %s '% (projectStart, projectEnd))
+    print('The batch simulation is run in "%s" version' % version_prefix)
+    print('Check for simulation errors here %s' % LOG_FILENAME)
+    print('------------------------------------\n\n************************************\n\n------------------------------------\n\n')
+    # ________________________________________________ RUN LOOP ________________________________________________
+
     for time in dateStringList:
         datestringNow = ''.join(''.join(time.split(':')).split('-'))
         workingDirectory = os.getcwd() # moving to the new simulation's folder
@@ -170,6 +181,7 @@ def Master_CMS_run(inputDict):
                 for file in moveFnames:
                     shutil.move(file,  '/mnt/gaia/cmtb')
                     print('moved %s ' % file)
+
             print('----------------------   SUCCESS: Done {} --------------------------------'.format(time))
 
         except Exception as e:
