@@ -1920,6 +1920,7 @@ def generate_CrossShoreTimeseries(ofname, dataIn, bottomIn, xIn, **kwargs):
     if np.median(bottomIn) > 0:
         bottomIn = -bottomIn
     ###########################
+
     plt.figure(figsize=figsize)
     ax1 = plt.subplot(111)
     ax1.set_facecolor(skyColor)
