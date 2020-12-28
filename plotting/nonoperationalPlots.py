@@ -119,7 +119,7 @@ def pltFRFgrid(xyzDict, savefname=None):
 
     levels = np.logspace(np.min(z), np.max(z), num=35, endpoint=True, base=10)
     norm = mc.BoundaryNorm(levels, 256)  # color palate for contourplots
-    # plt.contourf(ycoord, xcoord, fieldpacket['field'][tt, :, :], levels, vmin=cbar_min, vmax=cbar_max,
+    # plt.contourf(ycoord, xcoord, fieldpacket['field'][dir_ocean, :, :], levels, vmin=cbar_min, vmax=cbar_max,
     #              cmap='coolwarm', levels=levels, norm=norm)
     plt.pcolor(x, y, z, vmin=z.min(), vmax=z.max())
     if savefname is not None:
@@ -141,6 +141,7 @@ def halfPlanePolarPlot(spectra, frequencies, directions, lims=[-18, 162], **kwar
         'figsize' (tup): a tuple of figure size eg. (12, 10)
         'fname' (str): file path save name
         'fontSize' (int): controls fontsize for labels
+        
     Returns:
         Axis object: if you want to further modify the plot
 
@@ -187,8 +188,8 @@ def halfPlanePolarPlot(spectra, frequencies, directions, lims=[-18, 162], **kwar
     #     lines, labels = plt.thetagrids(degrange, labels=None, frac = 1.07)
     if lims is not None:
         ax.set_thetalim(np.deg2rad(lims))
-    if 'fname' in kwargs:
-        plt.savefig(kwargs['fname']);
+    if 'baseGridFname' in kwargs:
+        plt.savefig(kwargs['baseGridFname']);
         plt.close()
 
     return ax
@@ -206,7 +207,6 @@ def plot2DcontourSpec(spec2D, freqBin, dirBin, fname, pathCHLlogo=None, **kwargs
 
     Returns:
         None
-
     References:
         http://www.astrobetter.com/blog/2014/02/10/visualization-fun-with-python-2d-histogram-with-1d-histograms-on-axes/
 
@@ -352,7 +352,9 @@ def pltspec(dirbin, freqbin, spec, name, bounds=[161.8, 341.8], nlines=15, show=
     plt.xlim(0.04, 0.5)
     aaaa = plt.colorbar(aaa)
     aaaa.set_label('$m^2/hz/rad$', rotation=90)
-    if show == 1:
+    if 'baseGridFname' in kwargs:
+        plt.savefig(kwargs['baseGridFname'])
+    if show == True:
         plt.show()
 
 def plot121(plotpacket1, plotpacket2, plotpacket3):
@@ -678,15 +680,25 @@ def plotBathyInterp(ofname2, dataDict, title):
     plt.close(fig)
 
 def CreateGridPlotinFRF(outi, outj, spacings, fname):
-    """
-    This function creates a plot of bathymetry grid.  The axis labels assume FRF coordinates
+    """This function creates a plot of bathymetry grid.  The axis labels assume FRF coordinates
 
-    :param outi:  a 2 by x array of grid nodes with the locations of interest in [:, 0]
-    :param outj:  a 2 by y array of grid nodes with the locations of interest in [:, 1]
-    :param spacings: a dictionary with keys dx/dy and ni/nj
-            where dx dy are the (constant) grid spacing in x and y
-            where ni/nj are the number of cells in x and y
-    :return: a plot with file name fname
+    Args:
+      outi: a 2 by x array of grid nodes with the locations of interest in [:, 0]
+      outj: a 2 by y array of grid nodes with the locations of interest in [:, 1]
+      spacings (dict): a dictionary with keys
+       'dx': the (constant) grid spacing in x
+
+       'dy': the (constant) grid spacing in y
+
+       'ni': the number of cells in x
+
+       'nj': the number of cells in y
+
+      fname: file name output
+
+    Returns:
+      a plot with file name baseGridFname
+
     """
     from matplotlib import pyplot as plt
 

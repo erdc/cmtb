@@ -1,5 +1,6 @@
 # # # # # # # # # # # #
 # Data control        #
+
 # # # # # # # # # # # #
 plotFlag: True                          # turn plotting on
 generateFlag: True                      # generate simulation input files (go get data, process, and write files)
