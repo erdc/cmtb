@@ -343,7 +343,7 @@ def FunwaveAnalyze(startTime, inputDict, fio):
     #     inputOutput.makencml(os.path.join(TdsFldrBase, 'Field', 'Field.ncml'))  # remake the ncml if its not there
     # # make file name strings
     flagfname = os.path.join(fpath, 'Flags{}.out.txt'.format(datestring))  # startTime # the name of flag file
-    fieldYaml = 'yaml_files/waveModels/{}/{}_global.yml'.format(model, model)  # field
+    fieldYaml = 'yaml_files/waveModels/{}/{}/{}_global.yml'.format(model,version_prefix, model)  # field
     varYaml = 'yaml_files/waveModels/{}/{}_var.yml'.format(model, model)
     assert os.path.isfile(fieldYaml), 'NetCDF yaml files are not created'  # make sure yaml file is in place
     makenc.makenc_phaseresolved(data_lib=spatial, globalyaml_fname=fieldYaml, flagfname=flagfname,
