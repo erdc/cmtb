@@ -3,8 +3,85 @@ from matplotlib import pyplot as plt
 import numpy as np
 from matplotlib import image, tri
 import matplotlib.dates as mdates
+import matplotlib.image as image
+import os, math
+from scipy.interpolate import interpn, RectBivariateSpline
+from getdatatestbed.getDataFRF import getObs
+from testbedutils import sblib as sb
+from testbedutils.anglesLib import vectorRotation
+import cartopy.crs as ccrs
 import os, pandas
 from testbedutils.sblib import statsBryant
+
+def unstructuredSpatialPlot(outFname, fieldNc, variable='waveHs', **kwargs):
+    """Plots unstructured data from open netCDF file
+    
+    Args:
+        plotFname: output plot file name
+        ncfile: open netCDF file
+        variables: single variable to plot in the netCDF file with attributes 'short_name' and 'units'
+    
+    Keyword Args:
+        'bottomLeft': tuple of decimal lon/lat for bottom left of zoomed in domain (default=(-75.758986, 36.173927))
+        'topRight':  tuple of decimal lon/lat for bottom left of zoomed in domain (default=(-75.743879, 36.190276))
+    
+    Returns:
+        None
+        
+    """
+    from matplotlib import tri
+    from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
+    timeIDX = kwargs.get('timeIdx', slice)
+    lon, lat = fieldNc['longitude'][:], fieldNc['latitude'][:]
+    value = fieldNc[variable][timeIDX, :]
+    bathy = fieldNc['bathymetry'][timeIDX]
+    title = fieldNc[variable].short_name
+    axisLabel = title + ' [{}]'.format(fieldNc['waveHs'].units)
+    figsize = (16, 6)
+    ######### pre process
+    triang = tri.Triangulation(lon, lat)
+    
+    # take these from data or FRF locations
+    zoomBL = kwargs.get('bottomLeft', (-75.758986, 36.173927))
+    zoomTR = kwargs.get('topRight', (-75.743879, 36.190276))
+    ###########################
+    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=figsize, subplot_kw=dict(projection=ccrs.PlateCarree()))
+    ####
+    axis = 0  # first subplot
+    ax[axis].coastlines(resolution='10m', zorder=1)
+    lines = ax[axis].triplot(triang, linestyle='-', lw=1, alpha=0.35, color='darkgray', zorder=1)
+    ax[axis].tricontour(triang, bathy, linestyles='dotted', colors='black', levels=[0, 1, 3.5, 5, 7])
+    ax[axis].set_extent([zoomTR[0], zoomBL[0], zoomBL[1], zoomTR[1]])
+    ax[axis].set_title('Mesh', fontsize=12)
+    
+    ####
+    axis = 1  #2nd subplot
+    ax[axis].coastlines(resolution='10m', zorder=1)
+    mappable = ax[axis].tripcolor(triang, value)
+    ax[axis].tricontour(triang, bathy, linestyles='dotted', colors='black', levels=[0, 1, 3.5, 5, 7])
+    ax[axis].set_extent([zoomTR[0], zoomBL[0], zoomBL[1], zoomTR[1]])
+    cbar = plt.colorbar(mappable, ax=ax[axis], fraction=0.046, pad=0.04)
+    cbar.set_label(axisLabel)
+    ax[axis].set_title('nearshore {0}'.format(title), fontsize=12)
+    
+    ####
+    axis = 2  #3nd subplot
+    ax[axis].coastlines(resolution='10m', zorder=1)
+    mappable = ax[axis].tripcolor(triang, value)
+    ax[axis].tricontour(triang, bathy, linestyles='dotted', colors='black', levels=[0, 5, 10, 15, 20])
+    cbar = plt.colorbar(mappable, ax=ax[axis], fraction=0.046, pad=0.04)
+    cbar.set_label(axisLabel)
+    ax[axis].set_title('nearshore {0}'.format(title), fontsize=12)
+    
+    for axis in range(0, len(ax)):
+        print(axis)
+        gl = ax[axis].gridlines(draw_labels=True)
+        gl.top_labels= gl.right_labels = False
+        gl.xformatter = LONGITUDE_FORMATTER
+        gl.yformatter = LATITUDE_FORMATTER
+    
+        plt.tight_layout()
+        plt.savefig(outFname)
 
 
 # these are all the ones that were formerly in plotFunctions.py
@@ -51,8 +128,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     pltrawdWED = rawdwed  # [zz, :, :]
     pltrotdWED = rot_dWED  # [zz, :, :]
     pltintdWED = interp_dWED  # [zz, :, :]
-    # now set the interpd dwed based oon full or half plane
-
+    # now set the interpd dwed based on full or half plane
 
     # getting proper colorbars and labels forthe contour plots
     cbar_min = np.nanmin(pltrawdWED)
@@ -62,12 +138,15 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     from matplotlib import colors
     norm = colors.LogNorm()  # mc.BoundaryNorm(levels, 256)  # color palate for contourplots
 
+    from pandas.plotting import register_matplotlib_converters
+    register_matplotlib_converters()
     # generating plot to compare input data
     fig = plt.figure(figsize=(12, 8.), dpi=80)
     fig.suptitle('Input Spectra to Wave Model at %s' % time,
                  fontsize='14', fontweight='bold', y=.975)
     # subplot 0 - wave height tracer
-    sub0 = fig.add_subplot(2, 1, 1)
+    # sub0 = fig.add_subplot(2, 1, 1)
+    sub0 = plt.subplot2grid((4, 3), (0, 0), colspan=3, rowspan=2)
     sub0.plot(timeTS, HsTs, 'b-')
     sub0.plot(time, HsInd, 'r*', markersize=10)
 
@@ -75,7 +154,8 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     sub0.set_xlabel('time')
 
     # subplot 1 - measured spectra
-    sub1 = fig.add_subplot(2, 3, 4)
+    # sub1 = fig.add_subplot(2, 3, 4)
+    sub1 = plt.subplot2grid((4,3), (2,0), rowspan=2, colspan=1)
     sub1.set_title('Measured Spectra', y=1.05)
     aaa = sub1.contourf(rawFreqBin, rawDirBin, pltrawdWED.T,
                         vmin=cbar_min, vmax=cbar_max, levels=levels, norm=norm)
@@ -94,7 +174,8 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     aaaa = plt.colorbar(aaa, format='%.1f')
     aaaa.set_label('$m^2/hz/rad$', rotation=90)
     # subplot 2
-    sub2 = fig.add_subplot(2, 3, 5)
+    # sub2 = fig.add_subplot(2, 3, 5)
+    sub2 = plt.subplot2grid((4,3), (2,1), rowspan=2)
     sub2.set_title('Inverted Direction &\nShore Normal Sepectra', y=1.05)
     if full == False:
         bounds = [90, 270]
@@ -112,7 +193,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     bbbb = plt.colorbar(bbb, format='%.1f')
     bbbb.set_label('$m^2/hz/rad$', rotation=90)
     # subplot 3
-    sub3 = fig.add_subplot(2, 3, 6)
+    sub3 = plt.subplot2grid((4,3), (2,2), rowspan=2)
     sub3.set_title('Centered Input Spectra', y=1.05)
     ccc = sub3.contourf(interpFreqBin, interpDirBin, pltintdWED.T,
                         vmin=cbar_min, vmax=cbar_max, levels=levels, norm=norm)
@@ -386,16 +467,20 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, **k
         plt.close()
 
 def plotWaveProfile(x, waveHs, bathyToPlot, fname):
-    """
-    This function will plot the Cross shore Wave profile at the FRF Xshore array
-    :param waveHs: a 2 dimensional array of wave height
-    :param x: the x coordinates of the plot
-    :param yLocation: the location (in STWAVE longshore coord)
-    of the profile of wave height to be tak en  default 142, is
-    the nested grid of the xshore array
-    :param bathyField: this is a 2 dimensional array of bathymetry with Positive up
+    """This function will plot the Cross shore Wave profile at the FRF Xshore array
 
-    :return: a saved plot
+    Args:
+      waveHs: a 2 dimensional array of wave height
+      x: the x coordinates of the plot
+      yLocation: the location (in STWAVE longshore coord)
+          of the profile of wave height to be tak en  default 142, is the nested grid of the xshore array
+      bathyField: this is a 2 dimensional array of bathymetry with Positive up
+      bathyToPlot:
+      fname:  output file name
+
+    Returns:
+      a saved plot
+
     """
     profileToPlot = waveHs
     # if bathyField.ndim == 3:
@@ -1467,6 +1552,193 @@ def als_results(ofname, p_dict, obs_dict):
     fig.tight_layout(pad=1, h_pad=2.5, w_pad=1, rect=[0.0, 0.0, 1.0, 0.925])
     fig.savefig(ofname, dpi=300)
     plt.close()
+
+def alt_PlotData(name, mod_time, mod_times, THREDDS='FRF'):
+    """This function is just to remove clutter in my plot functions
+    all it does is pull out altimeter data and put it into the appropriate dictionary keys.
+    If None, it will return masked arrays.
+
+    Args:
+      name: name of the altimeter you want (Alt03, Alt04, Alt05)
+      mod_time: start time of the model
+      time: array of model datetimes
+      mod: array of model observations at that instrument location corresponding to variable "comp_time"
+      mod_times:
+      THREDDS:  (Default value = 'FRF')
+
+    Returns:
+      Altimeter data dictionary with keys:
+      'zb' - elevation
+
+      'name' - gage name
+
+      'time' - timestamps of the data
+
+      'xFRF' - position of the gage
+
+      'plot_ind' - this just tells it which data point it should plot for the snapshots
+
+    """
+    t1 = mod_times[0] - DT.timedelta(days=0, hours=0, minutes=3)
+    t2 = mod_times[-1] + DT.timedelta(days=0, hours=0, minutes=3)
+    frf_Data = getObs(t1, t2, THREDDS)
+
+    try:
+        dict = {}
+        alt_data = frf_Data.getALT(name)
+        dict['zb'] = alt_data['bottomElev']
+        dict['time'] = alt_data['time']
+        dict['name'] = alt_data['stationName']
+        dict['xFRF'] = round(alt_data['xFRF'])
+        plot_ind = np.where(abs(dict['time'] - mod_time) == min(abs(dict['time'] - mod_time)), 1, 0)
+        dict['plot_ind'] = plot_ind
+        dict['TS_toggle'] = True
+
+
+    except:
+        # just make it a masked array
+        dict = {}
+        comp_time = [mod_times[ii] + (mod_times[ii + 1] - mod_times[ii]) / 2 for ii in range(0, len(mod_times) - 1)]
+        dict['time'] = comp_time
+        fill_x = np.ones(np.shape(dict['time']))
+        dict['zb'] = np.ma.array(fill_x, mask=np.ones(np.shape(dict['time'])))
+        dict['name'] = name
+        dict['xFRF'] = np.ma.array(np.ones(1), mask=np.ones(1))
+        fill_ind = np.zeros(np.shape(dict['time']))
+        fill_ind[0] = 1
+        dict['plot_ind'] = fill_ind
+        dict['TS_toggle'] = False
+
+
+    return dict
+
+def wave_PlotData(name, mod_time, time, THREDDS='FRF'):
+    """This function is just to remove clutter in my plotting scripts
+    all it does is pull out altimeter data and put it into the appropriate dictionary keys.
+    If None, it will return masked arrays.
+
+    Args:
+      t1: start time you want to pull (a datetime, not a string)
+      t2: end time you want to pull (a datetime, not a string)
+      name: name of the wave gage you want
+      mod_time: start time of the model
+      time: array of model datetimes
+      THREDDS:  (Default value = 'FRF')
+
+    Returns:
+      Altimeter data dictionary with keys:
+          'Hs' - significant wave height
+
+          'name' - gage name
+
+          'wave_time' - timestamps of the data
+
+          'xFRF' - position of the gage
+
+          'plot_ind' - this just tells it which data point it should plot for the snapshots
+
+    """
+
+    t1 = time[0] - DT.timedelta(days=0, hours=0, minutes=3)
+    t2 = time[-1] + DT.timedelta(days=0, hours=0, minutes=3)
+
+    frf_Data = getObs(t1, t2, THREDDS)
+
+    try:
+
+        dict = {}
+        wave_data = frf_Data.getWaveSpec(gaugenumber=name)
+        # print(wave_data['time'])
+        dict['name'] = name
+        dict['wave_time'] = wave_data['time']
+        dict['Hs'] = wave_data['Hs']
+        dict['xFRF'] = wave_data['xFRF']
+        dict['plot_ind'] = np.where(abs(dict['wave_time'] - mod_time) == min(abs(dict['wave_time'] - mod_time)), 1, 0)
+        if name in [2, 3, 4, 5, 6, 'awac-11m', 'awac-8m', 'awac-6m', 'awac-4.5m',
+                                'adop-3.5m']:
+            cur_data = frf_Data.getCurrents(name)
+            dict['cur_time'] = cur_data['time']
+            dict['plot_ind_V'] = np.where(abs(dict['cur_time'] - mod_time) == min(abs(dict['cur_time'] - mod_time)), 1, 0)
+            # rotate my velocities!!!
+
+            # test_fun = lambda x: vectorRotation(x, theta=360 - (71.8 + (90 - 71.8) + 71.8))
+
+            # troubleshooting the velocity stuff
+            test_fun = lambda x: vectorRotation(x, theta=90 + 71.8)
+
+            newV = [test_fun(x) for x in zip(cur_data['aveU'], cur_data['aveV'])]
+            dict['U'] = np.array(zip(*newV)[0])
+            dict['V'] = np.array(zip(*newV)[1])
+        
+        dict['TS_toggle'] = True
+
+    except:
+        print(('No data at %s!  Will return masked array.') %name)
+        # just make it a masked array
+        dict = {}
+        dict['wave_time'] = time
+        dict['cur_time'] = time
+        fill_x = np.ones(np.shape(dict['wave_time']))
+        dict['Hs'] = np.ma.array(fill_x, mask=np.ones(np.shape(dict['wave_time'])))
+        dict['name'] = 'AWAC8m'
+        dict['xFRF'] = np.ma.array(np.ones(1), mask=np.ones(1))
+        fill_ind = np.zeros(np.shape(dict['wave_time']))
+        fill_ind[0] = 1
+        dict['plot_ind'] = fill_ind
+        dict['plot_ind_V'] = fill_ind
+        dict['U'] = np.ma.array(fill_x, mask=np.ones(np.shape(dict['wave_time'])))
+        dict['V'] = np.ma.array(fill_x, mask=np.ones(np.shape(dict['wave_time'])))
+        dict['TS_toggle'] = False
+
+    return dict
+
+def lidar_PlotData(time, THREDDS='FRF'):
+    """
+
+    Args:
+      time:
+      THREDDS:  (Default value = 'FRF')
+
+    Returns:
+
+    """
+
+    t1 = time[0] - DT.timedelta(days=0, hours=0, minutes=3)
+    t2 = time[-1] + DT.timedelta(days=0, hours=0, minutes=3)
+
+    frf_Data = getObs(t1, t2, THREDDS)
+
+    try:
+        dict = {}
+        lidar_data_RU = frf_Data.getLidarRunup()
+        dict['runup2perc'] = lidar_data_RU['totalWaterLevel']
+        dict['runupTime'] = lidar_data_RU['time']
+        dict['runupMean'] = np.nanmean(lidar_data_RU['elevation'], axis=1)
+
+        lidar_data_WP = frf_Data.getLidarWaveProf()
+        dict['waveTime'] = lidar_data_WP['time']
+        dict['xFRF'] = lidar_data_WP['xFRF']
+        dict['yFRF'] = lidar_data_WP['yFRF']
+        dict['Hs'] = lidar_data_WP['waveHsTotal']
+        dict['WL'] = lidar_data_WP['waterLevel']
+        dict['TS_toggle'] = True
+
+    except:
+        # just make it a masked array
+        dict['runupTime'] = np.zeros(20)
+        fill_x = np.ones(np.shape(dict['runupTime']))
+        dict['runup2perc'] = np.ma.array(fill_x, mask=np.ones(np.shape(dict['runupTime'])))
+        dict['runupMean'] = np.ma.array(fill_x, mask=np.ones(np.shape(dict['runupTime'])))
+        dict['waveTime'] = np.zeros(20)
+        dict['xFRF'] = np.ones(np.shape(dict['waveTime']))
+        dict['yFRF'] = np.ones(np.shape(dict['waveTime']))
+        fill_x = np.ones((np.shape(dict['waveTime'])[0], np.shape(dict['xFRF'])[0]))
+        dict['Hs'] = np.ma.array(fill_x, mask=np.ones(np.shape(fill_x)))
+        dict['WL'] = np.ma.array(fill_x, mask=np.ones(np.shape(fill_x)))
+        dict['TS_toggle'] = False
+
+    return dict
+
 
 def obs_V_mod_bathy_TN(ofname, p_dict, obs_dict, logo_path='ArchiveFolder/CHL_logo.png', contour_s=3, contour_d=8):
     """This is a plot to compare observed and model bathymetry to each other

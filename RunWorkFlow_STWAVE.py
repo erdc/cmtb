@@ -140,6 +140,7 @@ def Master_STWAVE_run(inputDict):
                     shutil.copy(file,  '/mnt/gaia/gages/results/frfIn/CMTB')
                     print('moved %s ' % file)
             print(' --------------   SUCCESS: Done %s --------------------------------' %time)
+            
         except Exception as e:
             os.chdir(curdir)  # if things break during run flag, need to get back out!
             print('<< ERROR >> HAPPENED IN THIS TIME STEP ')

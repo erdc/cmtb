@@ -216,6 +216,9 @@ def STanalyze(startTime, inputDict):
             output from the CMTB
     Args:
         inputDict (dict): dictionary of input parameters read in by input file
+            'key'
+            'key'
+            'key'
         startTime (str):  a string that has date in it by which the
             end of the run is designated ex: '2015-12-25T00:00:00Z'
     Returns:

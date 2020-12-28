@@ -41,7 +41,6 @@ def modStartTimes(oldStartTime, modifiedStartTime, inputDict, datestring):
         modified datestring and inputDict
 
     """
-
     if isinstance(oldStartTime, str):
         oldStartTime = DT.datetime.strptime(oldStartTime, "%Y-%m-%dT%H:%M:%SZ")
     if modifiedStartTime != oldStartTime:             # i have to modify the start times for the wave simulation
@@ -80,6 +79,7 @@ def CMSFsimSetup(startTime, inputDict, **kwargs):
 
     """
     # begin by setting up input parameters
+
     if 'org_simulationDuration' in inputDict:
         # reset sim duration, if the previous run was extra long to match the last bathy time (plus run duration)
         simulationDuration = inputDict['org_simulationDuration']
@@ -242,6 +242,7 @@ def CMSwaveSimSetup(startTime, inputDict, **kwargs):
 
     # __________________________________________________________________________________________________________________
     ## _____________WINDS______________________
+
     # average and rotate winds & correct elevation to 10m
     windpacket = prepdata.prep_wind(rawwind, waveTimeList, model=model)
 
@@ -302,12 +303,14 @@ def CMSanalyze(startTime, inputDict):
         
     """
     # ___________________define Global Variables___________________________________
+
     pFlag = inputDict.get('plotFlag', True)      # version prefixes!
     wave_version_prefix = inputDict.get('wave_version_prefix', 'base')
     path_prefix = inputDict['path_prefix']
     simulationDuration = inputDict.get('simulationDuration', 24)
     Thredds_Base = inputDict.get('netCDFdir', '/home/%s/thredds_data/' % check_output('whoami', shell=True)[:-1])
     model = inputDict.get('model', 'cms').lower()
+
     # _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
     # establishing the resolution of the input datetime
     d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
