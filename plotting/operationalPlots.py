@@ -128,7 +128,7 @@ def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
     plt.savefig(fnameOut)
     plt.close()
 
-def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, model='STWAVE', **kwargs):
+def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, **kwargs):
     """This function plots a 2D field of data
 
     Args:
@@ -148,7 +148,6 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
         cblabel: label for the colorbar, the value being plotted
 
       prefix (str): prefix to savefile (path (Default value = '')
-      namebase (str): a base to create filenames with, datetime will be appended (Default value = 'file')
       contourpacket(dict):
         field:  field of data type: numpy array of [time, x coords, ycoords]
 
@@ -169,7 +168,8 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
     Keyword Args:
           directions: this is a spatial direction data of same dimensions of spatail wave height data (or other scalar)
             if directionalWaveGaugeList data should be wrt shore normal
-
+          namebase (str): a base to create filenames with, datetime will be appended (Default value = 'file')
+    
     Returns:
       a plot to file
       
@@ -177,6 +177,7 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
       increase speed with this capability
       https://stackoverflow.com/questions/42386372/increase-the-speed-of-redrawing-contour-plot-in-matplotlib
     """
+    namebase=kwargs.get('namebase', 'NAMEFILLER')
     # a place to manipulate axes - not manipulated now
     ycoord = fieldpacket['ycoord']
     xcoord = fieldpacket['xcoord']  # [::-1]
@@ -197,8 +198,8 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
         print("spatial plotting function cannot currently handle dx != dy")
         raise NotImplementedError
     # applying colorbar labels
-    cbar_max = np.ceil(fieldpacket['field'].max())
-    cbar_min = np.floor(fieldpacket['field'].min())
+    cbar_max = np.ceil(np.max(fieldpacket['field']))
+    cbar_min = np.floor(np.min(fieldpacket['field']))
     cbarlabels = np.linspace(cbar_min, cbar_max, num=5, endpoint=True)  # a list of labels
 
     if numrecs == 1:
@@ -305,9 +306,12 @@ def plotSpatialFieldData(contourpacket, fieldpacket, prefix='', nested=True, mod
         plt.figure(figsize=fgsize, dpi=80, tight_layout=True)
         plt.title(title + '\n{}'.format(time[tt]))
         try:
-            plt.contourf(xcoord, ycoord, fieldpacket['field'][tt, :, :], levels, vmin=cbar_min, vmax=cbar_max,
+            plt.contourf(xcoord, ycoord, fieldpacket['field'][int(tt), :, :], levels, vmin=cbar_min, vmax=cbar_max,
                      cmap='coolwarm', levels=levels, norm=norm)
         except TypeError:
+            if isinstance(fieldpacket['field'], tuple):
+                assert len(fieldpacket['field']) == 1, 'weirdness: bad error descritpion'
+                fieldpacket['field'] = fieldpacket['field'][0]
             plt.contourf(xcoord, ycoord, fieldpacket['field'][tt, :, :], levels, vmin=cbar_min, vmax=cbar_max,
                      cmap='coolwarm', levels=levels, norm=norm)
         # plot pier
@@ -561,7 +565,7 @@ def obs_V_mod_TS(ofname, p_dict, logo_path='ArchiveFolder/CHL_logo.png'):
     ax3.text(0.01, 0.90, plot_str, verticalalignment='top', horizontalalignment='left', color='black', fontsize=16)
 
     fig.subplots_adjust(wspace=0.4, hspace=0.1)
-    fig.tight_layout(pad=1, h_pad=2.5, w_pad=1, rect=[0.0, 0.0, 1.0, 0.925])
+    # fig.tight_layout(pad=1, h_pad=2.5, w_pad=1, rect=[0.0, 0.0, 1.0, 0.925])
     fig.savefig(ofname, dpi=300)
     plt.close()
     return stats_dict

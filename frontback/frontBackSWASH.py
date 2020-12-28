@@ -40,7 +40,9 @@ def SwashSimSetup(startTime, inputDict):
     timerun = inputDict.get('simulationDuration', 1)
     plotFlag = inputDict.get('plotFlag', True)
     # this raises error if not present (intended)
-    version_prefix = inputDict['version_prefix'].lower()
+    version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
+    print(version_prefix)
+#    version_prefix = inputDict['version_prefix'].lower()
     path_prefix = inputDict['path_prefix']  # data super directory
     # ______________________________________________________________________________
     # define version parameters
@@ -92,7 +94,6 @@ def SwashSimSetup(startTime, inputDict):
     except (RuntimeError, TypeError):
         WLpacket = None
     ### ____________ Get bathy grid from thredds ________________
-
     bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])
     swsinfo, gridDict = prepdata.prep_SwashBathy(wavepacket['xFRF'], wavepacket['yFRF'], bathy, dx=1, dy=1,
                                                  yBounds=[944, 947])  # non-inclusive index if you want 3 make 4 wide

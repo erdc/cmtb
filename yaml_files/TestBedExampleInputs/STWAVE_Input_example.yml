@@ -1,33 +1,26 @@
-#######################
+# # # # # # # # # # # #
 # Data control        #
-#######################
-THREDDS: FRF  # CHL or FRF                                                         REQUIRED
-bathyLoc: integrated_bathy                   # bathymetry source
-modelName: STWAVE
+# # # # # # # # # # # #
+plotFlag: True                          # turn plotting on
+generateFlag: True                      # generate simulation input files (go get data, process, and write files)
+runFlag: True                          # run the simulation
+analyzeFlag: True                       # post process simulations (read files, post proces
+bathyLoc: integrated_bathy              # bathymetry source.  OPTIONAL: defaults to integrated_bathy
 ########################
 #simulations parameters#
 ########################
-startTime: '2015-10-01T00:00:00Z'           # project start time
-endTime: '2015-10-05T00:00:00Z'             # project End time
-simulationDuration: 2  # duration in hours            how frequently to get new data, size of individual simulations
-version_prefix: HP                           # controls switches within the code
-gridDEP_nested: 'grids/STWAVE/Minigrid_5m.dep'
-gridDEP_parent: 'grids/STWAVE/Regional_50m.dep'     # base grid dep               REQUIRED
-modelExecutable: /home/spike/cmtb/bin/stwave_p      # path to the model            REQUIRED
-########################
-# path stuff           #
-########################
-# this is the directory where simulation files and QA/QC plots are made and existing architecture takes over
-workingDirectory: /home/spike/cmtb/data/waveModels/STWAVE/                                    # REQUIRED
-# this is the base directory where netCDF files are output to
-netCDFdir: /home/spike/cmtb/thredds_data                                   #
-#########################
-# testbed run control   #
-#########################
-# these are flags to control how the simulations are started and run
-pFlag: True                            # turn plotting on
-generateFlag: True                    # generate simulation input files (go get data, process, and write files)
-runFlag: False                          # run the simulation
-analyzeFlag: True                      # post process simulations (read files, post process data, make netCDF files, plot if desired)
-#ForcedSurveyDate: '2018-01-16T00:00:00Z'                                              # OPTIONAL -  STWAVE only
+startTime: 2018-03-02T00:00:00Z           # project start time
+endTime: 2018-04-03T00:00:00Z             # project End time
+simulationDuration: 24  # duration in hours               how frequently to get new data, size of individual simulations
+modelExecutable: /home/[yourUser]/cmtb/bin/stwave_p      # ABSOLUTE fname to the model            REQUIRED
+logging: False
 
+modelSettings:
+  model: STWAVE                                  # model name string, used for filename/path generation
+  version_prefix: HP                        # controls switched with int the code
+  gridDEP_nested: 'grids/STWAVE/Minigrid_5m.dep'
+  gridDEP_parent: 'grids/STWAVE/Regional_50m.dep'     # base grid dep                         REQUIRED
+  #forcedSurveyDate: 2019-02-03  # force the bathy to be a specific day
+
+waveSettings:
+  waveFlag: True
