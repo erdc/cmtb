@@ -70,9 +70,11 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
     # use generated time lists for these to provide accurate temporal values
     _, waveTimeList, wlTimeList, _, windTimeList = prepdata.createDifferentTimeLists(startTime, endTime, rawspec, rawWL,
                                                                                      rawWind=rawwind)
+    nFreq = np.size(rawspec['wavefreqbin'])
     # rotate and lower resolution of directional wave spectra
     wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=dateString, plot=plotFlag, full=full, deltaangle=5,
-                                    outputPath=pathPrefix, model=model, waveTimeList=waveTimeList)
+                                    outputPath=pathPrefix, model=model, waveTimeList=waveTimeList, ww3nFreq=nFreq)
+    print('TODO: @Ty add values for nFreq here! [frontBackNew.line72]')
     
     windpacket = prepdata.prep_wind(rawwind, windTimeList, model=model)  # vector average, rotate winds, correct to 10m
     WLpacket = prepdata.prep_WL(rawWL, wlTimeList)                       # scalar average WL
@@ -88,11 +90,8 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
 
     # ____________________________ set model save points _______________________________________________________________
     # _________________________ Create observation locations ___________________________________________________________
-    TDSloc= '/home/spike/repos/TDSlocationGrabber'
-    sys.path.append(TDSloc)
-    from frfTDSdataCrawler import query
-    print('  TODO: handle TDS location grabber, maybe put this in get/prep data for now')
-    dataLocations = query(startTime, endTime, inputName=os.path.join(TDSloc, 'database'), type='waves')
+    from testbedutils.frfTDSdataCrawler import query
+    dataLocations = query(startTime, endTime, inputName='/home/spike/repos/TDSlocationGrabberdatabase'), type='waves')
 
     # # get gauge nodes x/y new idea: put gauges into input/output instance for the model, then we can save it
     gaugelocs = []

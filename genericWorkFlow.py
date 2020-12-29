@@ -62,8 +62,8 @@ def Master_ww3_run(inputDict):
     for time in dateStringList:
         print('Beginning to setup simulation {}'.format(DT.datetime.now()))
         try:
-            dateString = ''.join(time.split(':'))
-            datadir = os.path.join(workingDirectory, dateString)  # moving to the new simulation's
+            dateString = ''.join(''.join(time.split(':')).split('-'))
+            # datadir = os.path.join(workingDirectory, dateString)  # moving to the new simulation's
             # pickleSaveName = os.path.join(datadir, timeStamp + '_ww3io.pickle')
             # # if generateFlag == True:
             #     ww3io = frontBackWW3.ww3simSetup(time, inputDict=inputDict, allWind=rawwind, allWL=rawWL,
@@ -72,8 +72,11 @@ def Master_ww3_run(inputDict):
             ####### THE NEW WAY!
             # load the instance of wrr # TBD later on what will control this
             # are there other things we need to load?
-            wrr = wrrClass.ww3io(pathPrefix=datadir, fNameBase=dateString, versionPrefix=version_prefix,
-                                 dateString=dateString, startTime=startTime, endTime=endTime, runFlag=runFlag,
+            
+            wrr = wrrClass.ww3io(fNameBase=dateString, versionPrefix=version_prefix,
+                                 startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
+                                 endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(
+                                     hours=inputDict['simulationDuration']), runFlag=runFlag,
                                  generateFlag=generateFlag, readFlag=analyzeFlag)
             
             wavePacket, windPacket, WLpacket, bathyPacket, gridFname, wrr = frontBackNEW.ww3simSetup(time,
