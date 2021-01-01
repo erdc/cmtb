@@ -20,7 +20,7 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
 
     NOTE: input to the function is the end of the duration.  All Files are labeled by this convention
     all time stamps otherwise are top of the data collection
-
+    
     Args:
         startTime (str): this is a string of format YYYY-mm-ddTHH:MM:SSZ (or YYYY-mm-dd) in UTC time
         inputDict (dict): this is a dictionary that is read from the yaml read function
@@ -32,7 +32,6 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
     # begin by setting up input parameters
     simulationDuration = int(inputDict.get('simulationDuration', 24))
     plotFlag = inputDict.get('plotFlag', True)
-    
     
 
     print('TODO: rename these unpacked variables [frontbackNew.preprocess]')
@@ -54,7 +53,7 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
     # __________________set times _________________________________________________
     startTime = DT.datetime.strptime(startTimeString, '%Y-%m-%dT%H:%M:%SZ')
     endTime = startTime + DT.timedelta(0, simulationDuration * 3600, 0)
-    dateString = startTime.strftime('%Y-%m-%dT%H%M%SZ')
+    dateString = wrr.dateString  # startTime.strftime('%Y-%m-%dT%H%M%SZ')
 
     print("Model Time Start : %s  Model Time End:  %s" % (startTime, endTime))
 
@@ -103,30 +102,59 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
     # ww3io.WL = WLpacket['avgWL']
 
     gridFname = inputDict['modelSettings']['grid']
-    # print('_________________ writing input files _________________')
-    # specFname = ww3io.writeWW3_spec(wavepacket)                            # write individual spec file
-    # # flip bathy scale factor based on bathy input (positive/negative down)
-    # if np.median(bathy.points) > 0: scaleFac = -1
-    # else: scaleFac = -1
-    # # write grid file
-    # scaleFac = 1.0
-    #
-    # ww3io.writeWW3_grid(grid_inbindFname=gridFname.split('.')[0]+'.inbnd',
-    #                      spectrumNTH=wavepacket['spec2d'].shape[2], spectrumNK=wavepacket['spec2d'].shape[1],
-    #                      unstSF=scaleFac)
-    #  # write mesh file
-    #  # ww3io.writeWW3_mesh(gridNodes=bathy)                                 # write gmesh file using gmsh library
-    # ww3io.write_msh(points=bathy.points, cell_data=ww3io.cell_data)        # write gmesh using manual function
-    # # write name list file -- shouldn't change
-    # ww3io.writeWW3_namelist()                                              # will write with defaults with no input args
-    # specListFileName = ww3io.writeWW3_speclist(ofname=os.path.join(path_prefix,dateString,'spec.list'), specFiles=specFname.rsplit('/')[-1])   # write specFile
-    # # write files used as spectral boundary
-    # ww3io.writeWW3_bouncfile(specListFilename=specListFileName.rsplit('/')[-1])                           # write boundary files
-    # ww3io.writeWW3_shel(d1, d2, windpacket, WLpacket, outputInterval=1800)                # write shel file
-    # ww3io.writeWW3_ounf()                                                                 # process field data file
-    # ww3io.writeWW3_ounp()                                                                 # process point data file
-    # ww3io.dateString = dateString
+
     return wavepacket, windpacket, WLpacket, bathy, gridFname, wrr
+
+def SwashSimSetup(startTime, inputDict, allWind , allWL, allWave, wrr):
+    """This Function is the master call for the  data preparation for the Coastal Model
+    Test Bed (CMTB) and the Swash wave/FLow model
+
+
+    NOTE: input to the function is the end of the duration.  All Files are labeled by this convention
+    all time stamps otherwise are top of the data collection
+
+    Args:
+        startTime (str): this is a string of format YYYY-mm-ddTHH:MM:SSZ (or YYYY-mm-dd) in UTC time
+        inputDict (dict): this is a dictionary that is read from the yaml read function
+
+    """
+    # begin by setting up input parameters
+    runtime = inputDict.get('simulationDuration', 30*60)
+    path_prefix = wrr.workingDirectory
+    version_prefix = wrr.versionPrefix
+
+    # ______________________________________________________________________________
+    
+    # _______________________________________________________________________________
+    # set times
+    d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
+    d2 = d1 + DT.timedelta(0, runtime, 0)
+    date_str = wrr.dateString
+    
+    fileHandling.checkVersionPrefix(model=wrr.model, inputDict=inputDict)
+    fileHandling.displayStartInfo(d1, d2, wrr.workingDirectory, None, wrr.model)
+    # ______________________________________________________________________________
+    # begin model data gathering
+    rawspec = allWave
+    rawWL = allWL
+    del allWind  # to take care of all inputs
+    prepdata = STPD.PrepDataTools()                      # for preprocessing
+    gdTB = getDataTestBed(d1, d2)        # for bathy data gathering
+    # _____________WAVES____________________________
+    
+    # preprocess wave spectra
+    wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, runDuration=runtime)
+    # _____________WINDS______________________
+    ## ___________WATER LEVEL__________________
+    print('_________________\nGetting Water Level Data')
+    WLpacket = prepdata.prep_WL(rawWL, wavepacket['epochtime'])
+    ### ____________ Get bathy grid from thredds ________________
+    bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])
+    gridDict = prepdata.prep_SwashBathy(wavepacket['xFRF'], wavepacket['yFRF'], bathy, dx=1, dy=1,
+                                                 yBounds=[944, 947])  # non-inclusive index if you want 3 make 4 wide
+    
+    return wavepacket, None, WLpacket, gridDict, None, wrr
+    
 
 def ww3analyze(startTime, inputDict, ww3io):
     """This runs the post process script for Wave Watch 3.

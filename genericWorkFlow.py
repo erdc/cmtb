@@ -73,6 +73,9 @@ def Master_ww3_run(inputDict):
             # load the instance of wrr # TBD later on what will control this
             # are there other things we need to load?
             
+            
+            print("TODO: Ty here you are creating a function that initalizes wrr and preps irregardless of model")
+        
             wrr = wrrClass.ww3io(fNameBase=dateString, versionPrefix=version_prefix,
                                  startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
                                  endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(
@@ -85,7 +88,8 @@ def Master_ww3_run(inputDict):
                                                                                                 allWL=rawWL,
                                                                                                 allWave=rawspec,
                                                                                                 wrr=wrr)
-            
+            frontBackNEW.
+            print(" TODO: TY you're handing me back the same prepdata packets ")
             print('TODO: document Packets coming from sim-setup')
             # write simulation files (if assigned)
             wrr.writeAllFiles(wavePacket, windPacket, WLpacket, bathyPacket, gridFname)
