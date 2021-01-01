@@ -125,11 +125,10 @@ def Master_ww3_run(inputDict):
 
 
 if __name__ == "__main__":
-    model = 'ww3'
     opts, args = getopt.getopt(sys.argv[1:], "h", ["help"])
     print('___________________________________\n___________________________________\n___________________'
           '________________\n')
-    print('USACE FRF Coastal Model Test Bed : {}'.format(model))
+    print('USACE FRF Coastal Model Test Bed :')
 
     try:
         # assume the user gave the path
@@ -140,6 +139,7 @@ if __name__ == "__main__":
         with open(os.path.join(yamlLoc), 'r') as f:
             inputDict = yaml.safe_load(f)
         inputDict.update(a)
+        #TODO: re-examine if input yaml properly overwrites .cmtbsettings values
         
     except:
         raise IOError('Input YAML file required. See yaml_files/TestBedExampleInputs/{}_Input_example for example yaml file.'.format(model))

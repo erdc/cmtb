@@ -1,2 +1,7 @@
+## This file is to hold system defaults so you don't have to include them in the input yaml
+# the input yaml should overwrite these values as needed
+#
+####################################
 workingDirectory: data               # this is the directory where simulation files and QA/QC plots are made and existing architecture takes over
 netCDFdir: /thredds_data             # this is the base directory where netCDF files are output
+TDSdatabase: /home/spike/repos/TDSlocationGrabber/database  # location for TDS data base pickle (w/o extension)
