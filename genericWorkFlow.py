@@ -72,24 +72,24 @@ def Master_ww3_run(inputDict):
             ####### THE NEW WAY!
             # load the instance of wrr # TBD later on what will control this
             # are there other things we need to load?
-            
             wrr = wrrClass.ww3io(fNameBase=dateString, versionPrefix=version_prefix,
-                                 startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
-                                 endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(
-                                     hours=inputDict['simulationDuration']), runFlag=runFlag,
-                                 generateFlag=generateFlag, readFlag=analyzeFlag)
-            
-            wavePacket, windPacket, WLpacket, bathyPacket, gridFname, wrr = frontBackNEW.ww3simSetup(time,
-                                                                                                inputDict=inputDict,
-                                                                                                allWind=rawwind,
-                                                                                                allWL=rawWL,
-                                                                                                allWave=rawspec,
-                                                                                                wrr=wrr)
-            
-            print('TODO: document Packets coming from sim-setup')
-            # write simulation files (if assigned)
-            wrr.writeAllFiles(wavePacket, windPacket, WLpacket, bathyPacket, gridFname)
-            
+                                         startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
+                                         endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(
+                                             hours=inputDict['simulationDuration']), runFlag=runFlag,
+                                         generateFlag=generateFlag, readFlag=analyzeFlag)
+
+            if generateFlag is True:
+                wavePacket, windPacket, WLpacket, bathyPacket, gridFname, wrr = frontBackNEW.ww3simSetup(time,
+                                                                                                        inputDict=inputDict,
+                                                                                                        allWind=rawwind,
+                                                                                                        allWL=rawWL,
+                                                                                                        allWave=rawspec,
+                                                                                                        wrr=wrr)
+                    
+                print('TODO: document Packets coming from sim-setup')
+                # write simulation files (if assigned)
+                wrr.writeAllFiles(wavePacket, windPacket, WLpacket, bathyPacket, gridFname)
+                
             # run simulation (as appropriate)
             wrr.runSimulation(modelExecutable=inputDict['modelExecutable'])
             
