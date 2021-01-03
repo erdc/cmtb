@@ -36,7 +36,7 @@ def SwashSimSetup(startTime, inputDict):
 
     """
     # begin by setting up input parameters
-    model = inputDict['modelSettings'].get('model')
+    model = inputDict['modelSettings'].get('model', 'swash')
     runtime = inputDict.get('simulationDuration', 1)
     plotFlag = inputDict.get('plotFlag', True)
     # this raises error if not present (intended)
