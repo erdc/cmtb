@@ -48,8 +48,7 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
     rawWL = allWL
     
     # ___________________define version parameters_________________________________
-    if model in ['ww3']:
-        full = True
+    full = True
     # __________________set times _________________________________________________
     startTime = DT.datetime.strptime(startTimeString, '%Y-%m-%dT%H:%M:%SZ')
     endTime = startTime + DT.timedelta(0, simulationDuration * 3600, 0)
@@ -105,7 +104,7 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
 
     return wavepacket, windpacket, WLpacket, bathy, gridFname, wrr
 
-def SwashSimSetup(startTime, inputDict, allWind , allWL, allWave, wrr):
+def swashSimSetup(startTimeString, inputDict, allWind, allWL, allWave, wrr):
     """This Function is the master call for the  data preparation for the Coastal Model
     Test Bed (CMTB) and the Swash wave/FLow model
 
@@ -114,42 +113,42 @@ def SwashSimSetup(startTime, inputDict, allWind , allWL, allWave, wrr):
     all time stamps otherwise are top of the data collection
 
     Args:
-        startTime (str): this is a string of format YYYY-mm-ddTHH:MM:SSZ (or YYYY-mm-dd) in UTC time
+        startTimeString (str): this is a string of format YYYY-mm-ddTHH:MM:SSZ (or YYYY-mm-dd) in UTC time
         inputDict (dict): this is a dictionary that is read from the yaml read function
 
     """
     # begin by setting up input parameters
     runtime = inputDict.get('simulationDuration', 30*60)
-    path_prefix = wrr.workingDirectory
     version_prefix = wrr.versionPrefix
-
+    model = wrr.modelName
+    rawspec = allWave
+    rawWL = allWL
+    del allWind  # to take care of all inputs
     # ______________________________________________________________________________
     
     # _______________________________________________________________________________
     # set times
-    d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
+    d1 = DT.datetime.strptime(startTimeString, '%Y-%m-%dT%H:%M:%SZ')
     d2 = d1 + DT.timedelta(0, runtime, 0)
-    date_str = wrr.dateString
     
-    fileHandling.checkVersionPrefix(model=wrr.model, inputDict=inputDict)
-    fileHandling.displayStartInfo(d1, d2, wrr.workingDirectory, None, wrr.model)
+    fileHandling.checkVersionPrefix(model=wrr.modelName, inputDict=inputDict)
+    fileHandling.displayStartInfo(d1, d2, wrr.workingDirectory, None, wrr.modelName)
+    fileHandling.makeCMTBfileStructure(wrr.workingDirectory)
+
     # ______________________________________________________________________________
     # begin model data gathering
-    rawspec = allWave
-    rawWL = allWL
-    del allWind  # to take care of all inputs
-    prepdata = STPD.PrepDataTools()                      # for preprocessing
+
+    prepdata = PrepDataTools()                      # for preprocessing
     gdTB = getDataTestBed(d1, d2)        # for bathy data gathering
     # _____________WAVES____________________________
     
     # preprocess wave spectra
-    wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, runDuration=runtime)
-    # _____________WINDS______________________
+    wavepacket = prepdata.prep_spec_phaseResolved(rawspec, version_prefix, runDuration=runtime*60*60,
+                                                  waveTimeList=DT.datetime.strptime(wrr.dateString, wrr.dateStringFmt))
     ## ___________WATER LEVEL__________________
-    print('_________________\nGetting Water Level Data')
     WLpacket = prepdata.prep_WL(rawWL, wavepacket['epochtime'])
     ### ____________ Get bathy grid from thredds ________________
-    bathy = gdTB.getBathyIntegratedTransect(method=1, ybound=[940, 950])
+    bathy = gdTB.getBathyIntegratedTransect(method=1, ybounds=[940, 950])
     gridDict = prepdata.prep_SwashBathy(wavepacket['xFRF'], wavepacket['yFRF'], bathy, dx=1, dy=1,
                                                  yBounds=[944, 947])  # non-inclusive index if you want 3 make 4 wide
     
