@@ -155,7 +155,7 @@ def swashSimSetup(startTimeString, inputDict, allWind, allWL, allWave, wrr):
     return wavepacket, None, WLpacket, gridDict, None, wrr
     
 
-def ww3analyze(startTime, inputDict, ww3io):
+def genericPostProcess(startTime, inputDict, ww3io):
     """This runs the post process script for Wave Watch 3.
 
      Script will load model output, create netCDF files and make plots of output including basic model-data

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import os, getopt, sys, shutil, glob, logging, yaml, re, pickle
 import datetime as DT
 import numpy as np
@@ -83,13 +83,14 @@ def Master_workFlow(inputDict):
                                      endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(
                                      hours=inputDict['simulationDuration']), runFlag=runFlag,
                                      generateFlag=generateFlag, readFlag=analyzeFlag)
-
-                wavePacket, windPacket, WLpacket, bathyPacket, gridFname, wrr = frontBackNEW.ww3simSetup(time,
+                if generateFlag is True:
+                    wavePacket, windPacket, WLpacket, bathyPacket, gridFname, wrr = frontBackNEW.ww3simSetup(time,
                                                                                                      inputDict=inputDict,
                                                                                                      allWind=rawwind,
                                                                                                      allWL=rawWL,
                                                                                                      allWave=rawspec,
                                                                                                      wrr=wrr)
+                
             elif modelName in ['swash']:
                 wrr = wrrClass.swashIO(fNameBase=dateString, versionPrefix=version_prefix,
                                        startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
@@ -97,29 +98,30 @@ def Master_workFlow(inputDict):
                                        endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(
                                            hours=inputDict['simulationDuration']), runFlag=runFlag,
                                        generateFlag=generateFlag, readFlag=analyzeFlag)
+                if generateFlag is True:
 
-                wavePacket, windPacket, WLpacket, bathyPacket, gridFname, wrr = frontBackNEW.swashSimSetup(time,
+                    wavePacket, windPacket, WLpacket, bathyPacket, gridFname, wrr = frontBackNEW.swashSimSetup(time,
                                                                                                      inputDict=inputDict,
                                                                                                      allWind=rawwind,
                                                                                                      allWL=rawWL,
                                                                                                      allWave=rawspec,
                                                                                                      wrr=wrr)
                 
-
-            print(" TODO: TY you're handing me back the same prepdata packets from all frontBacks")
-            print('TODO: document Packets coming from sim-setup')
-            try:
-                print('    PrepData Dicts below')
-                print("wavePacket has keys: {}".format(wavePacket.keys()))
-                print("WLPacket has keys: {}".format(WLpacket.keys()))
-                print("bathyPacket has keys: {}".format(bathyPacket.keys()))
-                print("windPacket has keys: {}".format(windPacket.keys()))
-            except AttributeError:
-                pass
+            if generateFlag is True:
+                print(" TODO: TY you're handing me back the same prepdata packets from all frontBacks")
+                print('TODO: document Packets coming from sim-setup')
+                try:
+                    print('    PrepData Dicts below')
+                    print("wavePacket has keys: {}".format(wavePacket.keys()))
+                    print("WLPacket has keys: {}".format(WLpacket.keys()))
+                    print("bathyPacket has keys: {}".format(bathyPacket.keys()))
+                    print("windPacket has keys: {}".format(windPacket.keys()))
+                except AttributeError:
+                    pass
+                    
+                # write simulation files (if assigned)
+                wrr.writeAllFiles(wavePacket, windPacket, WLpacket, bathyPacket, gridFname)
                 
-            # write simulation files (if assigned)
-            wrr.writeAllFiles(wavePacket, windPacket, WLpacket, bathyPacket, gridFname)
-            
             # run simulation (as appropriate)
             wrr.runSimulation(modelExecutable=inputDict['modelExecutable'])
             
@@ -134,7 +136,7 @@ def Master_workFlow(inputDict):
                     except(FileNotFoundError):
                         print("couldn't load sim metadata pickle for post-processing: moving to next time")
                         continue
-                frontBackNEW.ww3analyze(time, inputDict=inputDict, ww3io=ww3io)
+                frontBackNEW.genericPostProcess(time, inputDict=inputDict, ww3io=ww3io)
 
             # if it's a live run, move the plots to the output directory
             if pFlag is True and DT.date.today() == projectEnd:
