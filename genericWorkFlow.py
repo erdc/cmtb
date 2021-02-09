@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import os, getopt, sys, shutil, glob, logging, yaml, re, pickle
 import datetime as DT
 import numpy as np
@@ -9,7 +9,7 @@ from getdatatestbed.getDataFRF import getObs
 from testbedutils import fileHandling
 from prepdata import writeRunRead as wrrClass
 
-def Master_ww3_run(inputDict):
+def Master_workFlow(inputDict):
     """This function will run CMS with any version prefix given start, end, and timestep.
 
     Args:
@@ -29,30 +29,32 @@ def Master_ww3_run(inputDict):
     runFlag = inputDict['runFlag']
     analyzeFlag = inputDict['analyzeFlag']
     pFlag = inputDict['plotFlag']
-    model = inputDict.get('model', 'ww3')
+    modelName = inputDict['modelSettings'].get('modelName', None)
     log = inputDict.get('logging', True)
 
     # __________________pre-processing checks________________________________
-    fileHandling.checkVersionPrefix(model, inputDict)
+    fileHandling.checkVersionPrefix(modelName, inputDict)
     # __________________input directories________________________________
     cmtbRootDir = os.getcwd()  # location of working directory
-    # check executable
-    if inputDict['modelExecutable'].startswith(cmtbRootDir):  # change to relative path
-        inputDict['modelExecutable'] = re.sub(cmtbRootDir, '', inputDict['modelExecutable'])
-    workingDirectory = os.path.join(workingDir, model.lower(), version_prefix)
+    workingDirectory = os.path.join(workingDir, modelName.lower(), version_prefix)
     inputDict['netCDFdir'] = os.path.join(inputDict['netCDFdir'], 'waveModels')
     inputDict['path_prefix'] = workingDirectory
-    # ______________________ Logging  ____________________________
+    # ______________________ Logging/FileHandling ____________________________
     # auto generated Log file using start_end time?
     LOG_FILENAME = fileHandling.logFileLogic(workingDirectory, version_prefix, startTime, endTime, log=log)
-    # __________________get time list to loop over________________________________
     dateStartList, dateStringList, projectStart, projectEnd = fileHandling.createTimeInfo(startTime, endTime,
                                                                                   simulationDuration=simulationDuration)
-    fileHandling.displayStartInfo(projectStart, projectEnd, version_prefix, LOG_FILENAME, model)
+    fileHandling.displayStartInfo(projectStart, projectEnd, version_prefix, LOG_FILENAME, modelName)
+    
     # ______________________________gather all data _____________________________
     if generateFlag == True:
-        go = getObs(projectStart, projectEnd)  # initialize get observation
-        rawspec = go.getWaveSpec(gaugenumber='waverider-26m', specOnly=True)
+        go = getObs(projectStart, projectEnd) # initialize get observation
+        if modelName in ['ww3']:
+            gauge = 'waverider-26m'
+        elif modelName.lower() in ['swash', 'funwave']:
+            gauge = '8m-array'
+        
+        rawspec = go.getWaveSpec(gaugenumber=gauge, specOnly=True)
         rawWL = go.getWL()
         rawwind = go.getWind(gaugenumber=0)
 
@@ -72,21 +74,50 @@ def Master_ww3_run(inputDict):
             ####### THE NEW WAY!
             # load the instance of wrr # TBD later on what will control this
             # are there other things we need to load?
-            wrr = wrrClass.ww3io(fNameBase=dateString, versionPrefix=version_prefix,
-                                         startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
-                                         endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(
-                                             hours=inputDict['simulationDuration']), runFlag=runFlag,
-                                         generateFlag=generateFlag, readFlag=analyzeFlag)
 
+            print("TODO: Ty here you are creating a function that initalizes wrr and preps irregardless of model")
+            if modelName in ['ww3']:
+                wrr = wrrClass.ww3io(fNameBase=dateString, versionPrefix=version_prefix,
+                                     startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
+                                     endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(
+                                     hours=inputDict['simulationDuration']), runFlag=runFlag,
+                                     generateFlag=generateFlag, readFlag=analyzeFlag)
+                if generateFlag is True:
+                    wavePacket, windPacket, WLpacket, bathyPacket, gridFname, wrr = frontBackNEW.ww3simSetup(time,
+                                                                                                     inputDict=inputDict,
+                                                                                                     allWind=rawwind,
+                                                                                                     allWL=rawWL,
+                                                                                                     allWave=rawspec,
+                                                                                                     wrr=wrr)
+                
+            elif modelName in ['swash']:
+                wrr = wrrClass.swashIO(fNameBase=dateString, versionPrefix=version_prefix,
+                                       startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
+                                       simulatedRunTime=inputDict['simulationDuration'],
+                                       endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(
+                                           hours=inputDict['simulationDuration']), runFlag=runFlag,
+                                       generateFlag=generateFlag, readFlag=analyzeFlag)
+                if generateFlag is True:
+
+                    wavePacket, windPacket, WLpacket, bathyPacket, gridFname, wrr = frontBackNEW.swashSimSetup(time,
+                                                                                                     inputDict=inputDict,
+                                                                                                     allWind=rawwind,
+                                                                                                     allWL=rawWL,
+                                                                                                     allWave=rawspec,
+                                                                                                     wrr=wrr)
+                
             if generateFlag is True:
-                wavePacket, windPacket, WLpacket, bathyPacket, gridFname, wrr = frontBackNEW.ww3simSetup(time,
-                                                                                                        inputDict=inputDict,
-                                                                                                        allWind=rawwind,
-                                                                                                        allWL=rawWL,
-                                                                                                        allWave=rawspec,
-                                                                                                        wrr=wrr)
-                    
+                print(" TODO: TY you're handing me back the same prepdata packets from all frontBacks")
                 print('TODO: document Packets coming from sim-setup')
+                try:
+                    print('    PrepData Dicts below')
+                    print("wavePacket has keys: {}".format(wavePacket.keys()))
+                    print("WLPacket has keys: {}".format(WLpacket.keys()))
+                    print("bathyPacket has keys: {}".format(bathyPacket.keys()))
+                    print("windPacket has keys: {}".format(windPacket.keys()))
+                except AttributeError:
+                    pass
+                  
                 # write simulation files (if assigned)
                 wrr.writeAllFiles(wavePacket, windPacket, WLpacket, bathyPacket, gridFname)
                 
@@ -104,7 +135,7 @@ def Master_ww3_run(inputDict):
                     except(FileNotFoundError):
                         print("couldn't load sim metadata pickle for post-processing: moving to next time")
                         continue
-                frontBackNEW.ww3analyze(time, inputDict=inputDict, ww3io=ww3io)
+                frontBackNEW.genericPostProcess(time, inputDict=inputDict, ww3io=ww3io)
 
             # if it's a live run, move the plots to the output directory
             if pFlag is True and DT.date.today() == projectEnd:
@@ -144,4 +175,4 @@ if __name__ == "__main__":
     except:
         raise IOError('Input YAML file required. See yaml_files/TestBedExampleInputs/{}_Input_example for example yaml file.'.format(model))
 
-    Master_ww3_run(inputDict=inputDict)
+    Master_workFlow(inputDict=inputDict)

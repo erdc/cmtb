@@ -71,7 +71,7 @@ def FunwaveSimSetup(startTime, rawWL, rawspec, bathy, inputDict):
     #    #raise NotImplementedError('pre-process TS data ')
     #    wavepacket1 = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=inputDict['modelSettings']['nf'])
 
-    wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, model=model, nf=nf, phases=phases)
+    wavepacket = prepdata.prep_spec_phaseResolved(rawspec, version_prefix, model=model, nf=nf, phases=phases)
 
     # _____________WINDS______________________
     print('_________________\nSkipping Wind')
