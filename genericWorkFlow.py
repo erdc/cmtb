@@ -74,8 +74,7 @@ def Master_workFlow(inputDict):
             ####### THE NEW WAY!
             # load the instance of wrr # TBD later on what will control this
             # are there other things we need to load?
-            
-            
+
             print("TODO: Ty here you are creating a function that initalizes wrr and preps irregardless of model")
             if modelName in ['ww3']:
                 wrr = wrrClass.ww3io(fNameBase=dateString, versionPrefix=version_prefix,
@@ -118,7 +117,7 @@ def Master_workFlow(inputDict):
                     print("windPacket has keys: {}".format(windPacket.keys()))
                 except AttributeError:
                     pass
-                    
+                  
                 # write simulation files (if assigned)
                 wrr.writeAllFiles(wavePacket, windPacket, WLpacket, bathyPacket, gridFname)
                 
