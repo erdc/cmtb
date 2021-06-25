@@ -48,7 +48,7 @@ def Master_workFlow(inputDict):
     
     # ______________________________gather all data _____________________________
     if generateFlag == True:
-        go = getObs(projectStart, projectEnd) # initialize get observation
+        go = getObs(projectStart-DT.timedelta(hours=3), projectEnd+DT.timedelta(hours=3)) # initialize get observation
         if modelName in ['ww3']:
             gauge = 'waverider-26m'
         elif modelName.lower() in ['swash', 'funwave']:
