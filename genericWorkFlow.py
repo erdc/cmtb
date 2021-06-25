@@ -53,8 +53,10 @@ def Master_workFlow(inputDict):
             gauge = 'waverider-26m'
         elif modelName.lower() in ['swash', 'funwave']:
             gauge = '8m-array'
-        
-        rawspec = go.getWaveSpec(gaugenumber=gauge, specOnly=True)
+        elif modelName.lower() in ['cshore']:
+            gauge = 'awac-6m'
+            
+        rawspec = go.getWaveData(gaugenumber=gauge, spec=True)
         rawWL = go.getWL()
         rawwind = go.getWind(gaugenumber=0)
 
@@ -105,7 +107,26 @@ def Master_workFlow(inputDict):
                                                                                                      allWL=rawWL,
                                                                                                      allWave=rawspec,
                                                                                                      wrr=wrr)
-                
+            elif modelName in ['cshore']:
+                import pdb
+                #pdb.set_trace()
+                wrr = wrrClass.cshoreio(fNameBase=dateString, versionPrefix=version_prefix,
+                                       startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
+                                       simulatedRunTime=inputDict['simulationDuration'],
+                                       endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(
+                                           hours=inputDict['simulationDuration']), runFlag=runFlag,
+                                       generateFlag=generateFlag, readFlag=analyzeFlag)
+                if generateFlag is True:
+                    rawbathy = go.getBathyTransectFromNC(profilenumbers=960)
+                    rawctd = go.getCTD()
+                    wavePacket, windPacket, wlPacket, bathyPacket, ctdPacket, wrr = frontBackNEW.cshoreSimSetup(time,
+                                                                                                     inputDict=inputDict,
+                                                                                                     allWind=rawwind,
+                                                                                                     allWL=rawWL,
+                                                                                                     allWave=rawspec,
+                                                                                                     allBathy=rawbathy,
+                                                                                                     allCTD=rawctd,
+                                                                                                     wrr=wrr)
             if generateFlag is True:
                 print(" TODO: TY you're handing me back the same prepdata packets from all frontBacks")
                 print('TODO: document Packets coming from sim-setup')
@@ -119,7 +140,7 @@ def Master_workFlow(inputDict):
                     pass
                   
                 # write simulation files (if assigned)
-                wrr.writeAllFiles(wavePacket, windPacket, WLpacket, bathyPacket, gridFname)
+                wrr.writeAllFiles(bathyPacket, wavePacket, wlPacket=wlPacket, ctdPacket=ctdPacket)
                 
             # run simulation (as appropriate)
             wrr.runSimulation(modelExecutable=inputDict['modelExecutable'])
