@@ -27,8 +27,9 @@ def Master_workFlow(inputDict):
     workingDir = os.path.join(inputDict['workingDirectory'], 'waveModels')
     generateFlag = inputDict['generateFlag']
     runFlag = inputDict['runFlag']
+    pbsFlag = inputDict['pbsFlag']
     analyzeFlag = inputDict['analyzeFlag']
-    pFlag = inputDict['plotFlag']
+    plotFlag = inputDict['plotFlag']
     modelName = inputDict['modelSettings'].get('modelName', None)
     log = inputDict.get('logging', True)
 
@@ -85,7 +86,7 @@ def Master_workFlow(inputDict):
                                      hours=inputDict['simulationDuration']), runFlag=runFlag,
                                      generateFlag=generateFlag, readFlag=analyzeFlag)
                 if generateFlag is True:
-                    wavePacket, windPacket, WLpacket, bathyPacket, gridFname, wrr = frontBackNEW.ww3simSetup(time,
+                    wavePacket, windPacket, wlPacket, bathyPacket, gridFname, wrr = frontBackNEW.ww3simSetup(time,
                                                                                                      inputDict=inputDict,
                                                                                                      allWind=rawwind,
                                                                                                      allWL=rawWL,
@@ -101,21 +102,20 @@ def Master_workFlow(inputDict):
                                        generateFlag=generateFlag, readFlag=analyzeFlag)
                 if generateFlag is True:
 
-                    wavePacket, windPacket, WLpacket, bathyPacket, gridFname, wrr = frontBackNEW.swashSimSetup(time,
+                    wavePacket, windPacket, wlPacket, bathyPacket, gridFname, wrr = frontBackNEW.swashSimSetup(time,
                                                                                                      inputDict=inputDict,
                                                                                                      allWind=rawwind,
                                                                                                      allWL=rawWL,
                                                                                                      allWave=rawspec,
                                                                                                      wrr=wrr)
             elif modelName in ['cshore']:
-                import pdb
-                #pdb.set_trace()
+                print(pbsFlag)
                 wrr = wrrClass.cshoreio(fNameBase=dateString, versionPrefix=version_prefix,
                                        startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
                                        simulatedRunTime=inputDict['simulationDuration'],
                                        endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(
                                            hours=inputDict['simulationDuration']), runFlag=runFlag,
-                                       generateFlag=generateFlag, readFlag=analyzeFlag)
+                                       generateFlag=generateFlag, readFlag=analyzeFlag, pbsFlag=pbsFlag)
                 if generateFlag is True:
                     rawbathy = go.getBathyTransectFromNC(profilenumbers=960)
                     rawctd = go.getCTD()
@@ -133,7 +133,7 @@ def Master_workFlow(inputDict):
                 try:
                     print('    PrepData Dicts below')
                     print("wavePacket has keys: {}".format(wavePacket.keys()))
-                    print("WLPacket has keys: {}".format(WLpacket.keys()))
+                    print("wlPacket has keys: {}".format(wlPacket.keys()))
                     print("bathyPacket has keys: {}".format(bathyPacket.keys()))
                     print("windPacket has keys: {}".format(windPacket.keys()))
                 except AttributeError:
@@ -143,23 +143,27 @@ def Master_workFlow(inputDict):
                 wrr.writeAllFiles(bathyPacket, wavePacket, wlPacket=wlPacket, ctdPacket=ctdPacket)
                 
             # run simulation (as appropriate)
-            wrr.runSimulation(modelExecutable=inputDict['modelExecutable'])
+            if runFlag is True:
+                wrr.runSimulation(modelExecutable=inputDict['modelExecutable'])
             
             # post process (as appropriate)
-            spatialData, savePointData = wrr.readAllFiles()
+            #spatialData, savePointData = wrr.readAllFiles()
 
             if analyzeFlag == True:
-                if generateFlag is False and runFlag is False:
-                    try:  # to load the pickle
-                        with open(wrr.pickleSaveName, 'rb') as fid:
-                            ww3io = pickle.load(fid)
-                    except(FileNotFoundError):
-                        print("couldn't load sim metadata pickle for post-processing: moving to next time")
-                        continue
-                frontBackNEW.genericPostProcess(time, inputDict=inputDict, ww3io=ww3io)
+                import pdb
+                pdb.set_trace()
+                results = wrr.readAllFiles()
+                #if generateFlag is False and runFlag is False:
+                #    try:  # to load the pickle
+                #        with open(wrr.pickleSaveName, 'rb') as fid:
+                #            ww3io = pickle.load(fid)
+                #    except(FileNotFoundError):
+                #        print("couldn't load sim metadata pickle for post-processing: moving to next time")
+                #        continue
+                #frontBackNEW.genericPostProcess(time, inputDict=inputDict, ww3io=ww3io)
 
             # if it's a live run, move the plots to the output directory
-            if pFlag is True and DT.date.today() == projectEnd:
+            if plotFlag is True and DT.date.today() == projectEnd:
                 # move files
                 moveFnames = glob.glob(cmtbRootDir + 'cmtb*.png')
                 moveFnames.extend(glob.glob(cmtbRootDir + 'cmtb*.gif'))
@@ -187,11 +191,10 @@ if __name__ == "__main__":
         yamlLoc = args[0]
         if os.path.exists('.cmtbSettings'):
             with open('.cmtbSettings', 'r') as fid:
-                a = yaml.safe_load(fid)
+                inputDict = yaml.safe_load(fid)
         with open(os.path.join(yamlLoc), 'r') as f:
-            inputDict = yaml.safe_load(f)
+            a = yaml.safe_load(f)
         inputDict.update(a)
-        #TODO: re-examine if input yaml properly overwrites .cmtbsettings values
         
     except:
         raise IOError('Input YAML file required. See yaml_files/TestBedExampleInputs/{}_Input_example for example yaml file.'.format(model))

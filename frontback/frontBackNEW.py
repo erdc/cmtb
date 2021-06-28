@@ -301,7 +301,7 @@ def cshoreSimSetup(startTimeString, inputDict, allWave, allBathy, allWL, allWind
     """
     # begin by setting up input parameters
     simulationDuration = int(inputDict.get('simulationDuration', 24))
-    timeStep = (inputDict.get('timeStep',1))
+    timeStep = (inputDict.get('timeStep',3600))
     plotFlag = inputDict.get('plotFlag', True)
 
     print('TODO: rename these unpacked variables [frontbackNew.preprocess]')
@@ -352,10 +352,9 @@ def cshoreSimSetup(startTimeString, inputDict, allWave, allBathy, allWL, allWind
 
     wlTimeList = [startTime + DT.timedelta(seconds=tt) for tt in reltime]
     WLpacket = prepdata.prep_WL(rawWL,wlTimeList)
-    #windpacket = prepdata.prep_wind(rawwind, windTimeList, model=model)  # vector average, rotate winds, correct to 10m
+    windTimeList= [startTime + DT.timedelta(seconds=tt) for tt in reltime]
+    windpacket = prepdata.prep_wind(rawwind, windTimeList, model=model)  # vector average, rotate winds, correct to 10m
 
-    #import pdb
-    #pdb.set_trace()
     # pull the stuff I need out of the dict
     timerun = inputDict['simulationDuration']
     version_prefix = inputDict['modelSettings']['version_prefix']
@@ -411,6 +410,5 @@ def cshoreSimSetup(startTimeString, inputDict, allWave, allBathy, allWL, allWind
     print("Model Time Start : %s  Model Time End:  %s" % (start_time, end_time))
     print("Files will be placed in {0} folder".format(path_prefix + date_str))
 
-    import pdb
-    pdb.set_trace()
-    wrr.writeAllFiles(bathypacket,wavepacket,wlPacket=WLpacket,ctdPacket=rawCTD)
+    return wavepacket, windpacket, WLpacket, bathypacket, rawCTD, wrr
+
