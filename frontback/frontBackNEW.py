@@ -369,6 +369,7 @@ def cshoreSimSetup(startTimeString, inputDict, allWave, allBathy, allWL, allWind
         print('Chosing CHL thredds by Default, this may be slower!')
         server = 'CHL'
     # ____________________GENERAL ASSUMPTION VARIABLES__________
+
     model = 'CSHORE'
     path_prefix = os.path.join(workingDir, model,  '%s/' % version_prefix)
     time_step = 1        # time step for model in hours
@@ -390,27 +391,26 @@ def cshoreSimSetup(startTimeString, inputDict, allWave, allBathy, allWL, allWind
     print(end_time)
     date_str = start_time.strftime('%Y-%m-%dT%H%M%SZ')
     # start making my metadata dict
-    meta_dict = {'startTime': DT.datetime.strftime(startTime,'%Y-%m-%dT%H:%M:%SZ'),
-                 'timerun': timerun,
-                 'time_step': time_step,
-                 'dx': dx,
-                 'fric_fac': fric_fac,
-                 'version': version_prefix}
-    ftime = timerun * 3600  # [sec] final time, dictates model duration
-    dt = time_step * 3600  # time interval (sec) for wave and water level conditions
-    BC_dict = {'timebc_wave': np.arange(0, ftime + dt, dt)}
+    #meta_dict = {'startTime': DT.datetime.strftime(startTime,'%Y-%m-%dT%H:%M:%SZ'),
+    #             'timerun': timerun,
+    #             'time_step': time_step,
+    #             'dx': dx,
+    #             'fric_fac': fric_fac,
+    #             'version': version_prefix}
+    #ftime = timerun * 3600  # [sec] final time, dictates model duration
+    #dt = time_step * 3600  # time interval (sec) for wave and water level conditions
+    #BC_dict = {'timebc_wave': np.arange(0, ftime + dt, dt)}
 
-    bathy_loc = 'survey'
-    bathypacket = prepdata.prep_CSHOREbathy(rawBathy, bathy_loc, profile_num, dx, wavepacket, fric_fac)
+    bathypacket = prepdata.prep_CSHOREbathy(rawBathy, bathy_loc, dx, wavepacket, profile_num=profile_num,fric_fac=fric_fac)
     # ______________________________________________________________________________
     # __________________Make Diretories_____________________________________________
-    if not os.path.exists(path_prefix + date_str):  # if it doesn't exist
-        os.makedirs(path_prefix + date_str)  # make the directory
-    if not os.path.exists(path_prefix + date_str + "/figures/"):
-        os.makedirs(path_prefix + date_str + "/figures/")
+    #if not os.path.exists(path_prefix + date_str):  # if it doesn't exist
+    #    os.makedirs(path_prefix + date_str)  # make the directory
+    #if not os.path.exists(path_prefix + date_str + "/figures/"):
+    #    os.makedirs(path_prefix + date_str + "/figures/")
 
     print("Model Time Start : %s  Model Time End:  %s" % (start_time, end_time))
-    print("Files will be placed in {0} folder".format(path_prefix + date_str))
+    #print("Files will be placed in {0} folder".format(path_prefix + date_str))
 
     return wavepacket, windpacket, WLpacket, bathypacket, rawCTD, wrr
 

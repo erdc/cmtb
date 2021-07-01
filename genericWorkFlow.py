@@ -118,7 +118,7 @@ def Master_workFlow(inputDict):
                                                                                                      allWave=rawspec,
                                                                                                      wrr=wrr)
             elif modelName in ['cshore']:
-                wrr = wrrClass.cshoreio(fNameBase=dateString, versionPrefix=version_prefix,
+                wrr = wrrClass.cshoreio(workingDirectory=workingDirectory,testName=testName, versionPrefix=version_prefix,
                                        startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
                                        simulatedRunTime=inputDict['simulationDuration'],
                                        endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(
