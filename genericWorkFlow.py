@@ -92,6 +92,9 @@ def Master_workFlow(inputDict):
                                                                                                      allWL=rawWL,
                                                                                                      allWave=rawspec,
                                                                                                      wrr=wrr)
+                    print(gridFname)
+                    print(inputDict['modelSettings'])
+                    ctdPacket = None
                 
             elif modelName in ['swash']:
                 wrr = wrrClass.swashIO(fNameBase=dateString, versionPrefix=version_prefix,
@@ -127,6 +130,8 @@ def Master_workFlow(inputDict):
                                                                                                      allBathy=rawbathy,
                                                                                                      allCTD=rawctd,
                                                                                                      wrr=wrr)
+                    gridFname = None
+                    
             if generateFlag is True:
                 print(" TODO: TY you're handing me back the same prepdata packets from all frontBacks")
                 print('TODO: document Packets coming from sim-setup')
@@ -140,7 +145,8 @@ def Master_workFlow(inputDict):
                     pass
                   
                 # write simulation files (if assigned)
-                wrr.writeAllFiles(bathyPacket, wavePacket, wlPacket=wlPacket, ctdPacket=ctdPacket)
+                wrr.writeAllFiles(bathyPacket, wavePacket=wavePacket, wlPacket=wlPacket, windPacket=windPacket,
+                                  ctdPacket=ctdPacket,gridfname=gridFname)
                 
             # run simulation (as appropriate)
             if runFlag is True:

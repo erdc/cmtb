@@ -73,13 +73,14 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
     wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=dateString, plot=plotFlag, full=full, deltaangle=5,
                                     outputPath=pathPrefix, model=model, waveTimeList=waveTimeList, ww3nFreq=nFreq)
     print('TODO: @Ty add values for nFreq here! [frontBackNew.line72]')
-    
+    import pdb
+    pdb.set_trace()
     windpacket = prepdata.prep_wind(rawwind, windTimeList, model=model)  # vector average, rotate winds, correct to 10m
-    WLpacket = prepdata.prep_WL(rawWL, wlTimeList)                       # scalar average WL
+    wlpacket = prepdata.prep_WL(rawWL, wlTimeList)                       # scalar average WL
 
     # ____________ BATHY   _____________________________________________
     bathy = gdTB.getBathyIntegratedTransect(method=1)
-    gridNodes = wrr.readWW3_msh(inputDict['modelSettings']['grid'])
+    gridNodes = wrr.readWW3_msh(fname=inputDict['modelSettings']['grid'])
     # gridNodes = sb.Bunch({'points': ww3io.points})              # we will remove this when meshio is working as expected
 
     if plotFlag: bathyPlotFname = os.path.join(pathPrefix, 'figures', dateString+'_bathy.png');
@@ -88,21 +89,24 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
 
     # ____________________________ set model save points _______________________________________________________________
     # _________________________ Create observation locations ___________________________________________________________
-    from testbedutils.frfTDSdataCrawler import query
-    dataLocations = query(startTime, endTime, inputName=inputDict['TDSdatabase'],  type='waves')
+    try:
+        from testbedutils.frfTDSdataCrawler import query
+        dataLocations = query(startTime, endTime, inputName=inputDict['TDSdatabase'],  type='waves')
 
     # # get gauge nodes x/y new idea: put gauges into input/output instance for the model, then we can save it
-    gaugelocs = []
-    for ii, gauge in enumerate(dataLocations['Sensor']):
-         gaugelocs.append([dataLocations['Lon'][ii], dataLocations['Lat'][ii], gauge])
-    wrr.savePoints = gaugelocs
+        gaugelocs = []
+        for ii, gauge in enumerate(dataLocations['Sensor']):
+             gaugelocs.append([dataLocations['Lon'][ii], dataLocations['Lat'][ii], gauge])
+        wrr.savePoints = gaugelocs
+    except:
+        wrr.savePoints = [[-75.7428842,36.1872331,'8m-array']]
     
     # ____________________________ begin writing model Input ___________________________________________________________
     # ww3io.WL = WLpacket['avgWL']
 
     gridFname = inputDict['modelSettings']['grid']
 
-    return wavepacket, windpacket, WLpacket, bathy, gridFname, wrr
+    return wavepacket, windpacket, wlpacket, bathy, gridFname, wrr
 
 def swashSimSetup(startTimeString, inputDict, allWind, allWL, allWave, wrr):
     """This Function is the master call for the  data preparation for the Coastal Model
