@@ -73,8 +73,6 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
     wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=dateString, plot=plotFlag, full=full, deltaangle=5,
                                     outputPath=pathPrefix, model=model, waveTimeList=waveTimeList, ww3nFreq=nFreq)
     print('TODO: @Ty add values for nFreq here! [frontBackNew.line72]')
-    import pdb
-    pdb.set_trace()
     windpacket = prepdata.prep_wind(rawwind, windTimeList, model=model)  # vector average, rotate winds, correct to 10m
     wlpacket = prepdata.prep_WL(rawWL, wlTimeList)                       # scalar average WL
 
