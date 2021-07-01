@@ -84,7 +84,7 @@ def Master_workFlow(inputDict):
                                      startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
                                      endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(
                                      hours=inputDict['simulationDuration']), runFlag=runFlag,
-                                     generateFlag=generateFlag, readFlag=analyzeFlag)
+                                     generateFlag=generateFlag, readFlag=analyzeFlag, pbsFlag=pbsFlag)
                 if generateFlag is True:
                     wavePacket, windPacket, wlPacket, bathyPacket, gridFname, wrr = frontBackNEW.ww3simSetup(time,
                                                                                                      inputDict=inputDict,
