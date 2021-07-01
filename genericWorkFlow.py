@@ -21,24 +21,28 @@ def Master_workFlow(inputDict):
     """
     ## unpack input Dictionary
     version_prefix = inputDict['modelSettings']['version_prefix']
+    testName = inputDict['testName']
     endTime = inputDict['endTime']
     startTime = inputDict['startTime']
     simulationDuration = inputDict['simulationDuration']
-    workingDir = os.path.join(inputDict['workingDirectory'], 'waveModels')
+    workingDir = inputDict['workingDirectory']
     generateFlag = inputDict['generateFlag']
     runFlag = inputDict['runFlag']
     pbsFlag = inputDict['pbsFlag']
     analyzeFlag = inputDict['analyzeFlag']
     plotFlag = inputDict['plotFlag']
     modelName = inputDict['modelSettings'].get('modelName', None)
-    hpcCores = inputDict['hpcCores']
     log = inputDict.get('logging', True)
 
     # __________________pre-processing checks________________________________
     fileHandling.checkVersionPrefix(modelName, inputDict)
     # __________________input directories________________________________
     cmtbRootDir = os.getcwd()  # location of working directory
-    workingDirectory = os.path.join(workingDir, modelName.lower(), version_prefix)
+    if workingDir[0] == '.':
+        #make absolute path for easier bookkeeping- remove the ./ on relative path
+        workingDirectory = os.path.join(cmtbRootDir,workingDir[2:],modelName.lower(), version_prefix)
+    else:
+        workingDirectory = os.path.join(workingDir, modelName.lower(), version_prefix)
     inputDict['netCDFdir'] = os.path.join(inputDict['netCDFdir'], 'waveModels')
     inputDict['path_prefix'] = workingDirectory
     # ______________________ Logging/FileHandling ____________________________
@@ -69,6 +73,8 @@ def Master_workFlow(inputDict):
         print('Beginning to setup simulation {}'.format(DT.datetime.now()))
         try:
             dateString = ''.join(''.join(time.split(':')).split('-'))
+            if not testName:
+                testName = dateString
             # datadir = os.path.join(workingDirectory, dateString)  # moving to the new simulation's
             # pickleSaveName = os.path.join(datadir, timeStamp + '_ww3io.pickle')
             # # if generateFlag == True:
@@ -81,11 +87,12 @@ def Master_workFlow(inputDict):
 
             print("TODO: Ty here you are creating a function that initalizes wrr and preps irregardless of model")
             if modelName in ['ww3']:
-                wrr = wrrClass.ww3io(fNameBase=dateString, versionPrefix=version_prefix,
+                wrr = wrrClass.ww3io(workingDirectory=workingDirectory,testName=testName, versionPrefix=version_prefix,
                                      startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
                                      endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(
                                      hours=inputDict['simulationDuration']), runFlag=runFlag,
-                                     generateFlag=generateFlag, readFlag=analyzeFlag, pbsFlag=pbsFlag,hpcCores=hpcCores)
+                                     generateFlag=generateFlag, readFlag=analyzeFlag, pbsFlag=pbsFlag)
+                
                 if generateFlag is True:
                     wavePacket, windPacket, wlPacket, bathyPacket, gridFname, wrr = frontBackNEW.ww3simSetup(time,
                                                                                                      inputDict=inputDict,
@@ -93,8 +100,6 @@ def Master_workFlow(inputDict):
                                                                                                      allWL=rawWL,
                                                                                                      allWave=rawspec,
                                                                                                      wrr=wrr)
-                    print(gridFname)
-                    print(inputDict['modelSettings'])
                     ctdPacket = None
                 
             elif modelName in ['swash']:
@@ -113,7 +118,6 @@ def Master_workFlow(inputDict):
                                                                                                      allWave=rawspec,
                                                                                                      wrr=wrr)
             elif modelName in ['cshore']:
-                print(pbsFlag)
                 wrr = wrrClass.cshoreio(fNameBase=dateString, versionPrefix=version_prefix,
                                        startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
                                        simulatedRunTime=inputDict['simulationDuration'],
@@ -144,7 +148,10 @@ def Master_workFlow(inputDict):
                     print("windPacket has keys: {}".format(windPacket.keys()))
                 except AttributeError:
                     pass
-                  
+                
+                if pbsFlag is True:
+                    wrr.hpcCores = inputDict['hpcSettings']['hpcCores']
+                    wrr.hpcNodes = inputDict['hpcSettings']['hpcNodes']
                 # write simulation files (if assigned)
                 wrr.writeAllFiles(bathyPacket, wavePacket=wavePacket, wlPacket=wlPacket, windPacket=windPacket,
                                   ctdPacket=ctdPacket,gridfname=gridFname)
@@ -157,8 +164,6 @@ def Master_workFlow(inputDict):
             #spatialData, savePointData = wrr.readAllFiles()
 
             if analyzeFlag == True:
-                import pdb
-                pdb.set_trace()
                 results = wrr.readAllFiles()
                 #if generateFlag is False and runFlag is False:
                 #    try:  # to load the pickle
