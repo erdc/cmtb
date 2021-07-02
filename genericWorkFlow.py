@@ -33,6 +33,7 @@ def Master_workFlow(inputDict):
     plotFlag = inputDict['plotFlag']
     modelName = inputDict['modelSettings'].get('modelName', None)
     log = inputDict.get('logging', True)
+    updateBathy = inputDict['updateBathy']
 
     # __________________pre-processing checks________________________________
     fileHandling.checkVersionPrefix(modelName, inputDict)

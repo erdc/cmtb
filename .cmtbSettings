@@ -9,6 +9,7 @@ plotFlag: false
 pbsFlag: false
 generateFlag: true
 namelistFlag: false
+updateBathy: true
 hpcSettings:
    hpcCores: 36
    hpcNodes: 1
