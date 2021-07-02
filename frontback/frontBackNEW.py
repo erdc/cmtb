@@ -70,7 +70,7 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
                                                                                      rawWind=rawwind)
     nFreq = np.size(rawspec['wavefreqbin'])
     # rotate and lower resolution of directional wave spectra
-    wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=dateString, plot=plotFlag, full=full, deltaangle=5,
+    wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=dateString, plot=plotFlag, full=full, deltaangle=10,
                                     outputPath=pathPrefix, model=model, waveTimeList=waveTimeList, ww3nFreq=nFreq)
     print('TODO: @Ty add values for nFreq here! [frontBackNew.line72]')
     windpacket = prepdata.prep_wind(rawwind, windTimeList, model=model)  # vector average, rotate winds, correct to 10m
