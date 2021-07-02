@@ -154,7 +154,7 @@ def Master_workFlow(inputDict):
                     wrr.hpcNodes = inputDict['hpcSettings']['hpcNodes']
                 # write simulation files (if assigned)
                 wrr.writeAllFiles(bathyPacket, wavePacket=wavePacket, wlPacket=wlPacket, windPacket=windPacket,
-                                  ctdPacket=ctdPacket,gridfname=gridFname)
+                                  ctdPacket=ctdPacket,gridfname=gridFname,updateBathy=updateBathy)
                 
             # run simulation (as appropriate)
             if runFlag is True:
