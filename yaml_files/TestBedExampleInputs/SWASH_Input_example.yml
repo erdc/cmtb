@@ -12,20 +12,15 @@ bathyLoc: integrated_bathy                  # bathymetry source.  OPTIONAL: defa
 startTime: '2015-10-05T00:00:00Z'           # project start time
 endTime:   '2015-10-05T04:00:00Z'           # project End time
 simulationDuration: 1                       # duration in hours how frequently to get new data, size of individual simulations
-modelExecutable: /home/spike/repos/cmtb/bin/swash   # path to the model    REQUIRED# this is the directory where simulation files and QA/QC plots are made and existing architecture takes over
+modelExecutable: bin/swash                  # path to the model
 ########################
-# path stuff           #
+# Model Settings       #
 ########################
-#  <<<<<<< HEAD
-#gridSIM: 'grids/SWASH/SWASH-Wave-FRF.sim'   # base grid sim               REQUIRED
-#gridDEP: 'grids/SWASH/SWASH-Wave-FRF.dep'   # base grid dep               REQUIRED
-#modelExecutable: /home/spike/repos/cmtb/bin/swash   # path to the model            REQUIRED# this is the directory where simulation files and QA/QC plots are made and existing architecture takes over
-#workingDirectory: 'data'                                  # REQUIRED
-#  =======
+
 modelSettings:
   model: swash
   version_prefix: Base                        # controls switched with int the code
-  grid: None
+  grid: None                                  # create's grid automagically
 
 # this is the sim files, and plots
 workingDirectory: data/waveModels                                  # REQUIRED usually [cmtbRoot]/data/waveModels

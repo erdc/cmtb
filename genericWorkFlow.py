@@ -210,6 +210,7 @@ if __name__ == "__main__":
         inputDict.update(a)
         
     except:
-        raise IOError('Input YAML file required. See yaml_files/TestBedExampleInputs/{}_Input_example for example yaml file.'.format(model))
+        raise IOError('Input YAML file required. See yaml_files/TestBedExampleInputs/[model]_Input_example for example '
+                      'yaml file.')
 
     Master_workFlow(inputDict=inputDict)
