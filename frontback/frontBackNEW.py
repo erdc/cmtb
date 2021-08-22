@@ -1,5 +1,5 @@
 """Pre and post processing associated with ww3 model runs."""
-from prepdata import inputOutput
+#from prepdata import inputOutput
 from prepdata.prepDataLib import PrepDataTools
 from getdatatestbed.getDataFRF import getDataTestBed
 import datetime as DT
@@ -20,7 +20,7 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
 
     NOTE: input to the function is the end of the duration.  All Files are labeled by this convention
     all time stamps otherwise are top of the data collection
-
+    
     Args:
         startTime (str): this is a string of format YYYY-mm-ddTHH:MM:SSZ (or YYYY-mm-dd) in UTC time
         inputDict (dict): this is a dictionary that is read from the yaml read function
@@ -32,7 +32,6 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
     # begin by setting up input parameters
     simulationDuration = int(inputDict.get('simulationDuration', 24))
     plotFlag = inputDict.get('plotFlag', True)
-    
     
 
     print('TODO: rename these unpacked variables [frontbackNew.preprocess]')
@@ -49,12 +48,11 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
     rawWL = allWL
     
     # ___________________define version parameters_________________________________
-    if model in ['ww3']:
-        full = True
+    full = True
     # __________________set times _________________________________________________
     startTime = DT.datetime.strptime(startTimeString, '%Y-%m-%dT%H:%M:%SZ')
     endTime = startTime + DT.timedelta(0, simulationDuration * 3600, 0)
-    dateString = startTime.strftime('%Y-%m-%dT%H%M%SZ')
+    dateString = wrr.dateString  # startTime.strftime('%Y-%m-%dT%H%M%SZ')
 
     print("Model Time Start : %s  Model Time End:  %s" % (startTime, endTime))
 
@@ -70,16 +68,17 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
     # use generated time lists for these to provide accurate temporal values
     _, waveTimeList, wlTimeList, _, windTimeList = prepdata.createDifferentTimeLists(startTime, endTime, rawspec, rawWL,
                                                                                      rawWind=rawwind)
+    nFreq = np.size(rawspec['wavefreqbin'])
     # rotate and lower resolution of directional wave spectra
-    wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=dateString, plot=plotFlag, full=full, deltaangle=5,
-                                    outputPath=pathPrefix, model=model, waveTimeList=waveTimeList)
-    
+    wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=dateString, plot=plotFlag, full=full, deltaangle=10,
+                                    outputPath=pathPrefix, model=model, waveTimeList=waveTimeList, ww3nFreq=nFreq)
+    print('TODO: @Ty add values for nFreq here! [frontBackNew.line72]')
     windpacket = prepdata.prep_wind(rawwind, windTimeList, model=model)  # vector average, rotate winds, correct to 10m
-    WLpacket = prepdata.prep_WL(rawWL, wlTimeList)                       # scalar average WL
+    wlpacket = prepdata.prep_WL(rawWL, wlTimeList)                       # scalar average WL
 
     # ____________ BATHY   _____________________________________________
     bathy = gdTB.getBathyIntegratedTransect(method=1)
-    gridNodes = wrr.readWW3_msh(inputDict['modelSettings']['grid'])
+    gridNodes = wrr.readWW3_msh(fname=inputDict['modelSettings']['grid'])
     # gridNodes = sb.Bunch({'points': ww3io.points})              # we will remove this when meshio is working as expected
 
     if plotFlag: bathyPlotFname = os.path.join(pathPrefix, 'figures', dateString+'_bathy.png');
@@ -88,48 +87,77 @@ def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
 
     # ____________________________ set model save points _______________________________________________________________
     # _________________________ Create observation locations ___________________________________________________________
-    TDSloc= '/home/spike/repos/TDSlocationGrabber'
-    sys.path.append(TDSloc)
-    from frfTDSdataCrawler import query
-    print('  TODO: handle TDS location grabber, maybe put this in get/prep data for now')
-    dataLocations = query(startTime, endTime, inputName=os.path.join(TDSloc, 'database'), type='waves')
+    try:
+        from testbedutils.frfTDSdataCrawler import query
+        dataLocations = query(startTime, endTime, inputName=inputDict['TDSdatabase'],  type='waves')
 
     # # get gauge nodes x/y new idea: put gauges into input/output instance for the model, then we can save it
-    gaugelocs = []
-    for ii, gauge in enumerate(dataLocations['Sensor']):
-         gaugelocs.append([dataLocations['Lon'][ii], dataLocations['Lat'][ii], gauge])
-    wrr.savePoints = gaugelocs
+        gaugelocs = []
+        for ii, gauge in enumerate(dataLocations['Sensor']):
+             gaugelocs.append([dataLocations['Lon'][ii], dataLocations['Lat'][ii], gauge])
+        wrr.savePoints = gaugelocs
+    except:
+        wrr.savePoints = [[-75.7428842,36.1872331,'8m-array']]
     
     # ____________________________ begin writing model Input ___________________________________________________________
     # ww3io.WL = WLpacket['avgWL']
 
     gridFname = inputDict['modelSettings']['grid']
-    # print('_________________ writing input files _________________')
-    # specFname = ww3io.writeWW3_spec(wavepacket)                            # write individual spec file
-    # # flip bathy scale factor based on bathy input (positive/negative down)
-    # if np.median(bathy.points) > 0: scaleFac = -1
-    # else: scaleFac = -1
-    # # write grid file
-    # scaleFac = 1.0
-    #
-    # ww3io.writeWW3_grid(grid_inbindFname=gridFname.split('.')[0]+'.inbnd',
-    #                      spectrumNTH=wavepacket['spec2d'].shape[2], spectrumNK=wavepacket['spec2d'].shape[1],
-    #                      unstSF=scaleFac)
-    #  # write mesh file
-    #  # ww3io.writeWW3_mesh(gridNodes=bathy)                                 # write gmesh file using gmsh library
-    # ww3io.write_msh(points=bathy.points, cell_data=ww3io.cell_data)        # write gmesh using manual function
-    # # write name list file -- shouldn't change
-    # ww3io.writeWW3_namelist()                                              # will write with defaults with no input args
-    # specListFileName = ww3io.writeWW3_speclist(ofname=os.path.join(path_prefix,dateString,'spec.list'), specFiles=specFname.rsplit('/')[-1])   # write specFile
-    # # write files used as spectral boundary
-    # ww3io.writeWW3_bouncfile(specListFilename=specListFileName.rsplit('/')[-1])                           # write boundary files
-    # ww3io.writeWW3_shel(d1, d2, windpacket, WLpacket, outputInterval=1800)                # write shel file
-    # ww3io.writeWW3_ounf()                                                                 # process field data file
-    # ww3io.writeWW3_ounp()                                                                 # process point data file
-    # ww3io.dateString = dateString
-    return wavepacket, windpacket, WLpacket, bathy, gridFname, wrr
 
-def ww3analyze(startTime, inputDict, ww3io):
+    return wavepacket, windpacket, wlpacket, bathy, gridFname, wrr
+
+def swashSimSetup(startTimeString, inputDict, allWind, allWL, allWave, wrr):
+    """This Function is the master call for the  data preparation for the Coastal Model
+    Test Bed (CMTB) and the Swash wave/FLow model
+
+
+    NOTE: input to the function is the end of the duration.  All Files are labeled by this convention
+    all time stamps otherwise are top of the data collection
+
+    Args:
+        startTimeString (str): this is a string of format YYYY-mm-ddTHH:MM:SSZ (or YYYY-mm-dd) in UTC time
+        inputDict (dict): this is a dictionary that is read from the yaml read function
+
+    """
+    # begin by setting up input parameters
+    runtime = inputDict.get('simulationDuration', 30*60)
+    version_prefix = wrr.versionPrefix
+    model = wrr.modelName
+    rawspec = allWave
+    rawWL = allWL
+    del allWind  # to take care of all inputs
+    # ______________________________________________________________________________
+    
+    # _______________________________________________________________________________
+    # set times
+    d1 = DT.datetime.strptime(startTimeString, '%Y-%m-%dT%H:%M:%SZ')
+    d2 = d1 + DT.timedelta(0, runtime, 0)
+    
+    fileHandling.checkVersionPrefix(model=wrr.modelName, inputDict=inputDict)
+    fileHandling.displayStartInfo(d1, d2, wrr.workingDirectory, None, wrr.modelName)
+    fileHandling.makeCMTBfileStructure(wrr.workingDirectory)
+
+    # ______________________________________________________________________________
+    # begin model data gathering
+
+    prepdata = PrepDataTools()                      # for preprocessing
+    gdTB = getDataTestBed(d1, d2)        # for bathy data gathering
+    # _____________WAVES____________________________
+    
+    # preprocess wave spectra
+    wavepacket = prepdata.prep_spec_phaseResolved(rawspec, version_prefix, runDuration=runtime*60*60,
+                                                  waveTimeList=DT.datetime.strptime(wrr.dateString, wrr.dateStringFmt))
+    ## ___________WATER LEVEL__________________
+    WLpacket = prepdata.prep_WL(rawWL, wavepacket['epochtime'])
+    ### ____________ Get bathy grid from thredds ________________
+    bathy = gdTB.getBathyIntegratedTransect(method=1, ybounds=[940, 950])
+    gridDict = prepdata.prep_SwashBathy(wavepacket['xFRF'], wavepacket['yFRF'], bathy, dx=1, dy=1,
+                                                 yBounds=[944, 947])  # non-inclusive index if you want 3 make 4 wide
+    
+    return wavepacket, None, WLpacket, gridDict, None, wrr
+    
+
+def genericPostProcess(startTime, inputDict, ww3io):
     """This runs the post process script for Wave Watch 3.
 
      Script will load model output, create netCDF files and make plots of output including basic model-data
@@ -248,4 +276,141 @@ def ww3analyze(startTime, inputDict, ww3io):
             plotOutFname = 'test.png'
             oP.unstructuredSpatialPlot(plotOutFname, fieldNc=ncfile, variable=var)
     
+
+def cshoreSimSetup(startTimeString, inputDict, allWave, allBathy, allWL, allWind, allCTD, wrr):
+    """Author: David Young
+    Association: USACE CHL Field Research Facility
+    Project:  Coastal Model Test Bed
+
+    This Function is the master call for the  data preparation for the Coastal Model
+    Test Bed (CMTB).  It is designed to pull from GetData and utilize
+    prep_datalib for development of the FRF CMTB
+    NOTE: input to the function is the start time of the model run.  All Files are labeled by this convention
+    all time stamps otherwise are top of the data collection
+
+    Args:
+        startTime (str): this is the start time for the simulation (string in format e.g., '2016-06-02T10:00:00Z' )
+                THIS MAY NOT BE THE SAME AS THE ONE IN INPUT DICT
+                i.e., if it is looping over a bunch of 24 hour simulations
+                that is also why it is a separate variable
+        inputDict (dict): input dictionary with keys
+            simulationDuration - duration of each simulation in hours
+            version_prefix - right now we have FIXED, MOBILE, and MOBILE_RESET
+            profileNumber - this is either the survery profile number or the alongshore location for the integrated bathy
+            bathyLoc - where are we getting our bathy data (surveys or integrated bathy)
+            workindDir - location where the user wants to have all the data and stuff
+
+    """
+    # begin by setting up input parameters
+    simulationDuration = int(inputDict.get('simulationDuration', 24))
+    timeStep = (inputDict.get('timeStep',3600))
+    plotFlag = inputDict.get('plotFlag', True)
+
+    print('TODO: rename these unpacked variables [frontbackNew.preprocess]')
+    try:
+        version_prefix = wrr.versionPrefix
+    except:
+        version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
+
+    plotFlag = inputDict.get('plotFlag', True)
+    pathPrefix = wrr.workingDirectory
+    model = wrr.modelName  # inputDict['modelSettings'].get('model', 'ww3').lower()
+    rawspec = allWave
+    rawwind = allWind
+    rawWL = allWL
+    rawCTD = allCTD
+    rawBathy = allBathy
+
+
+    # ___________________define version parameters_________________________________
+    full = True
+    # __________________set times _________________________________________________
+    startTime = DT.datetime.strptime(startTimeString, '%Y-%m-%dT%H:%M:%SZ')
+    endTime = startTime + DT.timedelta(0, simulationDuration * 3600, 0)
+    dateString = wrr.dateString  # startTime.strftime('%Y-%m-%dT%H%M%SZ')
+    ftime = simulationDuration*3600.
+    reltime = np.arange(0,ftime+timeStep,timeStep)
+    print("Model Time Start : %s  Model Time End:  %s" % (startTime, endTime))
+
+    # __________________Make Diretories_____________________________________________
+    fileHandling.makeCMTBfileStructure(pathPrefix)
+
+    # ____________________________ begin model data gathering __________________________________________________________
+#    gdTB = getDataTestBed(startTime, endTime)  # initialize get data test bed (bathy)
+    prepdata = PrepDataTools()
+
+    # _____________________WAVES, wind, WL ____________________________
+    assert rawspec is not None, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (startTime, endTime)
+    # use generated time lists for these to provide accurate temporal values
+ #   _, waveTimeList, wlTimeList, _, windTimeList = prepdata.createDifferentTimeLists(startTime, endTime, rawspec, rawWL,
+#                                                                                     rawWind=rawwind)
+ #   nFreq = np.size(rawspec['wavefreqbin'])
+    # rotate and lower resolution of directional wave spectra
+ #   wavepacket = prepdata.prep_spec(rawspec, version_prefix, datestr=dateString, plot=plotFlag, full=full, deltaangle=5,
+ #                                   outputPath=pathPrefix, model=model, waveTimeList=waveTimeList, ww3nFreq=nFreq)
+ #   print('TODO: @Ty add values for nFreq here! [frontBackNew.line72]')
+    print(reltime, startTime)
+    wavepacket = prepdata.prep_CSHOREwaves(rawspec, reltime , startTime)
+
+    wlTimeList = [startTime + DT.timedelta(seconds=tt) for tt in reltime]
+    WLpacket = prepdata.prep_WL(rawWL,wlTimeList)
+    windTimeList= [startTime + DT.timedelta(seconds=tt) for tt in reltime]
+    windpacket = prepdata.prep_wind(rawwind, windTimeList, model=model)  # vector average, rotate winds, correct to 10m
+
+    # pull the stuff I need out of the dict
+    timerun = inputDict['simulationDuration']
+    version_prefix = inputDict['modelSettings']['version_prefix']
+    profile_num = inputDict['profileNumber']
+    bathy_loc = inputDict['bathyLoc']
+    workingDir = inputDict['workingDirectory']
+    if 'THREDDS' in inputDict:
+        server = inputDict['THREDDS']
+    else:
+        print('Chosing CHL thredds by Default, this may be slower!')
+        server = 'CHL'
+    # ____________________GENERAL ASSUMPTION VARIABLES__________
+
+    model = 'CSHORE'
+    path_prefix = os.path.join(workingDir, model,  '%s/' % version_prefix)
+    time_step = 1        # time step for model in hours
+    dx = 1               # cross-shore grid spacing (FRF coord units - m)
+    fric_fac = 0.015     # default friction factor
+
+    # ______________________________________________________________________________
+    # _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+    # Time Stuff!
+    if type(timerun) == str:
+        timerun = int(timerun)
+    #start_time = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
+    start_time = startTime
+    bathy_loc_List = np.array(['integrated_bathy', 'survey'])
+
+    assert start_time.minute == 0 and start_time.second == 0 and start_time.microsecond == 0, 'Your simulation must start on the hour!'
+
+    end_time = start_time + DT.timedelta(days=0, hours=timerun) # removed for ilab=1 , minutes=1)
+    print(end_time)
+    date_str = start_time.strftime('%Y-%m-%dT%H%M%SZ')
+    # start making my metadata dict
+    #meta_dict = {'startTime': DT.datetime.strftime(startTime,'%Y-%m-%dT%H:%M:%SZ'),
+    #             'timerun': timerun,
+    #             'time_step': time_step,
+    #             'dx': dx,
+    #             'fric_fac': fric_fac,
+    #             'version': version_prefix}
+    #ftime = timerun * 3600  # [sec] final time, dictates model duration
+    #dt = time_step * 3600  # time interval (sec) for wave and water level conditions
+    #BC_dict = {'timebc_wave': np.arange(0, ftime + dt, dt)}
+
+    bathypacket = prepdata.prep_CSHOREbathy(rawBathy, bathy_loc, dx, wavepacket, profile_num=profile_num,fric_fac=fric_fac)
+    # ______________________________________________________________________________
+    # __________________Make Diretories_____________________________________________
+    #if not os.path.exists(path_prefix + date_str):  # if it doesn't exist
+    #    os.makedirs(path_prefix + date_str)  # make the directory
+    #if not os.path.exists(path_prefix + date_str + "/figures/"):
+    #    os.makedirs(path_prefix + date_str + "/figures/")
+
+    print("Model Time Start : %s  Model Time End:  %s" % (start_time, end_time))
+    #print("Files will be placed in {0} folder".format(path_prefix + date_str))
+
+    return wavepacket, windpacket, WLpacket, bathypacket, rawCTD, wrr
 

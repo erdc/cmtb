@@ -36,7 +36,7 @@ def SwashSimSetup(startTime, inputDict):
 
     """
     # begin by setting up input parameters
-    model = inputDict['modelSettings'].get('model')
+    model = inputDict['modelSettings'].get('model', 'swash')
     runtime = inputDict.get('simulationDuration', 1)
     plotFlag = inputDict.get('plotFlag', True)
     # this raises error if not present (intended)
@@ -78,7 +78,7 @@ def SwashSimSetup(startTime, inputDict):
     assert 'time' in rawspec, "\n++++\nThere's No Wave data between %s and %s \n++++\n" % (d1, d2)
     # preprocess wave spectra
     if version_prefix.lower() == 'base':
-        wavepacket = prepdata.prep_SWASH_spec(rawspec, version_prefix, runDuration=runtime)
+        wavepacket = prepdata.prep_spec_phaseResolved(rawspec, version_prefix, runDuration=runtime)
     else:
         raise NotImplementedError('pre-process TS data ')
     # _____________WINDS______________________
