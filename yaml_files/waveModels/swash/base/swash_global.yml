@@ -2,7 +2,7 @@ cdm_data_type: Station
 featureType:  timeSeries
 title: Celeris bousinessq model
 summary: >
-   USACE/CHL/COAB/CMTB run SWASH model.  If you're going to use these data PLEASE contact me, I'm happy to share and work with people, but want to make sure model data are used responsibly
+   USACE/CHL/COAB/CMTB run SWASH model.  If you're going to use these data PLEASE contact me, I'm happy to share and work with people, but want to make sure model data are used responsibly.
 
 source: SWASH 5.01
 sourceUrl:  https://github.com/SasanTV/Celeris

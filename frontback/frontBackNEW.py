@@ -11,6 +11,8 @@ import plotting.operationalPlots as oP
 from testbedutils import sblib as sb
 from testbedutils import waveLib
 from testbedutils import fileHandling
+from prepdata import py2netCDF as p2nc
+from prepdata import postData
 
 def ww3simSetup(startTimeString, inputDict, allWind , allWL, allWave, wrr):
     """This Function is the master call for the  data preparation for the Coastal Model
@@ -120,7 +122,11 @@ def swashSimSetup(startTimeString, inputDict, allWind, allWL, allWave, wrr):
 
     """
     # begin by setting up input parameters
-    runtime = inputDict.get('simulationDuration', 30*60)
+    runtime = inputDict['modelSettings'].get('runDuration', 30*60)
+    dx = inputDict['modelSettings'].get('dx', 1)
+    dy = inputDict['modelSettings'].get('dy', 1)
+    yBounds = inputDict['modelSettings'].get('yBounds', [944, 947])
+    nf = inputDict['modelSettings'].get('nf', 200)
     version_prefix = wrr.versionPrefix
     model = wrr.modelName
     rawspec = allWave
@@ -142,22 +148,25 @@ def swashSimSetup(startTimeString, inputDict, allWind, allWL, allWave, wrr):
 
     prepdata = PrepDataTools()                      # for preprocessing
     gdTB = getDataTestBed(d1, d2)        # for bathy data gathering
+    print('TODO: discussion - currently grabbing bathy in simSetup -- should i be? [frontBackNew.swashSimSetup]')
     # _____________WAVES____________________________
     
     # preprocess wave spectra
-    wavepacket = prepdata.prep_spec_phaseResolved(rawspec, version_prefix, runDuration=runtime*60*60,
+    # idxSim = np.argmin(np.abs(DT.datetime.strptime(startTimeString, '%Y-%m-%dT%H:%M:%SZ') - rawspec['time']))
+    # rawspec = sb.reduceDict(rawspec, idxSim)  # keep only a single simulation
+    wavepacket = prepdata.prep_spec_phaseResolved(rawspec, version_prefix, runDuration=runtime, nf=nf,
                                                   waveTimeList=DT.datetime.strptime(wrr.dateString, wrr.dateStringFmt))
+
     ## ___________WATER LEVEL__________________
     WLpacket = prepdata.prep_WL(rawWL, wavepacket['epochtime'])
     ### ____________ Get bathy grid from thredds ________________
-    bathy = gdTB.getBathyIntegratedTransect(method=1, ybounds=[940, 950])
-    gridDict = prepdata.prep_SwashBathy(wavepacket['xFRF'], wavepacket['yFRF'], bathy, dx=1, dy=1,
-                                                 yBounds=[944, 947])  # non-inclusive index if you want 3 make 4 wide
+    bathy = gdTB.getBathyIntegratedTransect(method=1, ybounds=yBounds)
+    gridDict = prepdata.prep_SwashBathy(wavepacket['xFRF'], wavepacket['yFRF'], bathy, dx=dx, dy=dy,
+                                                 yBounds=yBounds)  # non-inclusive index if you want 3 make 4 wide
     
     return wavepacket, None, WLpacket, gridDict, None, wrr
-    
 
-def genericPostProcess(startTime, inputDict, ww3io):
+def genericPostProcess(startTime, inputDict, spatialData, pointData, wrr):
     """This runs the post process script for Wave Watch 3.
 
      Script will load model output, create netCDF files and make plots of output including basic model-data
@@ -167,7 +176,7 @@ def genericPostProcess(startTime, inputDict, ww3io):
         inputDict (dict): this is an input dictionary that was generated with the
             keys from the project input yaml file
         startTime (str): input start time with datestring in format YYYY-mm-ddThh:mm:ssZ
-        ww3io(class): this is an initialized class from model pre-processing.  This holds specific metadata including
+        wrr(class): this is an initialized class from model pre-processing.  This holds specific metadata including
             class objects as listed below:
 
 
@@ -178,104 +187,97 @@ def genericPostProcess(startTime, inputDict, ww3io):
     """
     # ___________________define Global Variables___________________________________
     plotFlag = inputDict.get('plotFlag', True)
-    model = inputDict.get('model', 'ww3')
-    version_prefix = ww3io.version_prefix
-    path_prefix = inputDict.get(os.path.join('path_prefix', "{}".format(version_prefix)), ww3io.path_prefix)
-    simulationDuration = inputDict['simulationDuration']
-    Thredds_Base = inputDict.get('netCDFdir', '/home/{}/thredds_data/'.format(check_output('whoami', shell=True)[:-1]))
-
+    model = wrr.modelName
+    path_prefix = wrr.workingDirectory
+    # simulationDuration = inputDict['simulationDuration']
+    Thredds_Base = inputDict.get('netCDFdir', wrr.workingDirectory)
+    # version_prefix = inputDict['modelSettings'].get('version_prefix', 'base').lower()
+    # grid = inputDict['modelSettings'].get('grid').lower()
+    # endTime = inputDict['endTime']
+    # startTime = inputDict['startTime']
+    # simulationDuration = inputDict['simulationDuration']
+    # workingDir = inputDict['workingDirectory']
+    # generateFlag = inputDict['generateFlag']
+    # runFlag = inputDict['runFlag']
+    # analyzeFlag = inputDict['analyzeFlag']
+    # plotFlag = inputDict['plotFlag']
+    # model = inputDict.get('modelName', 'FUNWAVE').lower()
+    # inputDict['path_prefix'] = os.path.join(workingDir, model, version_prefix)
+    #
+    # path_prefix = inputDict['path_prefix']
     # _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
     # establishing the resolution of the input datetime
     # try:
-    d1 = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
-    d2 = d1 + DT.timedelta(0, simulationDuration * 3600, 0)
-    dateString = d1.strftime('%Y-%m-%dT%H%M%SZ')  # a string for file names
-    fpath = os.path.join(path_prefix, dateString)
+    projectStart = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
+    projectEnd = DT.datetime.strptime(inputDict['endTime'], '%Y-%m-%dT%H:%M:%SZ')
+    dateString = wrr.dateString  # a string for file names
+    fpath = wrr.workingDirectory
 
-    # ____________________________________________________________________________
-    if version_prefix == 'base':
-        full = True   # define full plane
     # _____________________________________________________________________________
-    print('\nBeginning of Analyze Script\nLooking for file in {}'.format(simulationDirectory))
-    print('\nData Start: {}  Finish: {}'.format(d1, d2))
-    print('Analyzing simulation')
-    # go = getDataFRF.getObs(d1, d2, server)  # setting up get data instance
-    prepdata = PrepDataTools()  # initializing instance for rotation scheme
-    ######################################################################################################################
-    ######################################################################################################################
-    ##################################   Load Data Here / Massage Data Here   ############################################
-    ######################################################################################################################
-    ######################################################################################################################
-    t = DT.datetime.now()
-    print('Loading files ')
-    savePointFname = os.path.join(ww3io.path_prefix, "ww3.{}_spec.nc".format(DT.datetime.strptime(ww3io.dateString,
-                                                                                  '%Y-%m-%dT%H%M%SZ').strftime('%Y%m')))
-    pointNc = nc.Dataset(savePointFname)                                                         # load point file
-    fieldNc = ww3io.readWW3_field()                                                              # load all files
-    bathyPacket = ww3io.readWW3_msh()                                                            # load bathy as input
-    print('Loaded files in {:.2f} seconds'.format((DT.datetime.now() - t).total_seconds()/60))
+    version_prefix = fileHandling.checkVersionPrefix(model, inputDict)
+    # define based on model name what postprocessing switches need to be turned on/off
+    postProcessingDict = fileHandling.modelPostProcessCheck(model)
+    
+    # __________________________1. post process ____________________________________
+    if postProcessingDict['phaseResolved'] == True:
+        spatialPostProcessed = postData.processNLwave(spatialData, wrr=wrr, ncFilesOnly=False)
+        pointPostProcessed = None
+    else:
+        spatialPostProcessed, pointPostProcessed = someFunctionPostProcesing(spatialData, pointData)
+    
+    # __________________________2. make netCDF Files________________________________
+    # __________________________2a. Spatial output _________________________________
 
-    ##### point file processing
-    idxSorted = np.argsort(pointNc['direction'][:])
-    dWEDout = pointNc['efth'][:, :, :, idxSorted]
-
-    for ss, station in enumerate(nc.chartostring(pointNc['station_name'][:])):
-        stats = waveLib.waveStat(dWEDout[:,1],frqbins=pointNc['frequency'][:], dirbins=pointNc['direction'][:])
-        out = {'waveHs': stats['Hm0'],
-               'time': nc.date2num(nc.num2date(pointNc['time'][:], pointNc['time'].units), 'seconds since 1970-01-01'),
-               'waveTm': stats['Tm'],
-               'waveDm': stats['Dm'],
-               'waveTp': stats['Tp'],
-               'waterLevel': np.ones_like(stats['Hm0']) * -999,
-               'windSpeed': pointNc['wnd'][:, ss],
-               'windDirection': pointNc['wnddir'][:, ss],
-               'currentSpeed': pointNc['cur'][:, ss],
-               'currentDirection': pointNc['curdir'][:, ss],
-               'flags': np.ones_like(stats['Hm0']) * -999,
-               'longitude': pointNc['longitude'][0, ss],        # assume static location
-               'latitude': pointNc['latitude'][0, ss],          # assume static location
-               'waveDirectionBins': pointNc['direction'][:],
-               'waveFrequency': pointNc['frequency'][:],
-               'directionalWaveEnergyDensity': dWEDout[:,ss],
-               'station_name': station
-               }
+    if spatialPostProcessed is not None:
         fldrArch = os.path.join(model, version_prefix)
-        varYaml_fname = 'yaml_files/waveModels/{}/Station_var.yml'.format(fldrArch)
-        globalyaml_fname = 'yaml_files/waveModels/{}/Station_globalmeta.yml'.format(fldrArch)
-        outFileName = fileHandling.makeTDSfileStructure(Thredds_Base, fldrArch, datestring, station)
-        p2nc.makenc_generic(outFileName, globalyaml_fname, varYaml_fname, out)
+        fieldYaml = f'yaml_files/waveModels/{fldrArch}/{wrr.modelName}_global.yml'
+        varYaml = f'yaml_files/waveModels/{wrr.modelName}/{wrr.modelName}_var.yml'
+        fieldOfname = fileHandling.makeTDSfileStructure(Thredds_Base, fldrArch, dateString, 'Field')
+        p2nc.makenc_generic(fieldOfname, globalYaml=fieldYaml, varYaml=varYaml, data=spatialPostProcessed)
+    # __________________________2aa. Spatial plotting ________________________________
+        ncfile = nc.Dataset(fieldOfname)
+        if postProcessingDict['phaseResolved'] == True:
+            # remove any plots in the plotting folder first
+            [os.remove(ff) for ff in glob.glob(wrr.plottingDirectory +'*.png')]
+            oP.makeCrossShoreTimeSeriesPlotAndMovie(ncfile, plottingDirectory=wrr.plottingDirectory,
+                                                     versionPrefix=wrr.versionPrefix, yBounds=[0,250])
+            ofname = os.path.join(wrr.plottingDirectory, f'CMTB_{wrr.modelName}_'
+                                                         f'{wrr.versionPrefix}_CrossShoreSummary.png')
+            oP.plotCrossShoreSummaryTS(ofname, ncfile, Hs_ss=spatialPostProcessed['X_statsSS']['Hm0'], WL=np.nan)
+            ofname = os.path.join(wrr.plottingDirectory, f'CMTB_{wrr.modelName}_{wrr.versionPrefix}_spectrograph.png')
+            
+            oP.crossShoreSpectrograph(ofname, ncfile['xFRF'][:].squeeze(), ncfile['waveFrequency'][:].squeeze(),
+                                      ncfile['waveEnergyDensity'][:].squeeze())
+            ofname = os.path.join(wrr.plottingDirectory, f'CMTB_{wrr.modelName}_'
+                                                         f'{wrr.versionPrefix}_2DsurfaceTimeSeries.png')
+            oP.crossShoreSurfaceTS2D(ofname, ncfile['eta'][:].squeeze(), ncfile['xFRF'][:].squeeze(), ncfile['tsTime'][
+                                                                                                      :].squeeze())
 
-    ##### Field file processing
-    out = {'time':            nc.date2num(nc.num2date(fieldNc['time'][:], fieldNc['time'].units), 'seconds since 1970-01-01'),
-           'latitude':        fieldNc['latitude'][:],
-           'longitude':       fieldNc['longitude'][:],
-           'meshName':        -999,
-           'connectivity':    fieldNc['tri'][:],
-           'three':           np.ones((3)) * -999,
-           'nfaces':          np.arange(fieldNc['tri'].shape[0], dtype=int),
-           'nnodes':          np.arange(fieldNc.dimensions['node'].size, dtype=int),
-           'xFRF':            np.ones_like(fieldNc['latitude'][:]) * -999,
-           'yFRF':            np.ones_like(fieldNc['latitude'][:]) * -999,
-           'waveHs':          np.ma.masked_array(fieldNc['hs'][:], mask=fieldNc['hs']._FillValue),
-           'bathymetry':      bathyPacket['points'][:,2],  # doesn't need to be expanded into time dimension
-           'waveTm':          fieldNc['t02'][:],
-           'waveDm':          fieldNc['dir'][:],
-           'dynamicTimeStep': fieldNc['dtd'][:] * 60,  # convert to seconds
-           'mapStatus':       fieldNc['MAPSTA'][:]
-           }
-    fieldYaml = 'yaml_files/waveModels/%s/Field_globalmeta.yml' % (fldrArch)  # field
-    varYaml = 'yaml_files/waveModels/%s/Field_var.yml' % (fldrArch)
-    fieldOfname = fileHandling.makeTDSfileStructure(Thredds_Base, fldrArch, datestring, 'Field')
-    p2nc.makenc_generic(fieldOfname, globalYaml=fieldYaml, varYaml=varYaml, data=out)
-    
-    
-    ncfile = nc.Dataset(fieldOfname)
-    variables = ncfile.variables.keys()
-    for var in variables:
-        if var in ['waveHs', 'waveDm', 'waveTm'] and plotFlag is True:
-            plotOutFname = 'test.png'
-            oP.unstructuredSpatialPlot(plotOutFname, fieldNc=ncfile, variable=var)
-    
+        elif postProcessingDict['phaseAveraged'] is True:
+            variables = ncfile.variables.keys()
+            for var in variables:
+                if var in ['waveHs', 'waveDm', 'waveTm'] and plotFlag is True:
+                    plotOutFname = 'test.png'
+                    oP.unstructuredSpatialPlot(plotOutFname, fieldNc=ncfile, variable=var)
+        else:
+            raise NotImplementedError("other model plotting types haven't been implemented yet")
+    # __________________________2b. point output _________________________________
+    if pointPostProcessed is not None:
+        print(' post-processing point data is not developed yet')
+        fldrArch = os.path.join(model, version_prefix)
+        varYaml_fname = f'yaml_files/waveModels/{fldrArch}/Station_var.yml'
+        globalyaml_fname = f'yaml_files/waveModels/{fldrArch}/Station_globalmeta.yml'
+        # frame work is shown below, post processing lays out nice nested dictionary for every save station
+        for ss, station in enumerate(pointPostProcessed['stationList']):
+            outFileName = fileHandling.makeTDSfileStructure(Thredds_Base, fldrArch, dateString, station)
+            p2nc.makenc_generic(outFileName, globalyaml_fname, varYaml_fname, pointPostProcessed[ss])
+    # __________________________2bb. point plotting ________________________________
+        print("is this necessary??")
+        
+
+   
+
+   
 
 def cshoreSimSetup(startTimeString, inputDict, allWave, allBathy, allWL, allWind, allCTD, wrr):
     """Author: David Young

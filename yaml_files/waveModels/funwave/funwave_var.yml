@@ -1,8 +1,8 @@
 ## hopefully this is used for all phase resolving wave modeling done in test bed
 
-_variables: ['time','station_name', 'tsTime',  'xFRF', 'yFRF', 'totalWaterLevel', 'waveHs', 'waveHsIG', 'totalWaterLevelTS','eta','velocityU','velocityV', 'runTime', 'nProcess']
+_variables: ['time','station_name', 'tsTime',  'xFRF', 'yFRF', 'waveHs', 'waveHsIG','elevation', 'totalWaterLevel', 'totalWaterLevelTS', 'waveEnergyDensity', 'waveFrequency', 'eta','velocityU', 'velocityV', 'runTime', 'nProcess']
 _attributes: []
-_dimensions: ['station_name_length', 'time', 'tsTime', 'xFRF', 'yFRF']
+_dimensions: ['station_name_length', 'time', 'tsTime', 'xFRF', 'yFRF', 'waveFrequency']
 
 time:
     name: 'time'
@@ -105,6 +105,37 @@ totalWaterLevel:
         'Two-percent exceedence elevation of total water level (runup + setup +
         surge + tide). Elevations reflect the instantaneous water level elevation
         -- surge and tide components have not been removed'
+elevation:
+  name: 'elevation'
+  units: 'meters NAVD88'
+  standard_name: ''
+  long_name: 'elevation'
+  data_type: 'f8'
+  coordinates: 'time'
+  dim: ['time', 'xFRF']
+  fill_value: '-999.99'
+  short_name: 'Elevation'
+
+waveEnergyDensity:
+  name: 'waveEnergyDensity'
+  units: 'm2 s deg-1'
+  data_type: 'f8'
+  standard_name: 'sea_surface_wave_variance_spectral_density'
+  long_name: 'spectral energy density'
+  short_name: 'freqSpec'
+  fill_value: '-999'
+  dim: ['time','xFRF', 'waveFrequency']
+  description: 'the spectrum output, processed with welch method bandAvg = 1, overlap=0.5, windowLength=10'
+
+waveFrequency:
+  name: 'waveFrequency'
+  units: 's-1'
+  fill_value: '-999'
+  data_type: 'f8'
+  standard_name: 'wave_frequency'
+  long_name: 'Band center frequency'
+  dim: ['waveFrequency']
+  short_name: 'Frequency'
 
 totalWaterLevelTS:
     name: 'totalWaterLevelTS'

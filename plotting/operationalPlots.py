@@ -4,7 +4,7 @@ import numpy as np
 from matplotlib import image, tri
 import matplotlib.dates as mdates
 import matplotlib.image as image
-import os, math
+import os, math, glob
 from scipy.interpolate import interpn, RectBivariateSpline
 from getdatatestbed.getDataFRF import getObs
 from testbedutils import sblib as sb
@@ -12,6 +12,8 @@ from testbedutils.anglesLib import vectorRotation
 import cartopy.crs as ccrs
 import os, pandas
 from testbedutils.sblib import statsBryant
+import netCDF4 as nc
+from matplotlib import colors
 
 def unstructuredSpatialPlot(outFname, fieldNc, variable='waveHs', **kwargs):
     """Plots unstructured data from open netCDF file
@@ -83,6 +85,31 @@ def unstructuredSpatialPlot(outFname, fieldNc, variable='waveHs', **kwargs):
         plt.tight_layout()
         plt.savefig(outFname)
 
+def makeCrossShoreTimeSeriesPlotAndMovie(ncfile, **kwargs):
+    
+    pathBase = kwargs.get('plottingDirectory', '.')
+    nSubSample = kwargs.get('nSubSample', 5)   # data are output at high rate, how often do we want to plot
+    version_prefix = kwargs.get('versionPrefix', 'base')
+    yBounds = kwargs.get('yBounds', None)
+    fnameBase = kwargs.get('fnameBase', f'CMTB_phaseResolved_TimeSeries_{version_prefix}')
+    time = ncfile['tsTime'][:]
+    eta = ncfile['eta'][:].squeeze()
+    bathy = ncfile['elevation'][:].squeeze()
+    xFRF = ncfile['xFRF'][:]
+    imgList = []
+    for tidx in np.arange(0, len(time), nSubSample).astype(int):
+        ofPlotName = os.path.join(pathBase, fnameBase + f'_{time[tidx]:08}.png')
+        generate_CrossShoreTimeseries(ofPlotName, eta[tidx], bathy, xFRF, yBounds=yBounds)
+        imgList.append(ofPlotName)
+    # now make gif of waves moving across shore
+    dt = np.median(np.diff(time))
+    outfname = os.path.join(pathBase, fnameBase + '.gif')
+    sb.makegif(imgList, outfname, dt=dt/nSubSample)
+    sb.myTarMaker(os.path.join(pathBase, fnameBase + '.tar.gz'), imgList)
+    if yBounds is not None:
+        imgList = sorted(glob.glob(os.path.join(pathBase, fnameBase+'*.png')))
+        sb.makegif(imgList, imgList[0].split('.png')[0]+'.gif', dt=dt/nSubSample)
+        sb.myTarMaker(os.path.join(pathBase, fnameBase + '.tar.gz'), imgList)
 
 # these are all the ones that were formerly in plotFunctions.py
 def plotTripleSpectra(fnameOut, time, Hs, raw, rot, interp, full=False):
@@ -2185,6 +2212,7 @@ def generate_CrossShoreTimeseries(ofname, dataIn, bottomIn, xIn, **kwargs):
         a plot
 
     """
+    yBounds = kwargs.get('yBounds', None)
     figsize = kwargs.get('figsize', (8,4))
     beachColor = 'wheat'
     skyColor = 'aquamarine'
@@ -2196,18 +2224,23 @@ def generate_CrossShoreTimeseries(ofname, dataIn, bottomIn, xIn, **kwargs):
     plt.figure(figsize=figsize)
     ax1 = plt.subplot(111)
     ax1.set_facecolor(skyColor)
-    ax1.plot(xIn, dataIn)  # plot water line
+    ax1.plot(xIn, dataIn, color=waterColor)  # plot water line
     ax1.plot(xIn, bottomIn, color=beachColor)  # plot beach
     ax1.fill_betweenx(bottomIn, xIn, color=beachColor)  # fill in beach
     ax1.fill_between(xIn, bottomIn, dataIn, color=waterColor)  # fill in water
     ax1.set_xlim([np.min(xIn), np.max(xIn)])
     ax1.set_ylim([np.min(bottomIn), np.max(bottomIn) + 0.5])
-
+    ax1.set_xlabel('x')
+    ax1.set_ylabel('elevation')
     plt.savefig(ofname)
+    
+    if yBounds is not None:
+        ax1.set_xlim(yBounds)
+        plt.savefig(f"{ofname.split('.png')[0]}_yMin{yBounds[0]}_yMax{yBounds[-1]}.png")
     plt.close()
 
 
-def plotCrossShoreSummaryTS(ofname, xFRF, bathy, totalStatisticDict, SeaSwellStats, IGstats, setup, WL, **kwargs):
+def plotCrossShoreSummaryTS(ofname, ncfile=None, **kwargs):
     """ plots a 4 panel plot summary of cross-shore performance of model that can resolve IG
 
     Args:
@@ -2228,9 +2261,25 @@ def plotCrossShoreSummaryTS(ofname, xFRF, bathy, totalStatisticDict, SeaSwellSta
 
     """
     obs = kwargs.get('obs', None)
-    HsTS = kwargs.get('HsTs', None)
+    
     fs = kwargs.get('fontSize', 12)
     var = kwargs.get('plotVar', 'Hm0')
+    if ncfile is None:
+        xFRF = kwargs.get('xFRF', None)
+        totalStatisticDict = kwargs.get('totalStatisticDict', None)
+        SeaSwellStats = kwargs.get('Hs_ss', None)
+        IGstats = kwargs.get('IGstats', None)
+        setup = kwargs.get('setup', None)
+        WL = kwargs.get('WL', None)
+    else:
+        xFRF = ncfile['xFRF'][:].squeeze()
+        bathy = ncfile['elevation'][:].squeeze()
+        Hs_total = ncfile['waveHs'][:].squeeze()
+        Hs_ss= kwargs.get('Hs_ss', np.ma.empty_like(xFRF))
+        Hs_IG = ncfile['waveHsIG'][:].squeeze()
+        setup = np.nanmean(ncfile['eta'][:].squeeze(), axis=0)
+        WL = kwargs.get('WL', None)
+    
     beachColor = 'wheat'
     waterColor = 'aquamarine'
     setupColor = 'green'
@@ -2242,24 +2291,23 @@ def plotCrossShoreSummaryTS(ofname, xFRF, bathy, totalStatisticDict, SeaSwellSta
     ########### make Figure ########################
     plt.figure(figsize=figsize);
     ax1 = plt.subplot(int(size + '1'))
-    if HsTS is not None:
-        ax1.plot(xFRF, HsTS, label='$Hs_{Ts}$')
-    ax1.plot(xFRF, totalStatisticDict[var], label='$Hs_{Total}$')
-    ax1.plot(xFRF, SeaSwellStats[var], label='$Hs_{seaSwell}$')
-    ax1.plot(xFRF, IGstats[var], label='$Hs_{IG}$')
+
+    ax1.plot(xFRF, Hs_total, label='$Hs_{Total}$')
+    ax1.plot(xFRF, Hs_ss, label='$Hs_{seaSwell}$')
+    ax1.plot(xFRF, Hs_IG, label='$Hs_{IG}$')
     ax1.legend(loc='upper left', fontsize=fs)
     ax1.set_ylabel('Wave Height $[m]$', fontsize=fs)
 
     ax2 = plt.subplot(int(size + '2'))
-    ax2.plot(xFRF, IGstats[var], label='$Hs_{IG}$')
+    ax2.plot(xFRF, Hs_IG, label='$Hs_{IG}$')
     ax2.set_ylabel('IG wave Height', fontsize=fs)
 
     ax3 = plt.subplot(int(size + '3'))
     ax3.plot(xFRF, setup)
-    ax3.set_ylabel('$\eta$', fontsize=fs)
+    ax3.set_ylabel('$setup$', fontsize=fs)
 
     ax4 = plt.subplot(int(size + '4'))
-    ax4.plot(xFRF, -bathy,'-', lw=7, color=beachColor)
+    ax4.plot(xFRF, bathy, '-', lw=7, color=beachColor)
     ax4.plot(xFRF, np.tile(WL, (xFRF.shape[0])), color=waterColor, label='Water Level')
     ax4.plot(xFRF, setup, color=setupColor, label='TWL')
     ax4.set_ylabel('Z NAVD88 - [m]')
@@ -2280,9 +2328,14 @@ def crossShoreSurfaceTS2D(ofname, eta, xFRF, time):
     Returns:
 
     """
-    eta= eta.squeeze()
+    eta = eta.squeeze()
     plt.figure()
-    plt.pcolormesh(xFRF, time, eta, cmap='RdBu')
+    surf = plt.pcolormesh(xFRF, time, eta, cmap='RdBu', norm=colors.TwoSlopeNorm(vcenter=0))
+    cbar = plt.colorbar(mappable=surf)
+    cbar.set_label('Water Elevation')
+    plt.xlabel('Cross-shore Position [m]')
+    plt.ylabel('time [s]')
+    plt.tight_layout()
     plt.savefig(ofname)
     plt.close()
 
@@ -2302,11 +2355,14 @@ def crossShoreSpectrograph(ofname, xFRF, freqs, fspec, **kwargs):
 
     """
     ylims = kwargs.get('ylims', (0, 0.4))
-    plt.figure();
+    plt.figure()
     plt.pcolormesh(xFRF, freqs, fspec.T)
-    plt.colorbar()
-    plt.ylabel('frequency', fontsize=12)
-    plt.xlabel('cross-shore location', fontsize=12)
+    a = plt.colorbar()
+    plt.yscale('log')
+    a.set_label('Energy Density $[m^2/s]$')
+    plt.ylabel('Frequency', fontsize=12)
+    plt.xlabel('Cross-shore location', fontsize=12)
     plt.ylim(ylims)
+    plt.tight_layout()
     plt.savefig(ofname);
     plt.close();
