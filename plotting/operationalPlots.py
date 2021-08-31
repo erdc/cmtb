@@ -86,11 +86,11 @@ def unstructuredSpatialPlot(outFname, fieldNc, variable='waveHs', **kwargs):
         plt.savefig(outFname)
 
 def makeCrossShoreTimeSeriesPlotAndMovie(ncfile, **kwargs):
-    
+    figsize = kwargs.get('figsize', (8,4))
     pathBase = kwargs.get('plottingDirectory', '.')
     nSubSample = kwargs.get('nSubSample', 5)   # data are output at high rate, how often do we want to plot
     version_prefix = kwargs.get('versionPrefix', 'base')
-    yBounds = kwargs.get('yBounds', None)
+    xBounds = kwargs.get('xBounds', None)
     fnameBase = kwargs.get('fnameBase', f'CMTB_phaseResolved_TimeSeries_{version_prefix}')
     time = ncfile['tsTime'][:]
     eta = ncfile['eta'][:].squeeze()
@@ -99,14 +99,14 @@ def makeCrossShoreTimeSeriesPlotAndMovie(ncfile, **kwargs):
     imgList = []
     for tidx in np.arange(0, len(time), nSubSample).astype(int):
         ofPlotName = os.path.join(pathBase, fnameBase + f'_{time[tidx]:08}.png')
-        generate_CrossShoreTimeseries(ofPlotName, eta[tidx], bathy, xFRF, yBounds=yBounds)
+        generate_CrossShoreTimeseries(ofPlotName, eta[tidx], bathy, xFRF, yBounds=xBounds, figsize=figsize)
         imgList.append(ofPlotName)
     # now make gif of waves moving across shore
     dt = np.median(np.diff(time))
     outfname = os.path.join(pathBase, fnameBase + '.gif')
     sb.makegif(imgList, outfname, dt=dt/nSubSample)
     sb.myTarMaker(os.path.join(pathBase, fnameBase + '.tar.gz'), imgList)
-    if yBounds is not None:
+    if xBounds is not None:
         imgList = sorted(glob.glob(os.path.join(pathBase, fnameBase+'*.png')))
         sb.makegif(imgList, imgList[0].split('.png')[0]+'.gif', dt=dt/nSubSample)
         sb.myTarMaker(os.path.join(pathBase, fnameBase + '.tar.gz'), imgList)
@@ -2354,7 +2354,7 @@ def crossShoreSpectrograph(ofname, xFRF, freqs, fspec, **kwargs):
         a plot
 
     """
-    ylims = kwargs.get('ylims', (0, 0.4))
+    ylims = kwargs.get('ylims', (freqs[0], 0.4))
     plt.figure()
     plt.pcolormesh(xFRF, freqs, fspec.T)
     a = plt.colorbar()

@@ -211,7 +211,6 @@ def genericPostProcess(startTime, inputDict, spatialData, pointData, wrr):
     projectStart = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
     projectEnd = DT.datetime.strptime(inputDict['endTime'], '%Y-%m-%dT%H:%M:%SZ')
     dateString = wrr.dateString  # a string for file names
-    fpath = wrr.workingDirectory
 
     # _____________________________________________________________________________
     version_prefix = fileHandling.checkVersionPrefix(model, inputDict)
@@ -240,7 +239,7 @@ def genericPostProcess(startTime, inputDict, spatialData, pointData, wrr):
             # remove any plots in the plotting folder first
             [os.remove(ff) for ff in glob.glob(wrr.plottingDirectory +'*.png')]
             oP.makeCrossShoreTimeSeriesPlotAndMovie(ncfile, plottingDirectory=wrr.plottingDirectory,
-                                                     versionPrefix=wrr.versionPrefix, yBounds=[0,250])
+                                                     versionPrefix=wrr.versionPrefix, xBounds=[0,250], figsize=(6,3))
             ofname = os.path.join(wrr.plottingDirectory, f'CMTB_{wrr.modelName}_'
                                                          f'{wrr.versionPrefix}_CrossShoreSummary.png')
             oP.plotCrossShoreSummaryTS(ofname, ncfile, Hs_ss=spatialPostProcessed['X_statsSS']['Hm0'], WL=np.nan)

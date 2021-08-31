@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import matplotlib
-# matplotlib.use('Agg')
+matplotlib.use('Agg')
 import os, getopt, sys, shutil, glob, logging, yaml, re, pickle
 import datetime as DT
 import numpy as np
@@ -108,21 +108,24 @@ def Master_workFlow(inputDict):
                                                                                                      wrr=wrr)
                 
             elif modelName in ['swash']:
-                wrr = wrrClass.swashIO(fNameBase=dateString, versionPrefix=version_prefix,
-                                       startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
-                                       simulatedRunTime=inputDict['simulationDuration'],
-                                       endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(
-                                           hours=inputDict['simulationDuration']), runFlag=runFlag,
-                                       generateFlag=generateFlag, readFlag=analyzeFlag,
-                                       newModelParams=inputDict['modelSettings'])
+
                 if generateFlag is True:
+                    wrr = wrrClass.swashIO(fNameBase=dateString, versionPrefix=version_prefix,
+                                           startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
+                                           simulatedRunTime=inputDict['simulationDuration'],
+                                           endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(
+                                               hours=inputDict['simulationDuration']), runFlag=runFlag,
+                                           generateFlag=generateFlag, readFlag=analyzeFlag,
+                                           newModelParams=inputDict['modelSettings'])
                     wavePacket, windPacket, wlPacket, bathyPacket, gridFname, wrr = frontBackNEW.swashSimSetup(time,
                                                                                                      inputDict=inputDict,
                                                                                                      allWind=rawwind,
                                                                                                      allWL=rawWL,
                                                                                                      allWave=rawspec,
                                                                                                      wrr=wrr)
-
+                else:
+                    wrr = pickle.load(open(os.path.join(workingDirectory,f"{dateString}_io.pickle"), 'rb'),
+                                      protocol=pickle.HIGHEST_PROTOCOL)
             elif modelName in ['cshore']:
                 wrr = wrrClass.cshoreio(workingDirectory=workingDirectory,testName=testName, versionPrefix=version_prefix,
                                        startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
@@ -168,22 +171,30 @@ def Master_workFlow(inputDict):
                 wrr.runSimulation(modelExecutable=inputDict['modelExecutable'])
             
             # post process (as appropriate)
-            #spatialData, savePointData = wrr.readAllFiles()
-
             if analyzeFlag == True:
                 spatialData, savePointData = wrr.readAllFiles()
                 frontBackNEW.genericPostProcess(time, inputDict, spatialData=spatialData, pointData=savePointData,
                                                 wrr=wrr)
 
             # if it's a live run, move the plots to the output directory
-            if plotFlag is True and DT.date.today() == projectEnd:
-                # move files
-                moveFnames = glob.glob(cmtbRootDir + 'cmtb*.png')
-                moveFnames.extend(glob.glob(cmtbRootDir + 'cmtb*.gif'))
-                liveFileMoveToDirectory = '/mnt/gaia/cmtb'
-                for file in moveFnames:
-                    shutil.move(file,  liveFileMoveToDirectory)
-                    print('moved {} to {} '.format(file, liveFileMoveToDirectory))
+            if plotFlag is True and DT.date.today() == projectEnd or inputDict['slack'] is not None:
+                from testbedutils import cmtbSlack
+                moveFnames = glob.glob(wrr.plottingDirectory + '/CMTB*.png')
+                moveFnames.extend(glob.glob(wrr.plottingDirectory + '/CMTB*.gif'))
+
+                if inputDict['slack'] is not None:
+                    myslack = cmtbSlack.slack('testbedutils/slackSettings.yml')  # initialize
+                    myslack.postMessageWithFiles(f"checkout {wrr.modelName} simulations from {wrr.dateString}",
+                                                 moveFnames)
+                   
+                else:
+                    # move files
+                    moveFnames = glob.glob(wrr.plottingDirectory + 'CMTB*.png')
+                    moveFnames.extend(glob.glob(wrr.plottingDirectory + '/CMTB*.gif'))
+                    liveFileMoveToDirectory = '/mnt/gaia/cmtb'
+                    for file in moveFnames:
+                        shutil.move(file,  liveFileMoveToDirectory)
+                        print('moved {} to {} '.format(file, liveFileMoveToDirectory))
             print('------------------SUCCESS-----------------------------------------')
 
         except Exception as e:
