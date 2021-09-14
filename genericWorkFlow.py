@@ -86,7 +86,7 @@ def Master_workFlow(inputDict):
             # load the instance of wrr # TBD later on what will control this
             # are there other things we need to load?
 
-            print("TODO: Ty here you are creating a function that initalizes wrr and preps irregardless of model")
+            print("TODO: Ty here you are creating a function that initializes wrr and preps irregardless of model")
             if modelName in ['ww3']:
                 wrr = wrrClass.ww3io(workingDirectory=workingDirectory,testName=testName, versionPrefix=version_prefix,
                                      startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
