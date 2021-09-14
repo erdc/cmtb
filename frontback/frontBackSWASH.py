@@ -159,7 +159,6 @@ def SwashAnalyze(startTime, inputDict, swio):
     go = getDataFRF.getObs(d1, d2)  # setting up get data instance
     prepdata = STPD.PrepDataTools()         # initializing instance for rotation scheme
     SeaSwellCutoff = 0.05
-    nSubSample = 5                          # data are output at high rate, how often do we want to plot
 
     ######################################################################################################################
     ######################################################################################################################
