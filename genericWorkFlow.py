@@ -41,7 +41,7 @@ def Master_workFlow(inputDict):
     cmtbRootDir = os.getcwd()  # location of working directory
     if workingDir[0] == '.':
         #make absolute path for easier bookkeeping- remove the ./ on relative path
-        workingDirectory = os.path.join(cmtbRootDir,workingDir[2:],modelName.lower(), version_prefix)
+        workingDirectory = os.path.join(cmtbRootDir, workingDir[2:], modelName.lower(), version_prefix)
     else:
         workingDirectory = os.path.join(workingDir, modelName.lower(), version_prefix)
     inputDict['netCDFdir'] = os.path.join(inputDict['netCDFdir'], 'waveModels')
@@ -124,7 +124,7 @@ def Master_workFlow(inputDict):
                                                                                                      allWave=rawspec,
                                                                                                      wrr=wrr)
                 else:
-                    wrr = pickle.load(open(os.path.join(workingDirectory,f"{dateString}_io.pickle"), 'rb'),
+                    wrr = pickle.load(open(os.path.join(workingDirectory, f"{dateString}_io.pickle"), 'rb'),
                                       protocol=pickle.HIGHEST_PROTOCOL)
             elif modelName in ['cshore']:
                 wrr = wrrClass.cshoreio(workingDirectory=workingDirectory,testName=testName, versionPrefix=version_prefix,

@@ -208,8 +208,8 @@ def genericPostProcess(startTime, inputDict, spatialData, pointData, wrr):
     # _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
     # establishing the resolution of the input datetime
     # try:
-    projectStart = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
-    projectEnd = DT.datetime.strptime(inputDict['endTime'], '%Y-%m-%dT%H:%M:%SZ')
+    #projectStart = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ')
+    #projectEnd = DT.datetime.strptime(inputDict['endTime'], '%Y-%m-%dT%H:%M:%SZ')
     dateString = wrr.dateString  # a string for file names
 
     # _____________________________________________________________________________
