@@ -49,7 +49,7 @@ runTime:
 nProcess:
   name: 'nProcess'
   dim: ['time']
-  data_type: 'i8'
+  data_type: 'i4'
   units: 'processor'
   description: 'number of processes the simulation is run using'
   fill_value: '-999'
