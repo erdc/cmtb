@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Pre and post processing associated with ww3 model runs."""
 #from prepdata import inputOutput
 from prepdata.prepDataLib import PrepDataTools
@@ -160,7 +161,7 @@ def swashSimSetup(startTimeString, inputDict, allWind, allWL, allWave, wrr):
     ## ___________WATER LEVEL__________________
     WLpacket = prepdata.prep_WL(rawWL, wavepacket['epochtime'])
     ### ____________ Get bathy grid from thredds ________________
-    bathy = gdTB.getBathyIntegratedTransect(method=1, ybounds=yBounds)
+    bathy = gdTB.getBathyIntegratedTransect(method=1, ybounds=yBounds, type='bathyTopo')
     gridDict = prepdata.prep_SwashBathy(wavepacket['xFRF'], wavepacket['yFRF'], bathy, dx=dx, dy=dy,
                                                  yBounds=yBounds)  # non-inclusive index if you want 3 make 4 wide
     
