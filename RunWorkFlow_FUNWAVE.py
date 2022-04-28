@@ -41,7 +41,7 @@ def Master_FUNWAVE_run(inputDict):
     plotFlag = inputDict['plotFlag']
     model = inputDict.get('modelName', 'FUNWAVE').lower()
     inputDict['path_prefix'] = os.path.join(workingDir, model, version_prefix)
-
+    server = inputDict.get('server', None)
     path_prefix = inputDict['path_prefix']
     ensembleNumber = inputDict['modelSettings'].get('ensembleNumber', np.arange(0,1))
     hostfile = inputDict.get('hostFile', '/home/number/cmtb/hostfile-IB_funwave')
@@ -65,8 +65,8 @@ def Master_FUNWAVE_run(inputDict):
     fileHandling.checkVersionPrefix(model, inputDict)
     # ______________________________Get data to run model  _____________________________
     # begin model data gathering
-    go = getDataFRF.getObs(projectStart, projectEnd)                  # initialize get observation class
-    gdTB = getDataFRF.getDataTestBed(projectStart, projectEnd)        # for bathy data gathering
+    go = getDataFRF.getObs(projectStart, projectEnd, server=server)                  # initialize get observation class
+    gdTB = getDataFRF.getDataTestBed(projectStart, projectEnd, server=server)        # for bathy data gathering
 
 
     if version_prefix in ['freq']:
