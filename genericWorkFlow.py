@@ -86,9 +86,8 @@ def Master_workFlow(inputDict):
             # load the instance of wrr # TBD later on what will control this
             # are there other things we need to load?
 
-            print("TODO: we are creating a function that initalizes wrr and preps irregardless of model ["
-                  "genericWorkFlow.master_workFlow]")
-            
+            print("TODO: Ty here you are creating a function that initializes wrr and preps irregardless of model [genericWorkFlow.master_workFlow]")
+
             # need values for all the packets that are maybe not used
             ctdPacket = None
 
