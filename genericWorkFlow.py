@@ -21,14 +21,14 @@ def Master_workFlow(inputDict):
 
     """
     ## unpack input Dictionary
-    testName = inputDict['testName']
+    testName = inputDict.get('testName', None)
     endTime = inputDict['endTime']
     startTime = inputDict['startTime']
     simulationDuration = inputDict['simulationDuration']
     workingDir = inputDict['workingDirectory']
     generateFlag = inputDict['generateFlag']
     runFlag = inputDict['runFlag']
-    pbsFlag = inputDict['pbsFlag']
+    pbsFlag = inputDict('pbsFlag', False)
     analyzeFlag = inputDict['analyzeFlag']
     plotFlag = inputDict['plotFlag']
     modelName = inputDict['modelSettings'].get('modelName', None)
@@ -215,6 +215,8 @@ if __name__ == "__main__":
         if os.path.exists('.cmtbSettings'):
             with open('.cmtbSettings', 'r') as fid:
                 inputDict = yaml.safe_load(fid)
+        else:
+            inputDict= {}
         with open(os.path.join(yamlLoc), 'r') as f:
             a = yaml.safe_load(f)
         inputDict.update(a)
