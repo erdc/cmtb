@@ -120,6 +120,8 @@ def swashSimSetup(startTimeString, inputDict, allWind, allWL, allWave, wrr):
     Args:
         startTimeString (str): this is a string of format YYYY-mm-ddTHH:MM:SSZ (or YYYY-mm-dd) in UTC time
         inputDict (dict): this is a dictionary that is read from the yaml read function
+    Keyword Args:
+        'bathyMethod': 0 for closet in time, 1 closest in history -- why is bathy retrieved in this function
 
     """
     # begin by setting up input parameters
@@ -128,6 +130,7 @@ def swashSimSetup(startTimeString, inputDict, allWind, allWL, allWave, wrr):
     dy = inputDict['modelSettings'].get('dy', 1)
     yBounds = inputDict['modelSettings'].get('yBounds', [944, 947])
     nf = inputDict['modelSettings'].get('nf', 200)
+    bathyMethod = inputDict.get('bathyMethod', 1)
     version_prefix = wrr.versionPrefix
     model = wrr.modelName
     rawspec = allWave
@@ -161,7 +164,7 @@ def swashSimSetup(startTimeString, inputDict, allWind, allWL, allWave, wrr):
     ## ___________WATER LEVEL__________________
     WLpacket = prepdata.prep_WL(rawWL, wavepacket['epochtime'])
     ### ____________ Get bathy grid from thredds ________________
-    bathy = gdTB.getBathyIntegratedTransect(method=1, ybounds=yBounds, type='bathyTopo')
+    bathy = gdTB.getBathyIntegratedTransect(method=bathyMethod, ybounds=yBounds, type='bathyTopo')
     gridDict = prepdata.prep_SwashBathy(wavepacket['xFRF'], wavepacket['yFRF'], bathy, dx=dx, dy=dy,
                                                  yBounds=yBounds)  # non-inclusive index if you want 3 make 4 wide
     
