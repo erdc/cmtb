@@ -28,13 +28,14 @@ def Master_workFlow(inputDict):
     workingDir = inputDict['workingDirectory']
     generateFlag = inputDict['generateFlag']
     runFlag = inputDict['runFlag']
-    pbsFlag = inputDict('pbsFlag', False)
+    pbsFlag = inputDict.get('pbsFlag', False)
     analyzeFlag = inputDict['analyzeFlag']
     plotFlag = inputDict['plotFlag']
     modelName = inputDict['modelSettings'].get('modelName', None)
     log = inputDict.get('logging', True)
     updateBathy = inputDict.get('updateBathy', None)
-
+    server = inputDict.get('server', 'CHL')
+    bathyMethod = inputDict.get('bathyMethod', 1)
     # __________________pre-processing checks________________________________
     version_prefix = fileHandling.checkVersionPrefix(modelName, inputDict)
     # __________________input directories________________________________
@@ -55,7 +56,9 @@ def Master_workFlow(inputDict):
     
     # ______________________________gather all data _____________________________
     if generateFlag == True:
-        go = getObs(projectStart-DT.timedelta(hours=3), projectEnd+DT.timedelta(hours=3), server=inputDict['server']) # initialize get observation
+        go = getObs(projectStart-DT.timedelta(hours=3), projectEnd+DT.timedelta(hours=3), server=server) # initialize
+        # get
+        # observation
         if modelName in ['ww3']:
             gauge = 'waverider-26m'
         elif modelName.lower() in ['swash', 'funwave']:
@@ -74,7 +77,7 @@ def Master_workFlow(inputDict):
         print('Beginning to setup simulation {}'.format(DT.datetime.now()))
         try:
             dateString = ''.join(''.join(time.split(':')).split('-'))
-            if not testName:
+            if testName is None:
                 testName = dateString
             # datadir = os.path.join(workingDirectory, dateString)  # moving to the new simulation's
             # pickleSaveName = os.path.join(datadir, timeStamp + '_ww3io.pickle')
@@ -109,8 +112,8 @@ def Master_workFlow(inputDict):
             elif modelName in ['swash']:
 
                 if generateFlag is True:
-                    wrr = wrrClass.swashIO(fNameBase=dateString, versionPrefix=version_prefix,
-                                           startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
+                    wrr = wrrClass.swashIO(workingDirectory=workingDirectory, testName=testName, \
+                          versionPrefix=version_prefix, startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
                                            simulatedRunTime=inputDict['simulationDuration'],
                                            endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(
                                                hours=inputDict['simulationDuration']), runFlag=runFlag,
