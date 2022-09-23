@@ -130,7 +130,9 @@ def swashSimSetup(startTimeString, inputDict, allWind, allWL, allWave, wrr):
     dy = inputDict['modelSettings'].get('dy', 1)
     yBounds = inputDict['modelSettings'].get('yBounds', [944, 947])
     nf = inputDict['modelSettings'].get('nf', 200)
+    equalEnergy = inputDict['modelSettings'].get('equalEnergy', False)
     bathyMethod = inputDict.get('bathyMethod', 1)
+    grid=inputDict['modelSettings'].get('grid', '1D')
     version_prefix = wrr.versionPrefix
     model = wrr.modelName
     rawspec = allWave
@@ -156,9 +158,10 @@ def swashSimSetup(startTimeString, inputDict, allWind, allWL, allWave, wrr):
     # _____________WAVES____________________________
     
     # preprocess wave spectra
-    # idxSim = np.argmin(np.abs(DT.datetime.strptime(startTimeString, '%Y-%m-%dT%H:%M:%SZ') - rawspec['time']))
-    # rawspec = sb.reduceDict(rawspec, idxSim)  # keep only a single simulation
-    wavepacket = prepdata.prep_spec_phaseResolved(rawspec, version_prefix, runDuration=runtime, nf=nf,
+    idxSim = np.argmin(np.abs(DT.datetime.strptime(startTimeString, '%Y-%m-%dT%H:%M:%SZ') - rawspec['time']))
+    rawspec = sb.reduceDict(rawspec, idxSim)  # keep only a single simulation
+    wavepacket = prepdata.prep_spec_phaseResolved(rawspec, version_prefix, runDuration=runtime, nf=nf, grid=grid,
+                                                  equalEnergy=equalEnergy,
                                                   waveTimeList=DT.datetime.strptime(wrr.dateString, wrr.dateStringFmt))
 
     ## ___________WATER LEVEL__________________
