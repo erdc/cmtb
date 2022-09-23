@@ -1,7 +1,7 @@
 # Spatial WAVE TEMPLATE
 _variables: ['time', 'xFRF', 'yFRF', 'longitude', 'latitude', 'station_name', 'waveHs', 'waveTm', 'waveDm', 'waveTp', 'bathymetry', 'xRadGrad', 'yRadGrad', 'dissipation', 'bathymetryDate', 'qcFlags']
 _attributes: ['notes']
-_dimensions: ['time', 'station_name_length', 'in_type', 'X_shore', 'Y_shore']
+_dimensions: ['time', 'station_name_length', 'X_shore', 'Y_shore']
 
 time:
     name: 'time'
@@ -34,6 +34,7 @@ xFRF:
     coordinates: 'lat lon'
     description: 'Significant Wave Height across the Modeled Domain from CMTB STWAVE model run'
     least_significant_digit: 2
+
 
 yFRF:
     name: 'yFRF'
@@ -83,7 +84,7 @@ waveHs:
     short_name: 'Wave Height'
     coordinates: 'lat lon'
     description: 'Significant Wave Height across the Modeled Domain from CMTB STWAVE model run'
-    
+
 waveTm:
     name: 'waveTm'
     units: 's'
@@ -184,7 +185,7 @@ bathymetryDate:
     coordinates: ''
     description: 'This marks when the bathymetry was measured if done by a traditional survey technique or when it was generated if done by bathymetry inversion tecnique'
 
-flags: 
+flags:
     name: 'qcFlag'
     units: ''
     standard_name: ''

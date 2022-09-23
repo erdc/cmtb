@@ -1,6 +1,6 @@
 cdm_data_type: Station
 featureType:  timeSeries
-title: Celeris bousinessq model
+title: SWASH non hydrostatic phase resolving models
 summary: >
    USACE/CHL/COAB/CMTB run SWASH model.  If you're going to use these data PLEASE contact me, I'm happy to share and work with people, but want to make sure model data are used responsibly.
 
