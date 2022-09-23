@@ -1,0 +1,184 @@
+## hopefully this is used for all phase resolving wave modeling done in test bed
+
+_variables: ['time','station_name', 'tsTime',  'xFRF', 'yFRF', 'waveHs', 'waveHsIG','elevation', 'totalWaterLevel', 'totalWaterLevelTS','waveEnergyDensity', 'waveFrequency', 'eta','velocityU', 'velocityV', 'runTime', 'nProcess']
+_attributes: []
+_dimensions: ['station_name', 'time', 'tsTime', 'xFRF', 'yFRF', 'waveFrequency']
+
+elevation:
+  name: 'elevation'
+  units: 'meters NAVD88'
+  standard_name: ''
+  long_name: 'elevation'
+  data_type: 'f8'
+  coordinates: 'time'
+  dim: ['time', 'xFRF']
+  fill_value: '-999.99'
+  short_name: 'Elevation'
+
+waveEnergyDensity:
+  name: 'waveEnergyDensity'
+  units: 'm2 s deg-1'
+  data_type: 'f8'
+  standard_name: 'sea_surface_wave_variance_spectral_density'
+  long_name: 'spectral energy density'
+  short_name: 'freqSpec'
+  fill_value: '-999'
+  dim: ['time','xFRF', 'waveFrequency']
+  description: 'the spectrum output, processed with welch method bandAvg = 1, overlap=0.5, windowLength=10'
+
+time:
+    name: 'time'
+    units: 'seconds since 1970-01-01 00:00:00'
+    standard_name: 'time'
+    long_name: 'UTC Model start Time'
+    data_type: 'f8'
+    dim: ['time']
+    calendar: 'gregorian'
+    fill_value: '-999.99'
+
+runTime:
+    name: 'runTime'
+    units: 'seconds since start of simulation'
+    long_name: 'Wall time since start of simulation'
+    short_name: 'WallTime'
+    data_type: 'f8'
+    dim: ['time']
+    description: 'this is taken from a difference in datetime now calls before and after the simulation is run'
+    fill_value: '-999.99'
+
+nProcess:
+  name: 'nProcess'
+  dim: ['time']
+  data_type: 'i4'
+  units: 'processor'
+  description: 'number of processes the simulation is run using'
+  fill_value: '-999'
+
+tsTime:
+    name: 'tsTime'
+    units: 'seconds'
+    standard_name: ''
+    long_name: 'time since start of simulation'
+    data_type: 'f8'
+    dim: ['tsTime']
+    calendar: 'gregorian'
+    fill_value: '-999.99'
+
+waveHs:
+    name: 'waveHs'
+    units: 'm'
+    long_name: 'significant wave height'
+    short_name: 'Hs'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999'
+    notes: 'calculated from Total Frequency Spectra'
+
+waveHsIG:
+    name: 'waveHsIG'
+    units: 'm'
+    long_name: 'significant Infragravity wave Height'
+    short_name: 'Hs-IG'
+    data_type: 'f8'
+    dim: ['time', 'xFRF']
+    fill_value: '-999'
+    notes: 'calculated from frequency spectra below 0.05 hz'
+
+xFRF:
+    name: 'xFRF'
+    units: 'meters'
+    standard_name: ''
+    long_name: 'cross-shore position '
+    data_type: 'f8'
+    dim: ['xFRF']
+    fill_value: '-999.99'
+
+yFRF:
+    name: 'yFRF'
+    units: 'meters'
+    standard_name: 'alongshore position'
+    long_name: 'alongshore position'
+    data_type: 'f8'
+    dim: ['yFRF']
+    fill_value: '-999.99'
+
+waveFrequency:
+    name: 'waveFrequency'
+    units: 's-1'
+    fill_value: '-999'
+    data_type: 'f8'
+    standard_name: 'wave_frequency'
+    long_name: 'Band center frequency'
+    dim: ['waveFrequency']
+    short_name: 'Frequency'
+
+eta:
+    name: 'eta'
+    units: 'meters NAVD88'
+    standard_name: ''
+    long_name: 'water surface elevation'
+    data_type: 'f8'
+    coordinates: 'time'
+    dim: ['time', 'tsTime', 'xFRF']
+    fill_value: '-999.99'
+    short_name: 'Water Temperature'
+
+totalWaterLevel:
+    name: 'totalWaterLevel'
+    units: 'meters NAVD88'
+    standard_name: ''
+    long_name: '2% water surface elevation'
+    data_type: 'f8'
+    coordinates: 'time'
+    dim: ['time']
+    fill_value: '-999.99'
+    short_name: 'runup'
+    comment: >
+        'Two-percent exceedence elevation of total water level (runup + setup +
+        surge + tide). Elevations reflect the instantaneous water level elevation
+        -- surge and tide components have not been removed'
+
+totalWaterLevelTS:
+    name: 'totalWaterLevelTS'
+    units: 'meters NAVD88'
+    standard_name: ''
+    long_name: 'water surface elevation'
+    data_type: 'f8'
+    coordinates: 'time'
+    dim: ['time', 'tsTime']
+    fill_value: '-999.99'
+    short_name: 'Water Temperature'
+    comment: >
+        'time series of total water level (runup + setup +
+        surge + tide). Elevations reflect the instantaneous water level elevation
+        -- surge and tide components have not been removed'
+velocityU:
+    name: 'velocityU'
+    units: 'hz'
+    standard_name: ''
+    long_name: 'velocity * depth '
+    data_type: 'f8'
+    dim: ['time', 'tsTime', 'xFRF']
+    fill_value: '-999.99'
+    short_name: 'U'
+    comment: 'this variable is actually a u*depth value as output by the model, if looking for vector output, need to divide by local depth'
+
+velocityV:
+    name: 'velocityV'
+    units: 'hz'
+    standard_name: ''
+    long_name: 'velocity * depth '
+    data_type: 'f8'
+    dim: ['time', 'tsTime',  'xFRF']
+    fill_value: '-999.99'
+    short_name: 'V'
+    comment: 'this variable is actually a v*depth value as output by the model, if looking for vector output, need to divide by local depth'
+
+station_name:
+    name: 'station_name'
+    units: ''
+    long_name: station name
+    cf_role: timeseries_id
+    short_name: station_name
+    data_type: 'S1'
+    dim: ['station_name']

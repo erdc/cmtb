@@ -1,0 +1,25 @@
+# # # # # # # # # # # #
+# Data control        #
+# # # # # # # # # # # #
+plotFlag: True                          # turn plotting on
+generateFlag: True                      # generate simulation input files (go get data, process, and write files)
+runFlag: True                          # run the simulation
+analyzeFlag: True                       # post process simulations (read files, post proces
+bathyLoc: integrated_bathy              # bathymetry source.  OPTIONAL: defaults to integrated_bathy
+########################
+#simulations parameters#
+########################
+startTime: 2018-03-02T00:00:00Z           # project start time
+endTime: 2018-04-03T00:00:00Z             # project End time
+simulationDuration: 24                    # duration in hours - how frequently to get new data, size of individual simulations
+modelExecutable: /modelSourceCodes/WW3/model/exe   # path to all appropriate executables (grid, bounc, shel)
+logging: False                            # optional
+verbose: True                             # optional
+modelSettings:
+  model: ww3                                  # model name string, used for filename/path generation
+  version_prefix: base                        # controls switched within the code
+  grid: grids/ww3/Mesh_interp_Mar2018.msh     # base grid sim               REQUIRED
+
+waveSettings:
+  waveFlag: True
+

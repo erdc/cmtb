@@ -1,0 +1,135 @@
+_variables: ['time', 'cellNumber','elevation', 'dzb', 'aveE', 'aveN', 'QbE', 'QbN', 'waterLevel', 'surveyNumber', 'surveyTime']
+_attributes: ['notes']
+_dimensions: ['time', 'cellNumber']
+
+elevation:
+    name: 'elevation'
+    units: 'm'
+    standard_name: ''
+    long_name: 'bed elevation for the cells'
+    data_type: 'f8'
+    dim: ['time', 'cellNumber']
+    fill_value: '999'
+    positive: 'up'
+    short_name: 'bathy'
+    description: 'Bottom elevation for the cells'
+
+dzb:
+    name: 'elevationChange'
+    units: 'm'
+    long_name: 'bed elevation change for the cells'
+    data_type: 'f8'
+    dim: ['time', 'cellNumber']
+    fill_value: '999'
+    short_name: 'bathy change'
+    description: 'Bottom elevation for the cells'
+
+QbE:
+    name: 'sedimentTransportEast'
+    units: 'kg/m/s'
+    long_name: 'bed elevation change for the cells'
+    data_type: 'f8'
+    dim: ['time', 'cellNumber']
+    fill_value: '-999'
+    short_name: 'Q_bE'
+    description: 'Sediment transport vector Values East, Check values before use.  might need to be rotated by grid angle'
+
+QbN:
+    name: 'sedimentTransportNorth'
+    units: 'kg/m/s'
+    long_name: 'Sediment Transport North'
+    data_type: 'f8'
+    dim: ['time', 'cellNumber']
+    fill_value: '-999'
+    short_name: 'Q_bN'
+    description: 'Sediment transport vector Values North, Check values before use.  might need to be rotated by grid angle'
+
+cellNumber:
+    name: 'cellNumber'
+    units: 'integer'
+    long_name: 'number of cells'
+    data_type: 'f8'
+    dim: ['cellNumber']
+    fill_value: '-999'
+    short_name: 'number of cells'
+    coordinates: 'N/A'
+    description: 'identification number for each cell in the .tel file'
+
+time:
+    name: 'time'
+    units: 'seconds since 1970-01-01 00:00:00'
+    standard_name: ''
+    long_name: 'UTC Model Time'
+    data_type: 'f8'
+    dim: ['time']
+    calendar: 'gregorian'
+    fill_value: '-999'
+
+aveE:
+    name: 'aveVeocityE'
+    units: 'm/s'
+    standard_name: ''
+    long_name: 'depth-averaged eastward current'
+    data_type: 'f8'
+    dim: ['time', 'cellNumber']
+    fill_value: '-999'
+    short_name: 'average eastward velocity'
+    coordinates: 'xFRF yFRF'
+    description: 'Depth averaged eastward current at each cell'
+
+aveN:
+    name: 'aveVelocityN'
+    units: 'm/s'
+    standard_name: ''
+    long_name: 'depth-averaged northward current'
+    data_type: 'f8'
+    dim: ['time', 'cellNumber']
+    fill_value: '-999'
+    short_name: 'average northward velocity'
+    description: 'Depth averaged northward current at each cell '
+
+waterLevel:
+    name: 'waterLevel'
+    units: 'm'
+    standard_name: ''
+    long_name: 'mean water surface elevation'
+    data_type: 'f8'
+    dim: ['time', 'cellNumber']
+    fill_value: '-999'
+    short_name: 'mwl'
+    coordinates: 'xFRF yFRF'
+    description: 'Mean water surface elevation at each cell '
+
+coldStart:
+    name: 'coldStart'
+    units: 'boolean'
+    long_name: 'cold start'
+    data_type: 'u1'
+    dim: ['time']
+    fill_value: '9'
+    short_name: 'coldStart'
+    description: '1 (true) shows that the model was cold started this run, and 0 means the model was run in a hotstart mode'
+
+surveyNumber:
+    name: 'surveyNumber'
+    units: 'integer'
+    standard_name: ''
+    long_name: 'survey number'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999'
+    short_name: 'surveyNumber'
+    coordinates: 'N/A'
+    description: 'the survey number from which the simulation started'
+
+surveyTime:
+    name: 'surveyTime'
+    units: 'seconds since 1970-01-01'
+    standard_name: ''
+    long_name: 'survey time'
+    data_type: 'f8'
+    dim: ['time']
+    fill_value: '-999'
+    short_name: 'surveyTime'
+    coordinates: 'N/A'
+    description: 'the survey time of the bathymetry that went into this file'

@@ -26,7 +26,7 @@ class MidpointNormalize(colors.Normalize):
 		x, y = [self.vmin, self.midpoint, self.vmax], [0, 0.5, 1]
 		return np.ma.masked_array(np.interp(value, x, y), np.isnan(value))
 
-def placeSubFigurePosition(text, ax, position, percentSpace=0.05, fontsize=12):
+def placeSubFigurePosition(text, ax, position, percentSpace=0.05, fontsize=12, fontcolor='black'):
     """ Function will insert a subplot label into the subplot axis eg A, B, C for multiple plots (for publication)
 
     Args:
@@ -35,9 +35,11 @@ def placeSubFigurePosition(text, ax, position, percentSpace=0.05, fontsize=12):
         position (str): where in the subplot to put the text available locations 'upper right', 'upper left'
         percentSpace (float):  decimal percent (default = 0.05)
         fontsize (int): font size (Default = 12)
-
+        fontcolor (string): a text object color string (default='black') see below link for more detials
+                        https://matplotlib.org/users/text_intro.html
     Returns:
         None
+
     """
     import matplotlib as mpl
     axLims_x = ax.get_xlim()
@@ -57,7 +59,7 @@ def placeSubFigurePosition(text, ax, position, percentSpace=0.05, fontsize=12):
         placePos_y = float(axLims_y[-1] - placeDiff_y)
         placePos_x = float(axLims_x[0] + placeDiff_x)
 
-    ax.text(placePos_x, placePos_y, text, fontsize=fontsize, verticalalignment=va, horizontalalignment=ha)
+    ax.text(placePos_x, placePos_y, text, fontsize=fontsize, verticalalignment=va, horizontalalignment=ha, color=fontcolor)
 
 def gradient_fill(x, y, fill_color=None, ax=None, zfunc=False, **kwargs):
     """This is a function that plots a gradient fill found here
@@ -138,7 +140,7 @@ def gradient_fill(x, y, fill_color=None, ax=None, zfunc=False, **kwargs):
 
     h, w = 100, 1
     # do shading here
-    if np.mean(np.diff(y)) >= 5:  # this should be directional plot
+    if np.mean(np.diff(y)) >= 5:  # this should be directionalWaveGaugeList plot
         z = np.empty((w, h, 4), dtype=float)
         rgb = mcolors.colorConverter.to_rgb(fill_color)
         z[:, :, :3] = rgb

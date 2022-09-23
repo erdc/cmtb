@@ -1,0 +1,28 @@
+# # # # # # # # # # # #
+# Data control        #
+# # # # # # # # # # # #
+pFlag: True                            # turn plotting on
+generateFlag: True                     # generate simulation input files (go get data, process, and write files)
+runFlag: True                          # run the simulation
+analyzeFlag: True                      # post process simulations (read files, post process data, make netCDF files, plot if desired)
+bathyLoc: integrated_bathy                  # bathymetry source.  OPTIONAL: defaults to FRF
+########################
+#simulations parameters#
+########################
+startTime: '2015-10-05T00:00:00Z'           # project start time
+endTime:   '2015-10-05T04:00:00Z'           # project End time
+simulationDuration: 1                       # duration in hours how frequently to get new data, size of individual simulations
+modelExecutable: bin/swash                  # path to the model
+########################
+# Model Settings       #
+########################
+
+modelSettings:
+  model: swash
+  version_prefix: Base                        # controls switched with int the code
+  grid: None                                  # create's grid automagically
+
+# this is the sim files, and plots
+workingDirectory: data/waveModels                                  # REQUIRED usually [cmtbRoot]/data/waveModels
+# this is the base directory where netCDF files are output to,
+netCDFdir: /home/spike/thredds_data/waveModels                             #optional will default to home/[whoami]/thredds_data -- this needs /

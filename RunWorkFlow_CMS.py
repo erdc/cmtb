@@ -1,144 +1,210 @@
 # -*- coding: utf-8 -*-
-#!/home/number/anaconda2/bin/python
 import matplotlib
 matplotlib.use('Agg')
-import os, getopt, sys, shutil, glob, logging, yaml
+import os, getopt, sys, shutil, glob, logging, yaml, re, pickle
 import datetime as DT
 from subprocess import check_output
 import numpy as np
-from frontback.frontBackCMS import CMSanalyze
-from frontback.frontBackCMS import CMSsimSetup
-
+from frontback import frontBackCMS
+from getdatatestbed import getDataFRF
+from testbedutils import fileHandling
+from prepdata import inputOutput
 
 def Master_CMS_run(inputDict):
     """This function will run CMS with any version prefix given start, end, and timestep
+    designed to be for unstructured work flow
 
     Args:
       inputDict: a dictionary that is read from the input yaml
+        model(str): available (ww3, cms)
 
     Returns:
-      None
 
     """
-    ## unpack Dictionary
-    version_prefix = inputDict['version_prefix']
-    endTime = inputDict['endTime']
-    startTime = inputDict['startTime']
-    simulationDuration = inputDict['simulationDuration']
-    workingDir = inputDict['workingDirectory']
-    generateFlag = inputDict['generateFlag']
-    runFlag = inputDict['runFlag']
-    analyzeFlag = inputDict['analyzeFlag']
-    pFlag = inputDict['pFlag']
+    # first up, need to check which parts I am running
+    waveFlag = inputDict['waveSettings'].get('waveFlag', True)
+    flowFlag = inputDict['flowSettings'].get('flowFlag', False)   # inputDict.get('flow', False)
+    morphFlag = inputDict['morphSettings'].get('morphFlag', False)
+    # parse out the rest of the input dictionary
+    endTime_str = inputDict['endTime']
+    startTime_str = inputDict['startTime']
+    simulationDuration = inputDict.get('simulationDuration', 24)
+    workingDir = inputDict.get('workingDirectory', '.')
+    generateFlag = inputDict.get('generateFlag', True)
+    runFlag = inputDict.get('runFlag', True)
+    analyzeFlag = inputDict.get('analyzeFlag', True)
+    model = inputDict['modelSettings'].get('name', 'CMS').lower()
+    coupleIncrement = inputDict.get('coupleIncrement', 0.5)  # couple every half hour
 
-    # data check
-    prefixList = np.array(['HP', 'UNTUNED'])
-    assert (version_prefix == prefixList).any(), "Please enter a valid version prefix\n Prefix assigned = %s must be in List %s" % (version_prefix, prefixList)
-
+    version_prefix = fileHandling.checkVersionPrefix(model, inputDict)
+    inputDict['version_prefix'] = version_prefix          # write prefix to inputDict
     # __________________input directories________________________________
-    codeDir = os.getcwd()  # location of code
+    codeDir = os.getcwd()                                 # location of root cmtb directory
     # check executable
-    if inputDict['modelExecutable'].startswith(codeDir):  # change to relative path
-        import re
+    if inputDict['modelExecutable'].startswith(codeDir):  # change to relative fname
         inputDict['modelExecutable'] = re.sub(codeDir, '', inputDict['modelExecutable'])
-
-    if workingDir[-1] == '/':
-        outDataBase = workingDir + 'CMS/' + version_prefix + '/'  #codeDir + '/%s_CSHORE_data/' % version_prefix
-    else:
-        outDataBase = workingDir + '/CMS/' + version_prefix +'/'
-
-    inputDict['path_prefix'] = outDataBase
-    TOD = 0  # 0=start simulations at 0000
+    inputDict['path_prefix'] = os.path.join(workingDir, model, version_prefix)
     # ______________________ Logging  ____________________________
-    # auto generated Log file using start_end time?
-
-    LOG_FILENAME = outDataBase+'logs/cmtb_BatchRun_Log_%s_%s_%s.log' %(version_prefix, startTime, endTime)
-    # try:
-    #     logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
-    # except IOError:
-    #     os.makedirs(outDataBase+'logs')
-    #     logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
-    # logging.debug('\n-------------------\nTraceback Error Log for:\n\nSimulation Started: %s\n-------------------\n'
-    #               % (DT.datetime.now()))
+    LOG_FILENAME = fileHandling.logFileLogic(inputDict['path_prefix'], version_prefix, startTime_str.replace(':', ''),
+                              endTime_str.replace(':', ''), log=False)
     # ____________________________________________________________
     # establishing the resolution of the input datetime
-    try:
-        projectEnd = DT.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(TOD / 24., 0, 0)
-        projectStart = DT.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(TOD / 24., 0, 0)
-    except ValueError:
-        assert len(endTime) == 10, 'Your Time does not fit convention, check T/Z and input format'
+    projectEnd = DT.datetime.strptime(endTime_str, '%Y-%m-%dT%H:%M:%SZ')
+    projectStart = DT.datetime.strptime(startTime_str, '%Y-%m-%dT%H:%M:%SZ')
 
-    # This is the portion that creates a list of simulation end times
-    dt_DT = DT.timedelta(0, simulationDuration * 60 * 60)  # timestep in datetime
+    # check the surveyNumber of the previous days run
+    cmtb_data = getDataFRF.getDataTestBed(projectStart, projectEnd)
+    # add pad to make sure there's enough data for coldStart
+    go = getDataFRF.getObs(projectStart-DT.timedelta(days=simulationDuration*3), projectEnd)
+    # now get all Data for Boundary conditions
+    if generateFlag is True:
+        allBathyTime = cmtb_data.getBathyIntegratedTransect(xbounds=[945, 950], ybounds=[945, 950],
+                                                            forceReturnAllPlusOne=True)['time']  # just for time
+        allWaves = go.getWaveSpec('waverider-26m')
+        allWinds = go.getWind()
+        allWL = go.getWL()
+
+    # TODO can i just pull all cold start dates and pass to next section to make decisions???
+    print('\n\n\nTODO: Develop code for changing time list if survey was just reprocessed\n\n\n')
+    # # try to pull the .nc file of the previous run. -> this code is requried ONLY if we want to hot start CMS Flow!
+    # try:
+    #     ## this section checks to see if i need to re-run simulations that were previously run with old bathymetry (identifying cold starts)
+    #     timeYesterday = projectStart - DT.timedelta(days=1)  # find yesterdays simulation in datetime
+    #     cmsIO_yesterday = inputOutput.cmsfIO(fname=os.path.join(inputDict['path_prefix'], DT.datetime.strftime(timeYesterday, '%Y-%m-%dT%H%M%SZ')))               # initialize the class
+    #     # get into the directory I need
+    #     cmsIO_yesterday.read_CMSF_all()
+    #     cmsIO_yesterday.read_CMSF_telnc()
+    #
+    #     # what survey number did this thing use??
+    #     prev_mod_stime = nc.num2date(cmsIO_yesterday.telnc_dict['surveyTime'][0], units='seconds since 1970-01-01')
+    #     CSflag = False
+    #
+    #     # what time was this survey number?  this says that if
+    #     # 1 - the previous model used a survey older than the latest survey
+    #     # 2 - the previous model started AFTER the latest survey (i.e., it should have used the latest survey)
+    #     if (allBathy > prev_mod_stime) and (timeYesterday > allBathy):
+    #         d1_N = allBathy.replace(microsecond=0, second=0, minute=0, hour=0)
+    #         if d1_N != allBathy:
+    #             # this means we rounded it down and have to add back a day to start on the 00:00:00 after the survey
+    #             d1_N = d1_N + DT.timedelta(days=1)
+    #         # reset the first day of the simulations to be the day after or of the latest survey
+    #         # (depending on if the survey time is 00:00:00 or 12:00:00)
+    #         projectStart = d1_N
+    #         CSflag = True
+    #
+    # except (IOError, OSError):
+    #     # this means that this is the first time this has been run, so you MUST coldstart
+    #     CSflag = True
+
+    # This is the portion that creates a list of simulation endTimes
+    simDur_DT = DT.timedelta(0, simulationDuration * 60 * 60)  # timestep in datetime
+
     # make List of Datestring items, for simulations
     dateStartList = [projectStart]
     dateStringList = [dateStartList[0].strftime("%Y-%m-%dT%H:%M:%SZ")]
-    for i in range(int(np.ceil((projectEnd-projectStart).total_seconds()/dt_DT.total_seconds()))-1):
-        dateStartList.append(dateStartList[-1] + dt_DT)
+    for i in range(int(np.ceil((projectEnd - projectStart).total_seconds()/simDur_DT.total_seconds()))-1):
+        dateStartList.append(dateStartList[-1] + simDur_DT)
         dateStringList.append(dateStartList[-1].strftime("%Y-%m-%dT%H:%M:%SZ"))
+    fileHandling.displayStartInfo(projectStart, projectEnd, version_prefix, LOG_FILENAME, model)
 
     errors, errorDates = [],[]
     curdir = os.getcwd()
     # ______________________________decide process and run _____________________________
     # run the process through each of the above dates
-    print '\n-\n-\nMASTER WorkFLOW for STWAVE SIMULATIONS\n-\n-\n'
-    print 'Batch Process Start: %s     Finish: %s '% (projectStart, projectEnd)
-    print 'The batch simulation is Run in %s Version' % version_prefix
-    print 'Check for simulation errors here %s' % LOG_FILENAME
-    print '------------------------------------\n\n************************************\n\n------------------------------------\n\n'
-
+    print('------------------------------------\n\n************************************\n\n------------------------------------\n\n')
+    print('Master workflow for {} simulations'.format(model))
+    print('Batch Process Start: %s     Finish: %s '% (projectStart, projectEnd))
+    print('The batch simulation is run in "%s" version' % version_prefix)
+    print('Check for simulation errors here %s' % LOG_FILENAME)
+    print('------------------------------------\n\n************************************\n\n------------------------------------\n\n')
     # ________________________________________________ RUN LOOP ________________________________________________
-    for time in dateStringList:
-        try:
-            print '**\nBegin '
-            print 'Beginning Simulation %s' %DT.datetime.now()
 
-            if generateFlag == True:
-                CMSsimSetup(time, inputDict=inputDict)
-                datadir = outDataBase + ''.join(time.split(':'))  # moving to the new simulation's folder
+    for time in dateStringList:
+        datestringNow = ''.join(''.join(time.split(':')).split('-'))
+        workingDirectory = os.getcwd() # moving to the new simulation's folder
+        print('----------------------  Begin: {} --------------------------------'.format(time))
+
+        try:
+            if generateFlag == True and flowFlag is True:
+                modifiedStartTime, d2, cmsfio, inputDict['waveTimeList'] = frontBackCMS.CMSFsimSetup(time, inputDict=inputDict,
+                                                                          bathyTimes=allBathyTime, allWL=allWL,
+                                                                          allWaves=allWaves, allWind=allWinds)
+
+                time, inputDict = frontBackCMS.modStartTimes(time, modifiedStartTime, inputDict, cmsfio.datestring)
+                workingDirectory = os.path.join(inputDict['path_prefix'],
+                                                inputDict['datestring'])  # overwrite if dates changed
+                datestringNow = inputDict['datestring']
+
+            if generateFlag is True and waveFlag is True:
+                frontBackCMS.CMSwaveSimSetup(time, inputDict=inputDict, bathyTimes=allBathyTime, allWL=allWL,
+                                             allWaves=allWaves, allWind=allWinds, flowFlag=flowFlag)
+            cmsFpickleSaveFname = os.path.join(inputDict['path_prefix'], datestringNow, datestringNow + '_cmsfio.pickle')
 
             if runFlag == True: # run model
-                os.chdir(datadir) # changing locations to where input files should be made
-                print 'Running CMS Simulation'
+                os.chdir(workingDirectory)  # changing locations to where input files should be made
                 dt = DT.datetime.now()
+                print('Beginning {} Simulation {}'.format(model, dt))
 
-                simOutput = check_output(codeDir + '%s %s.sim' %(inputDict['modelExecutable'], ''.join(time.split(':'))), shell=True)
+                if waveFlag is True and flowFlag is True:
+                    runSimString = ' {}.sim {}.cmcards {}'.format(cmsfio.datestring, cmsfio.datestring, coupleIncrement)
+                elif waveFlag is True:
+                    runSimString = ' {}.sim'.format(datestringNow)
+                _ = check_output(os.path.join(codeDir, inputDict['modelExecutable'] + runSimString), shell=True)
 
-                print 'Simulation took %s ' % (DT.datetime.now() - dt)
+                cmsfio.simulationWallTime = DT.datetime.now() - dt
+                print('Simulation took {:.1f} minutes'.format(cmsfio.simulationWallTime.seconds/60))
                 os.chdir(curdir)
 
-            if analyzeFlag == True:
-                print '**\nBegin Analyze Script %s ' % DT.datetime.now()
-                CMSanalyze(time, inputDict=inputDict)
+                if flowFlag is True:
+                    with open(cmsFpickleSaveFname, 'wb') as fid:
+                        pickle.dump(cmsfio, fid, protocol = pickle.HIGHEST_PROTOCOL)
 
-            if pFlag == True and DT.date.today() == projectEnd:
+            elif runFlag is False and flowFlag is True:  # load flow pickle
+                try:
+                    with open(cmsFpickleSaveFname, 'rb') as fid:
+                        cmsfio = pickle.load(fid)
+                except (FileNotFoundError):
+                    print("couldn't open sim metadata pickle to begin file post-processing: moving to next time")
+                    continue  # loop to next time
+
+            if analyzeFlag == True:
+                print('**\nBegin Analyze Script {}'.format(DT.datetime.now()))
+                if waveFlag:
+                    frontBackCMS.CMSanalyze(time, inputDict=inputDict)
+                if flowFlag:
+                    frontBackCMS.CMSFanalyze(inputDict, cmsfio)
+
+            if inputDict['plotFlag'] is True and DT.date.today() == projectEnd:
                 # move files
                 moveFnames = glob.glob(curdir + 'cmtb*.png')
                 moveFnames.extend(glob.glob(curdir + 'cmtb*.gif'))
                 for file in moveFnames:
                     shutil.move(file,  '/mnt/gaia/cmtb')
-                    print 'moved %s ' % file
-            print('------------------SUCCESSS-----------------------------------------')
+                    print('moved %s ' % file)
 
-        except Exception, e:
-            print '<< ERROR >> HAPPENED IN THIS TIME STEP '
-            print e
-            logging.exception('\nERROR FOUND @ %s\n' %time, exc_info=True)
+            print('----------------------   SUCCESS: Done {} --------------------------------'.format(time))
+
+        except Exception as e:
+            print('<< ERROR >> HAPPENED IN THIS TIME STEP : {}'.format(e))
+            logging.exception('\nERROR FOUND @ {}\n'.format(time), exc_info=True)
             os.chdir(curdir)
-
 
 if __name__ == "__main__":
     opts, args = getopt.getopt(sys.argv[1:], "h", ["help"])
-    print '___________________\n________________\n___________________\n________________\n___________________\n________________\n'
-    print 'USACE FRF Coastal Model Test Bed : CMS Wave'
+    print('___________________\n________________\n___________________\n________________\n___________________\n________________\n')
+    print('USACE FRF Coastal Model Test Bed')
 
     # we are no longer allowing a default yaml file.
     # It will throw and error and tell the user where to go look for the example yaml
     try:
-        # assume the user gave the path
+        # assume the user gave the fname
         yamlLoc = args[0]
+        if os.path.exists('.cmtbSettings'):
+            with open('.cmtbSettings', 'r') as fid:
+                a = yaml.safe_load(fid)
         with open(os.path.join(yamlLoc), 'r') as f:
-            inputDict = yaml.load(f)
+            inputDict = yaml.safe_load(f)
+        inputDict.update(a)
     except:
         raise IOError('Input YAML file required.  See yaml_files/TestBedExampleInputs/CMS_Input_example for example yaml file.')
 
