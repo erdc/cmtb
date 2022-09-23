@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import os, getopt, sys, shutil, glob, logging, yaml, re, pickle
 import datetime as DT
 import numpy as np
@@ -77,7 +77,7 @@ def Master_workFlow(inputDict):
         print('Beginning to setup simulation {}'.format(DT.datetime.now()))
         try:
             dateString = ''.join(''.join(time.split(':')).split('-'))
-            if testName is None:
+            if testName is None or testName == '' :
                 testName = dateString
             # datadir = os.path.join(workingDirectory, dateString)  # moving to the new simulation's
             # pickleSaveName = os.path.join(datadir, timeStamp + '_ww3io.pickle')
@@ -110,23 +110,22 @@ def Master_workFlow(inputDict):
                                                                                                      wrr=wrr)
                 
             elif modelName in ['swash']:
-
                 if generateFlag is True:
                     wrr = wrrClass.swashIO(workingDirectory=workingDirectory, testName=testName, \
-                          versionPrefix=version_prefix, startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
-                                           simulatedRunTime=inputDict['simulationDuration'],
-                                           endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(
-                                               hours=inputDict['simulationDuration']), runFlag=runFlag,
-                                           generateFlag=generateFlag, readFlag=analyzeFlag,
-                                           newModelParams=inputDict['modelSettings'])
+                        versionPrefix=version_prefix, startTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ'),
+                        simulatedRunTime=inputDict['simulationDuration'],
+                        endTime=DT.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ') + DT.timedelta(hours=inputDict[
+                            'simulationDuration']), runFlag=runFlag,
+                       generateFlag=generateFlag, readFlag=analyzeFlag, newModelParams=inputDict['modelSettings'])
                     wavePacket, windPacket, wlPacket, bathyPacket, gridFname, wrr = frontBackNEW.swashSimSetup(time,
                                                                                                      inputDict=inputDict,
                                                                                                      allWind=rawwind,
                                                                                                      allWL=rawWL,
                                                                                                      allWave=rawspec,
-                                                                                                     wrr=wrr)
+                                                                                                     wrr=wrr,
+                                                                                                     )
                 else:
-                    wrr = pickle.load(open(os.path.join(workingDirectory, f"{dateString}_io.pickle"), 'rb'),
+                    wrr = pickle.load(open(os.path.join(workingDirectory,testName, f"{dateString}_io.pickle"), 'rb'),
                                       protocol=pickle.HIGHEST_PROTOCOL)
             elif modelName in ['cshore']:
                 wrr = wrrClass.cshoreio(workingDirectory=workingDirectory,testName=testName, versionPrefix=version_prefix,
